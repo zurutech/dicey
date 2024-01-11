@@ -1,14 +1,10 @@
 #include <sys/types.h>
-#if !defined(LEL_H)
-#define LEL_H
+#if !defined(DTF_DHCBDDHD_H)
+#define DTF_DHCBDDHD_H
 
 #include <errno.h>
 #include <stddef.h>
 #include <stdint.h>
-
-#if defined(__cplusplus)
-extern "C" {
-#endif
 
 // this enum uses same values as errno.h for comparable value. While the errno values are not defined by the C standard,
 // they are defined by POSIX, Win32 and C++, and widely used. We use them here to make it easier to integrate with
@@ -123,6 +119,7 @@ struct dtf_craftres {
 };
 
 struct dtf_craftres dtf_craft_message(enum dtf_msgkind kind, struct dtf_view path, struct dtf_view selector, struct dtf_view value);
+ptrdiff_t dtf_estimate_message_size(enum dtf_msgkind kind, struct dtf_view path, struct dtf_view selector, struct dtf_view value);
 
 struct dtf_loadres {
     // result will be:
@@ -139,11 +136,6 @@ struct dtf_loadres {
     };
 };
 
-struct dtf_loadres dtf_load(const char *data, size_t len);
-struct dtf_bytes* dtf_sprintf(const char *fmt, ...);
+struct dtf_loadres dtf_load_message(const char *data, size_t len);
 
-#if defined(__cplusplus)
-}
-#endif
-
-#endif // LEL_H
+#endif // DTF_DHCBDDHD_H

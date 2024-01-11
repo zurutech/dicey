@@ -140,8 +140,8 @@ static ptrdiff_t trailer_sizeof(const struct dtf_view *const views, const size_t
     uint32_t trailer_size = sizeof views->len * nviews;
 
     for (const struct dtf_view *view = views; view != end; ++view) {
-        if (!checked_add(&trailer_size, trailer_size, views->len)) {
-            return -1;
+        if (!checked_add(&trailer_size, trailer_size, view->len)) {
+            return DTF_EOVERFLOW;
         }
     }
 
@@ -166,8 +166,45 @@ static void trailer_write(void *dest, const struct dtf_view *views, const size_t
     }
 }
 
-struct dtf_craftres dtf_craft_message(const enum dtf_msgkind kind, const struct dtf_view path, const struct dtf_view selector, const struct dtf_view value) {
-    assert(is_message(kind));
+struct dtf_craftres dtf_craft_message(
+    const enum dtf_msgkind kind,
+    const struct dtf_view path,
+    const struct dtf_view selector,
+    const struct dtf_view value
+) {
+    const ptrdiff_t needed_len = dtf_estimate_message_size(kind, path, selector, value);
+
+    if (needed_len < 0) {
+        return (struct dtf_craftres) { .result = (enum dtf_error) needed_len };
+    }
+
+    struct dtf_message *const msg = calloc((size_t) needed_len, 1U);
+    if (!msg) {
+        return (struct dtf_craftres) { .result = DTF_ENOMEM };
+    }
+
+    const struct dtf_view views[] = { path, selector, value };
+    const size_t nviews = sizeof views / sizeof *views;
+
+    trailer_write(msg->data, views, nviews);
+
+    msg->head = (struct dtf_message_head) {
+        .kind = kind,
+        .data_len = (uint32_t) { needed_len } - fixed_sizeof(kind),
+    };
+
+    return (struct dtf_craftres) { .result = DTF_OK, .msg = msg };
+}
+
+ptrdiff_t dtf_estimate_message_size(
+    const enum dtf_msgkind kind,
+    const struct dtf_view path,
+    const struct dtf_view selector,
+    const struct dtf_view value
+) {
+    if(!is_message(kind)) {
+        return DTF_EINVAL;
+    }
 
     const struct dtf_view views[] = { path, selector, value };
     const size_t nviews = sizeof views / sizeof *views;
@@ -175,27 +212,13 @@ struct dtf_craftres dtf_craft_message(const enum dtf_msgkind kind, const struct 
     const ptrdiff_t trailer_size = trailer_sizeof(views, nviews);
 
     if (trailer_size < 0) {
-        return (struct dtf_craftres) { .result = DTF_EOVERFLOW };
+        return DTF_EOVERFLOW;
     }
 
-    const size_t needed_len = fixed_sizeof(kind) + trailer_size;
-
-    struct dtf_message *const msg = calloc(needed_len, 1U);
-    if (!msg) {
-        return (struct dtf_craftres) { .result = DTF_ENOMEM };
-    }
-
-    trailer_write(msg->data, views, nviews);
-
-    msg->head = (struct dtf_message_head) {
-        .kind = kind,
-        .data_len = (uint32_t) { trailer_size },
-    };
-
-    return (struct dtf_craftres) { .result = DTF_OK, .msg = msg };
+    return (ptrdiff_t) { fixed_sizeof(kind) } + trailer_size;
 }
 
-struct dtf_loadres dtf_load(const char *const data, const size_t len) {
+struct dtf_loadres dtf_load_message(const char *const data, const size_t len) {
     struct dtf_loadres res = { .result = DTF_OK, .remainder = data };
 
     // ensure we have at least the message kind
@@ -260,32 +283,6 @@ struct dtf_loadres dtf_load(const char *const data, const size_t len) {
     loadres_set(&res, kind, payload);
 
     return res;
-}
-
-struct dtf_bytes* dtf_sprintf(const char *const fmt, ...) {
-    va_list args, copy;
-    va_start(args, fmt);
-
-    va_copy(copy, args);
-
-    const int len = vsnprintf(NULL, 0U, fmt, copy);
-
-    va_end(copy);
-
-    struct dtf_bytes *const str = calloc(sizeof(struct dtf_bytes) + len + 1U, 1U);
-
-    if (len < 0 || !str) {
-        free(str);
-
-        return NULL;
-    }
-
-    const int new_len = vsnprintf(str->data, len + 1U, fmt, args);
-    assert(new_len == len);
-
-    str->len = len;
-
-    return str;
 }
 
 const char* dtf_strerror(const int errnum) {
