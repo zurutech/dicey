@@ -1,0 +1,29 @@
+#include <dicey/errors.h>
+
+const char* dicey_strerror(const int errnum) {
+    switch (errnum) {
+    default:
+        return "unknown error";
+
+    case DICEY_OK:
+        return "success";
+
+    case DICEY_EAGAIN:
+        return "not enough data";
+
+    case DICEY_ENOMEM:
+        return "out of memory";
+
+    case DICEY_EINVAL:
+        return "invalid argument";
+
+    case DICEY_EBADMSG:
+        return "bad message";
+
+    case DICEY_EOVERFLOW:
+        return "overflow";
+
+    case DICEY_EPATH_TOO_LONG:
+        return "path too long";
+    }
+}

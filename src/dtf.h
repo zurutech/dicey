@@ -2,23 +2,21 @@
 #if !defined(DTF_DHCBDDHD_H)
 #define DTF_DHCBDDHD_H
 
+#if defined(__cplusplus)
+#  error "This header is not meant to be included from C++"
+#endif
+
 #include <errno.h>
 #include <stddef.h>
 #include <stdint.h>
 
-// this enum uses same values as errno.h for comparable value. While the errno values are not defined by the C standard,
-// they are defined by POSIX, Win32 and C++, and widely used. We use them here to make it easier to integrate with
-// existing code.
-enum dtf_error {
-    DTF_OK = 0,
-    DTF_EAGAIN    = -EAGAIN,
-    DTF_ENOMEM    = -ENOMEM,
-    DTF_EINVAL    = -EINVAL,
-    DTF_EBADMSG   = -EBADMSG,
-    DTF_EOVERFLOW = -EOVERFLOW,
-};
+#include <dicey/types.h>
 
-const char* dtf_strerror(int errnum);
+#if defined(_MSC_VER)
+#pragma warning(disable: 4200)
+#endif
+
+#include "dtf-value.h"
 
 enum dtf_msgkind {
     DTF_MSGKIND_INVALID = 0x00,
@@ -30,53 +28,6 @@ enum dtf_msgkind {
     DTF_MSGKIND_EXEC     = 0x12,
     DTF_MSGKIND_EVENT    = 0x13,
     DTF_MSGKIND_RESPONSE = 0x14,
-};
-
-enum dtf_type {
-    DTF_TYPE_INVALID = 0,
-    DTF_TYPE_BOOL,
-    DTF_TYPE_BYTE,
-    DTF_TYPE_FLOAT,
-    DTF_TYPE_INT,
-    DTF_TYPE_ARRAY,
-    DTF_TYPE_TUPLE,     // represented as array of variants
-    DTF_TYPE_BYTES,     // optimized array of bytes
-    DTF_TYPE_PATH,      // alias for string
-    DTF_TYPE_SELECTOR,  
-    DTF_TYPE_VARIANT,
-};
-
-#define DTF_BYTE_ARRAY_FIELDS \
-    uint32_t len; \
-    char data[];
-
-struct dtf_array {
-    uint32_t type;
-    
-    DTF_BYTE_ARRAY_FIELDS
-};
-
-struct dtf_bytes {
-    DTF_BYTE_ARRAY_FIELDS
-};
-
-struct dtf_tuple {
-    uint32_t len;
-    char data[];
-};
-
-typedef uint8_t dtf_bool;
-typedef int64_t dtf_int;
-typedef double dtf_float;
-
-struct dtf_value {
-    uint32_t type;
-    char data[];
-};
-
-struct dtf_view {
-    uint32_t len;
-    void *data;
 };
 
 #define DTF_PAYLOAD_HEAD \
@@ -96,11 +47,11 @@ struct dtf_message_head {
 struct dtf_message {
     struct dtf_message_head head;
 
-    char data[];
+    uint8_t data[];
 };
 
 #define DTF_MSG_LEN(MSG) ((sizeof (MSG)->head) + (MSG)->head.data_len)
-#define DTF_MSG_PATH(MSG) ((struct dtf_view) { .len = (MSG)->head.path, .data = (MSG)->data })
+#define DTF_MSG_PATH(MSG) ((struct dicey_view) { .len = (MSG)->head.path, .data = (MSG)->data })
 
 struct dtf_hello {
     DTF_PAYLOAD_HEAD
@@ -118,8 +69,14 @@ struct dtf_craftres {
     struct dtf_message* msg;
 };
 
-struct dtf_craftres dtf_craft_message(enum dtf_msgkind kind, struct dtf_view path, struct dtf_view selector, struct dtf_view value);
-ptrdiff_t dtf_estimate_message_size(enum dtf_msgkind kind, struct dtf_view path, struct dtf_view selector, struct dtf_view value);
+struct dtf_craftres dtf_craft_message(enum dtf_msgkind kind, const char *path, struct dicey_selector selector, struct dicey_view value);
+struct dtf_craftres dtf_craft_message_to(struct dicey_view_mut dest, enum dtf_msgkind kind, const char *path, struct dicey_selector selector, struct dicey_view value);
+
+int dtf_craft_selector_to(struct dicey_view_mut dest, struct dicey_selector selector);
+
+ptrdiff_t dtf_estimate_message_size(enum dtf_msgkind kind, const char *path, struct dicey_selector selector, struct dicey_view value);
+
+int dtf_load_selector_from(struct dicey_selector *selector, struct dicey_view src);
 
 struct dtf_loadres {
     // result will be:
@@ -137,5 +94,9 @@ struct dtf_loadres {
 };
 
 struct dtf_loadres dtf_load_message(const char *data, size_t len);
+
+#if defined(_MSC_VER)
+#pragma warning(default: 4200)
+#endif
 
 #endif // DTF_DHCBDDHD_H

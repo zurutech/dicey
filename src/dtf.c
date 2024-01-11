@@ -7,22 +7,14 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <dicey/errors.h>
+#include <dicey/types.h>
+
 #include "dtf.h"
+#include "util.h"
 
 static_assert(sizeof(uint32_t) <= sizeof(size_t), "uint32_t must fit in a size_t");
 static_assert(sizeof(uint32_t) <= sizeof(ptrdiff_t), "uint32_t must fit in a ptrdiff_t");
-
-static bool checked_add(uint32_t *const res, const uint32_t a, const uint32_t b) {
-    const uint32_t sum = a + b;
-
-    if (sum < a) {
-        return false;
-    }
-
-    *res = sum;
-
-    return true;
-}
 
 static size_t fixed_sizeof(const enum dtf_msgkind kind) {
     switch (kind) {
@@ -69,11 +61,6 @@ static bool is_kind_invalid(const enum dtf_msgkind kind) {
 static bool is_message(const enum dtf_msgkind kind) {
     switch (kind) {
     default:
-        assert(false);
-
-    case DTF_MSGKIND_INVALID:
-    case DTF_MSGKIND_HELLO:
-    case DTF_MSGKIND_BYE:
         return false;
 
     case DTF_MSGKIND_GET:
@@ -134,96 +121,161 @@ static void loadres_set(struct dtf_loadres *const res, const enum dtf_msgkind ki
     }
 }
 
-static ptrdiff_t trailer_sizeof(const struct dtf_view *const views, const size_t nviews) {
-    const struct dtf_view *const end = views + nviews;
-
-    uint32_t trailer_size = sizeof views->len * nviews;
-
-    for (const struct dtf_view *view = views; view != end; ++view) {
-        if (!checked_add(&trailer_size, trailer_size, view->len)) {
-            return DTF_EOVERFLOW;
-        }
+static ptrdiff_t selector_sizeof(const struct dicey_selector selector) {
+    const ptrdiff_t trait_len = dutl_zstring_sizeof(selector.trait); 
+    if (trait_len < 0) {
+        return trait_len;
     }
 
-    return trailer_size;
+    const ptrdiff_t elem_len = dutl_zstring_sizeof(selector.elem);
+    if (elem_len < 0) {
+        return elem_len;
+    }
+
+    if (trait_len > (ptrdiff_t) UINT32_MAX - elem_len) {
+        return DICEY_EOVERFLOW;
+    }
+
+    return trait_len + elem_len;
 }
 
-static void write_blob(void **const dest, const struct dtf_view view) {
-    if (view.len) {
-        memcpy(*dest, &view.len, sizeof view.len);
-        *dest += sizeof view.len;
+static void selector_write(void **const dest, const struct dicey_selector sel) {
+    // todo: check for overflow, for now we assume that the caller has done its job
+    struct dicey_view chunks[] = {
+        (struct dicey_view) { .data = (void*) sel.trait, .len = strlen(sel.trait) + 1U },
+        (struct dicey_view) { .data = (void*) sel.elem, .len = strlen(sel.elem) + 1U },
+    };
 
-        memcpy(*dest, view.data, view.len);
-        *dest += view.len;
-    }
+    dutl_write_chunks(dest, chunks, 2U);
 }
 
-static void trailer_write(void *dest, const struct dtf_view *views, const size_t nviews) {
-    const struct dtf_view *const end = views + nviews;
+static int view_fromstr(struct dicey_view *view, const char *const str) {
+    const ptrdiff_t size = dutl_zstring_sizeof(str);
 
-    for (const struct dtf_view *view = views; view != end; ++view) {
-        write_blob(&dest, *view);
+    if (size < 0) {
+        return (int) size;
     }
+
+    *view = (struct dicey_view) { .data = (void*) str, .len = (uint32_t) size};
+
+    return DICEY_OK;
 }
 
 struct dtf_craftres dtf_craft_message(
     const enum dtf_msgkind kind,
-    const struct dtf_view path,
-    const struct dtf_view selector,
-    const struct dtf_view value
+    const char *path,
+    const struct dicey_selector selector,
+    const struct dicey_view value
 ) {
     const ptrdiff_t needed_len = dtf_estimate_message_size(kind, path, selector, value);
 
     if (needed_len < 0) {
-        return (struct dtf_craftres) { .result = (enum dtf_error) needed_len };
+        return (struct dtf_craftres) { .result = (enum dicey_error) needed_len };
     }
 
     struct dtf_message *const msg = calloc((size_t) needed_len, 1U);
     if (!msg) {
-        return (struct dtf_craftres) { .result = DTF_ENOMEM };
+        return (struct dtf_craftres) { .result = DICEY_ENOMEM };
     }
 
-    const struct dtf_view views[] = { path, selector, value };
-    const size_t nviews = sizeof views / sizeof *views;
+    return dtf_craft_message_to(
+        dicey_view_mut_from(msg, (size_t) needed_len),
+        kind,
+        path,
+        selector,
+        value
+    );
+}
 
-    trailer_write(msg->data, views, nviews);
+struct dtf_craftres dtf_craft_message_to(
+    const struct dicey_view_mut dest,
+    const enum dtf_msgkind kind,
+    const char *const path,
+    const struct dicey_selector selector,
+    const struct dicey_view value
+) {
+    const ptrdiff_t needed_len = dtf_estimate_message_size(kind, path, selector, value);
+
+    if (needed_len < 0) {
+        return (struct dtf_craftres) { .result = (enum dicey_error) needed_len };
+    }
+
+    if (dest.len > PTRDIFF_MAX || needed_len > (ptrdiff_t) dest.len) {
+        return (struct dtf_craftres) { .result = DICEY_EOVERFLOW };
+    }
+
+    struct dtf_message *const msg = dest.data;
+    assert(msg);
+
+    void *trailer = msg->data;
+
+    struct dicey_view path_view = {0};
+
+    if (view_fromstr(&path_view, path) == DICEY_EOVERFLOW) {
+        return (struct dtf_craftres) { .result = DICEY_EPATH_TOO_LONG };
+    }
+
+    dutl_write_bytes(&trailer, path_view);
+    selector_write(&trailer, selector);
+    dutl_write_buffer(&trailer, value);
+
+    const uint32_t trailer_size = (uint32_t) needed_len - (uint32_t) fixed_sizeof(kind);
 
     msg->head = (struct dtf_message_head) {
         .kind = kind,
-        .data_len = (uint32_t) { needed_len } - fixed_sizeof(kind),
+        .data_len = trailer_size,
     };
 
-    return (struct dtf_craftres) { .result = DTF_OK, .msg = msg };
+    return (struct dtf_craftres) { .result = DICEY_OK, .msg = msg };
+}
+
+int dtf_craft_selector_to(struct dicey_view_mut dest, struct dicey_selector selector) {
+    const ptrdiff_t needed_len = selector_sizeof(selector);
+
+    if (needed_len < 0 || dest.len > PTRDIFF_MAX || needed_len > (ptrdiff_t) dest.len) {
+        return DICEY_EOVERFLOW;
+    }
+
+    selector_write(&(void *) { dest.data }, selector);
+
+    return DICEY_OK;
 }
 
 ptrdiff_t dtf_estimate_message_size(
     const enum dtf_msgkind kind,
-    const struct dtf_view path,
-    const struct dtf_view selector,
-    const struct dtf_view value
+    const char *const path,
+    const struct dicey_selector selector,
+    const struct dicey_view value
 ) {
     if(!is_message(kind)) {
-        return DTF_EINVAL;
+        return DICEY_EINVAL;
     }
 
-    const struct dtf_view views[] = { path, selector, value };
-    const size_t nviews = sizeof views / sizeof *views;
-    
-    const ptrdiff_t trailer_size = trailer_sizeof(views, nviews);
+    uint32_t total_size = (uint32_t) fixed_sizeof(kind);
 
-    if (trailer_size < 0) {
-        return DTF_EOVERFLOW;
+    const ptrdiff_t sizes[] = {
+        dutl_zstring_sizeof(path),
+        selector_sizeof(selector),
+        dutl_buffer_sizeof(value)
+    };
+
+    const ptrdiff_t *end = sizes + sizeof sizes / sizeof *sizes;
+
+    for (const ptrdiff_t *size = sizes; size != end; ++size) {
+        if (*size < 0 || !dutl_u32_add(&total_size, total_size, (uint32_t) *size)) {
+            return DICEY_EOVERFLOW;
+        }
     }
 
-    return (ptrdiff_t) { fixed_sizeof(kind) } + trailer_size;
+    return total_size;
 }
 
 struct dtf_loadres dtf_load_message(const char *const data, const size_t len) {
-    struct dtf_loadres res = { .result = DTF_OK, .remainder = data };
+    struct dtf_loadres res = { .result = DICEY_OK, .remainder = data };
 
     // ensure we have at least the message kind
     if (!data || len < sizeof(uint32_t)) {
-        res.result = DTF_EAGAIN;
+        res.result = DICEY_EAGAIN;
 
         return res;
     }
@@ -233,7 +285,7 @@ struct dtf_loadres dtf_load_message(const char *const data, const size_t len) {
 
     // check if the message kind is valid
     if (is_kind_invalid(kind)) {
-        res.result = DTF_EBADMSG;
+        res.result = DICEY_EBADMSG;
 
         return res;
     }
@@ -243,7 +295,7 @@ struct dtf_loadres dtf_load_message(const char *const data, const size_t len) {
     assert(needed_len > 0U);
 
     if (needed_len > len) {
-        res.result = DTF_EAGAIN;
+        res.result = DICEY_EAGAIN;
     
         return res;
     }
@@ -254,7 +306,7 @@ struct dtf_loadres dtf_load_message(const char *const data, const size_t len) {
 
     // detect overflows
     if (trailer_size > SIZE_MAX - needed_len) {
-        res.result = DTF_EOVERFLOW;
+        res.result = DICEY_EOVERFLOW;
 
         return res;
     }
@@ -262,7 +314,7 @@ struct dtf_loadres dtf_load_message(const char *const data, const size_t len) {
     needed_len += trailer_size;
 
     if (needed_len > len) {
-        res.result = DTF_EAGAIN;
+        res.result = DICEY_EAGAIN;
 
         return res;
     }
@@ -270,7 +322,7 @@ struct dtf_loadres dtf_load_message(const char *const data, const size_t len) {
     // allocate the payload and then load it
     void *const payload = malloc(needed_len);
     if (!payload) {
-        res.result = DTF_ENOMEM;
+        res.result = DICEY_ENOMEM;
 
         return res;
     }
@@ -283,29 +335,4 @@ struct dtf_loadres dtf_load_message(const char *const data, const size_t len) {
     loadres_set(&res, kind, payload);
 
     return res;
-}
-
-const char* dtf_strerror(const int errnum) {
-    switch (errnum) {
-    default:
-        return "unknown error";
-
-    case DTF_OK:
-        return "success";
-
-    case DTF_EAGAIN:
-        return "not enough data";
-
-    case DTF_ENOMEM:
-        return "out of memory";
-
-    case DTF_EINVAL:
-        return "invalid argument";
-
-    case DTF_EBADMSG:
-        return "bad message";
-
-    case DTF_EOVERFLOW:
-        return "overflow";
-    }
 }
