@@ -10,6 +10,7 @@
 extern "C" {
 #endif
 
+void dunsafe_read_bytes(const struct dicey_view_mut dest, const void **src);
 void dunsafe_write_bytes(void **dest, struct dicey_view view);
 void dunsafe_write_chunks(void **dest, const struct dicey_view *chunks, size_t nchunks);
 void dunsafe_write_double(void **dest, double value);

@@ -11,6 +11,8 @@ typedef uint8_t dtf_bool;
 typedef int64_t dtf_int;
 typedef double dtf_float;
 
+// this should be pointless, in theory: all structs fields below are already packed.
+// This is here if some smarty pants compiler decides to add padding anyway before the flexible array members
 #pragma pack(push, 1)
 
 struct dtf_array_header {
@@ -55,7 +57,7 @@ struct dtf_value {
 
 #define DTF_PAYLOAD_HEAD \
     uint32_t kind; \
-    uint32_t tid;
+    uint32_t seq;
 
 struct dtf_payload_head {
     DTF_PAYLOAD_HEAD

@@ -25,6 +25,33 @@ ptrdiff_t dicey_selector_size(const struct dicey_selector selector) {
     return trait_len + elem_len;
 }
 
+ptrdiff_t dicey_view_advance(struct dicey_view *const view, const size_t offset) {
+    if (offset > view->len) {
+        return DICEY_EOVERFLOW;
+    }
+
+    *view = (struct dicey_view) {
+        .data = (char*) view->data + offset,
+        .len = view->len - offset,
+    };
+
+    return DICEY_OK;
+}
+
+ptrdiff_t dicey_view_read(struct dicey_view *const view, const struct dicey_view_mut dest) {
+    if (!view || !view->data || !dest.data) {
+        return DICEY_EINVAL;
+    }
+
+    if (dest.len > view->len) {
+        return DICEY_EAGAIN;
+    }
+
+    dunsafe_read_bytes(dest, &(const void*) { view->data });
+
+    return dicey_view_advance(view, dest.len);
+}
+
 ptrdiff_t dicey_view_mut_advance(struct dicey_view_mut *const view, const size_t offset) {
     if (offset > view->len) {
         return DICEY_EOVERFLOW;
@@ -54,7 +81,10 @@ ptrdiff_t dicey_view_mut_ensure_cap(struct dicey_view_mut *const dest, const siz
             return DICEY_ENOMEM;
         }
 
-        dest->data = new_alloc;
+        *dest = (struct dicey_view_mut) {
+            .data = new_alloc,
+            .len = required,
+        };
 
         return required;
     }

@@ -261,11 +261,16 @@ static ptrdiff_t item_size(const struct dtf_item *const item, const enum item_wr
         return fixed_size;
     }
 
+    // start from zero and compute the dynamic size of the item
+    fixed_size = 0;
+
     if (policy == ITEM_WRITE_POLICY_VARIANT) {
         if (!dutl_ssize_add(&fixed_size, fixed_size, (ptrdiff_t) sizeof(struct dtf_value_header))) {
             return DICEY_EOVERFLOW;
         }
     }
+
+    ptrdiff_t item_size = 0;
 
     switch (item->type) {
     default:
@@ -275,27 +280,47 @@ static ptrdiff_t item_size(const struct dtf_item *const item, const enum item_wr
         return DICEY_EINVAL;
 
     case DTF_TYPE_ARRAY: 
-        return array_item_size(item->array);
+        item_size = array_item_size(item->array);
+        break;
 
     case DTF_TYPE_PAIR:
-        return pair_item_size(item->pair);
+        item_size = pair_item_size(item->pair);
+        break;
 
     case DTF_TYPE_TUPLE:
-        return tuple_item_size(item->tuple);
+        item_size = tuple_item_size(item->tuple);
+        break;
 
     case DTF_TYPE_BYTES:
-        return bytes_item_size(item->bytes);
+        item_size = bytes_item_size(item->bytes);
+        break;
 
     case DTF_TYPE_STR:
     case DTF_TYPE_PATH:
-        return dutl_zstring_size(item->str);
+        item_size = dutl_zstring_size(item->str);
+        break;
 
     case DTF_TYPE_SELECTOR:
-        return dicey_selector_size(item->selector);
+        item_size = dicey_selector_size(item->selector);
+        break;
     }
+
+    if (item_size < 0) {
+        return item_size;
+    }
+
+    if (!dutl_ssize_add(&fixed_size, fixed_size, item_size)) {
+        return DICEY_EOVERFLOW;
+    }
+
+    return fixed_size;
 }
 
-static ptrdiff_t item_write(struct dicey_view_mut *const dest, const struct dtf_item *const item, const enum item_write_policy policy) {
+static ptrdiff_t item_write(
+    struct dicey_view_mut *const dest,
+    const struct dtf_item *const item,
+    const enum item_write_policy policy
+) {
     if (!dtf_type_is_valid(item->type)) {
         return DICEY_EINVAL;
     }
@@ -457,10 +482,7 @@ struct dtf_valueres dtf_value_write(struct dicey_view_mut dest, const struct dtf
         return (struct dtf_valueres) { .result = alloc_res, .size = (size_t) size };
     }
 
-    const ptrdiff_t adv_res = dicey_view_mut_advance(&dest, offsetof(struct dtf_value, data));
-    assert(adv_res == DICEY_OK);
-
-    (void) adv_res; // shut up the compiler
+    struct dtf_value *const dval = dest.data;
 
     const ptrdiff_t write_res = item_write(&dest, item, ITEM_WRITE_POLICY_VARIANT);
 
@@ -473,5 +495,5 @@ struct dtf_valueres dtf_value_write(struct dicey_view_mut dest, const struct dtf
     }
     
     // return the size of the value into result, too. This will be 0 if no allocation was needed, or size otherwise
-    return (struct dtf_valueres) { .result = alloc_res, .size = (size_t) size, .value = dest.data };
+    return (struct dtf_valueres) { .result = alloc_res, .size = (size_t) size, .value = dval };
 }

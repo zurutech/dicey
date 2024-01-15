@@ -10,6 +10,12 @@
         dunsafe_write_bytes(dest, (struct dicey_view) { .data = &value, .len = sizeof value }); \
     }
 
+void dunsafe_read_bytes(const struct dicey_view_mut dest, const void **const src) {
+    memcpy(dest.data, *src, dest.len);
+
+    *src = (const uint8_t*) *src + dest.len;
+}
+
 void dunsafe_write_bytes(void **const dest, const struct dicey_view view) {
     memcpy(*dest, view.data, view.len);
 
