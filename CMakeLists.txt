@@ -22,6 +22,8 @@ file(GLOB common_SRC
     "include/*.h"
     "src/*.c"
     "src/*.h"
+    "src/dtf/*.c"
+    "src/dtf/*.h"
 )
 
 set(CMAKE_C_STANDARD 17)

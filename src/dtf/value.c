@@ -8,9 +8,10 @@
 #include <dicey/errors.h>
 #include <dicey/types.h>
 
-#include "dtf-to.h"
-#include "dtf.h"
 #include "util.h"
+
+#include "payload.h"
+#include "to.h"
 
 enum item_write_policy {
     ITEM_WRITE_POLICY_EXACT,

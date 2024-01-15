@@ -11,7 +11,7 @@
 
 #include <dicey/types.h>
 
-#include "dtf-to.h"
+#include "to.h"
 
 enum dtf_type {
     DTF_TYPE_INVALID = 0,

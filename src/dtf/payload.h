@@ -1,4 +1,3 @@
-#include "dtf-to.h"
 #include <sys/types.h>
 #if !defined(DTF_DHCBDDHD_H)
 #define DTF_DHCBDDHD_H
@@ -12,7 +11,8 @@
 
 #include <dicey/types.h>
 
-#include "dtf-value.h"
+#include "to.h"
+#include "value.h"
 
 enum dtf_payload_kind {
     DTF_PAYLOAD_INVALID = 0x00,
