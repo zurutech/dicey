@@ -12,6 +12,12 @@ if (${FORCE_COLORED_OUTPUT})
     endif ()
 endif ()
 
+if (MSVC)
+    add_compile_options(/W4 /WX)
+else()
+    add_compile_options(-Wall -Wextra -pedantic -Werror)
+endif()
+
 file(GLOB common_SRC
     "include/*.h"
     "src/*.c"
