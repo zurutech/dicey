@@ -18,7 +18,8 @@ ptrdiff_t dicey_selector_size(const struct dicey_selector selector) {
         return elem_len;
     }
 
-    if (trait_len > (ptrdiff_t) UINT32_MAX - elem_len) {
+    ptrdiff_t result = 0;
+    if (!dutl_ssize_add(&result, trait_len, elem_len)) {
         return DICEY_EOVERFLOW;
     }
 
