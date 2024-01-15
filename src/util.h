@@ -11,13 +11,10 @@
 extern "C" {
 #endif
 
-ptrdiff_t dutl_buffer_sizeof(struct dicey_view view);
+bool dutl_size_add(size_t *res, size_t a, size_t b);
+bool dutl_ssize_add(ptrdiff_t *res, ptrdiff_t a, ptrdiff_t b);
 bool dutl_u32_add(uint32_t *res, uint32_t a, uint32_t b);
-void dutl_write_buffer(void **dest, struct dicey_view view);
-void dutl_write_bytes(void **dest, struct dicey_view view);
-void dutl_write_chunks(void **dest, const struct dicey_view *chunks, size_t nchunks);
-ptrdiff_t dutl_zstring_sizeof(const char *str);
-
+ptrdiff_t dutl_zstring_size(const char *str);
 
 #if defined(__cplusplus)
 }

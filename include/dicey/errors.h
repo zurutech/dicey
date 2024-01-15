@@ -19,6 +19,7 @@ enum dicey_error {
     DICEY_EOVERFLOW = -EOVERFLOW,
 
     DICEY_EPATH_TOO_LONG = -0x1000,
+    DICEY_ETUPLE_TOO_LONG = -0x1001,
 };
 
 const char* dicey_strerror(int errnum);

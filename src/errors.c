@@ -25,5 +25,8 @@ const char* dicey_strerror(const int errnum) {
 
     case DICEY_EPATH_TOO_LONG:
         return "path too long";
+
+    case DICEY_ETUPLE_TOO_LONG:
+        return "tuple too long";
     }
 }
