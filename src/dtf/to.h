@@ -27,11 +27,11 @@ struct dtf_array {
 };
 
 struct dtf_tuple_header {
-    uint8_t nitems;
+    uint16_t nitems;
 };
 
 struct dtf_tuple {
-    uint8_t nitems;
+    struct dtf_tuple_header header;
 
     // assume this is a list of dtf_value 
     uint8_t data[];
@@ -44,6 +44,15 @@ struct dtf_bytes_header {
 struct dtf_bytes {
     struct dtf_bytes_header header;
     uint8_t data[];
+};
+
+struct dtf_error_header {
+    uint16_t code;
+};
+
+struct dtf_error {
+    struct dtf_error_header header;
+    uint8_t msg[];    
 };
 
 struct dtf_value_header {
@@ -84,8 +93,14 @@ struct dtf_hello {
 
 struct dtf_bye {
     DTF_PAYLOAD_HEAD
+    
+    uint32_t reason;
 };
 
 #pragma pack(pop)
+
+#if defined(_MSC_VER)
+#pragma warning(default: 4200)
+#endif
 
 #endif // OQJPHQJJLF_DTF_TO_H

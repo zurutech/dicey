@@ -1,11 +1,33 @@
+#include <stdint.h>
+#define _POSIX_C_SOURCE 200809L
+
 #include <stddef.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include <dicey/errors.h>
 #include <dicey/types.h>
 
 #include "unsafe.h"
 #include "util.h"
+
+ptrdiff_t dicey_selector_from(struct dicey_selector *const sel, struct dicey_view *const src) {
+    if (!sel || !src || !src->data) {
+        return DICEY_EINVAL;
+    }
+
+    const ptrdiff_t trait_len = dicey_view_as_zstring(src, &sel->trait);
+    if (trait_len < 0) {
+        return trait_len;
+    }
+
+    const ptrdiff_t elem_len = dicey_view_as_zstring(src, &sel->elem);
+    if (elem_len < 0) {
+        return elem_len;
+    }
+
+    return DICEY_OK;
+}
 
 ptrdiff_t dicey_selector_size(const struct dicey_selector selector) {
     const ptrdiff_t trait_len = dutl_zstring_size(selector.trait); 
@@ -26,17 +48,36 @@ ptrdiff_t dicey_selector_size(const struct dicey_selector selector) {
     return trait_len + elem_len;
 }
 
-ptrdiff_t dicey_view_advance(struct dicey_view *const view, const size_t offset) {
-    if (offset > view->len) {
+ptrdiff_t dicey_view_advance(struct dicey_view *const view, const ptrdiff_t offset) {
+    if (offset < 0 || (size_t) offset > view->len) {
         return DICEY_EOVERFLOW;
     }
 
     *view = (struct dicey_view) {
         .data = (char*) view->data + offset,
-        .len = view->len - offset,
+        .len = view->len - (size_t) offset,
     };
 
-    return DICEY_OK;
+    return offset;
+}
+
+ptrdiff_t dicey_view_as_zstring(struct dicey_view *view, const char **str) {
+    if (!view || !view->data || !str) {
+        return DICEY_EINVAL;
+    }
+
+    const size_t size = strnlen(view->data, view->len);
+    if (size > PTRDIFF_MAX) {
+        return DICEY_EOVERFLOW;
+    }
+    
+    if (size == view->len) {
+        return DICEY_EINVAL;
+    }
+
+    *str = view->data;
+
+    return dicey_view_advance(view, (ptrdiff_t) size);
 }
 
 ptrdiff_t dicey_view_read(struct dicey_view *const view, const struct dicey_view_mut dest) {
@@ -48,9 +89,13 @@ ptrdiff_t dicey_view_read(struct dicey_view *const view, const struct dicey_view
         return DICEY_EAGAIN;
     }
 
+    if (dest.len > PTRDIFF_MAX) {
+        return DICEY_EOVERFLOW;
+    }
+
     dunsafe_read_bytes(dest, &(const void*) { view->data });
 
-    return dicey_view_advance(view, dest.len);
+    return dicey_view_advance(view, (ptrdiff_t) dest.len);
 }
 
 ptrdiff_t dicey_view_mut_advance(struct dicey_view_mut *const view, const size_t offset) {

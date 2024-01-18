@@ -20,6 +20,7 @@ enum dicey_error {
 
     DICEY_EPATH_TOO_LONG = -0x1000,
     DICEY_ETUPLE_TOO_LONG = -0x1001,
+    DICEY_EARRAY_TOO_LONG = -0x1002,
 };
 
 const char* dicey_strerror(int errnum);

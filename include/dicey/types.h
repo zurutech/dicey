@@ -26,9 +26,10 @@ struct dicey_view_mut {
 #define DICEY_NULL ((struct dicey_view_mut) { .len = 0, .data = NULL })
 #define DICEY_CNULL ((struct dicey_view) { .len = 0, .data = NULL })
 
+ptrdiff_t dicey_selector_from(struct dicey_selector *sel, struct dicey_view *src);
 ptrdiff_t dicey_selector_size(struct dicey_selector sel);
 
-ptrdiff_t dicey_view_advance(struct dicey_view *view, size_t offset);
+ptrdiff_t dicey_view_advance(struct dicey_view *view, ptrdiff_t offset);
 
 static inline struct dicey_view dicey_view_from(const void *const data, const size_t len) {
     return (struct dicey_view) { .len = len, .data = data };
@@ -39,6 +40,7 @@ static inline struct dicey_view dicey_view_from_mut(const struct dicey_view_mut 
 }
 
 ptrdiff_t dicey_view_read(struct dicey_view *view, struct dicey_view_mut dest);
+ptrdiff_t dicey_view_as_zstring(struct dicey_view *view, const char **str);
 
 ptrdiff_t dicey_view_mut_advance(struct dicey_view_mut *view, size_t offset);
 ptrdiff_t dicey_view_mut_ensure_cap(struct dicey_view_mut *dest, size_t required);

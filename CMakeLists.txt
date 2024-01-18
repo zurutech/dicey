@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.16.0)
 
 project(dicey VERSION 0.0.1 LANGUAGES C)
 
-option(FORCE_COLORED_OUTPUT "Always produce ANSI-colored output (GNU/Clang only)." TRUE)
+option(FORCE_COLORED_OUTPUT "Always produce ANSI-colored output (GCC/Clang only)." TRUE)
 
 if (${FORCE_COLORED_OUTPUT})
     if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")

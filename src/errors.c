@@ -28,5 +28,8 @@ const char* dicey_strerror(const int errnum) {
 
     case DICEY_ETUPLE_TOO_LONG:
         return "tuple too long";
+
+    case DICEY_EARRAY_TOO_LONG:
+        return "array too long";
     }
 }

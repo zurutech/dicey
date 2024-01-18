@@ -30,28 +30,46 @@ static inline bool dtf_payload_kind_is_message(enum dtf_payload_kind kind) {
     return kind >= DTF_PAYLOAD_GET;
 }
 
-struct dtf_msgres {
+struct dtf_writeres {
     ptrdiff_t result;
     size_t size;
-    struct dtf_message* msg;
+    void* start;
 };
+
+struct dtf_writeres dtf_bye_write(struct dicey_view_mut dest, uint32_t seq, uint32_t reason);
+struct dtf_writeres dtf_hello_write(struct dicey_view_mut dest, uint32_t seq, uint32_t version);
 
 ptrdiff_t dtf_message_estimate_size(
     enum dtf_payload_kind kind,
     const char *path,
     struct dicey_selector selector,
-    const struct dtf_item *value
+    const struct dicey_arg *value
 );
 
 ptrdiff_t dtf_message_get_size(const struct dtf_message *msg);
+ptrdiff_t dtf_message_get_trailer_size(const struct dtf_message *msg);
 
-struct dtf_msgres dtf_message_write(
+struct dtf_message_content {
+    const char *path;
+    struct dicey_selector selector;
+    
+    const struct dtf_value *value;
+    size_t value_len;
+};
+
+ptrdiff_t dtf_message_get_content(const struct dtf_message *msg, size_t alloc_len, struct dtf_message_content *dest);
+
+ptrdiff_t dtf_message_get_path(const struct dtf_message *msg, size_t alloc_len, const char **dest);
+ptrdiff_t dtf_message_get_selector(const struct dtf_message *msg, size_t alloc_len, struct dicey_selector *dest);
+ptrdiff_t dtf_message_get_value(const struct dtf_message *msg, size_t alloc_len, struct dicey_arg *dest);
+
+struct dtf_writeres dtf_message_write(
     struct dicey_view_mut dest,
     enum dtf_payload_kind kind,
     uint32_t seq,
     const char *path,
     struct dicey_selector selector,
-    const struct dtf_item* value
+    const struct dicey_arg* value
 );
 
 int dtf_selector_load_from(struct dicey_selector *selector, struct dicey_view src);
@@ -79,9 +97,5 @@ struct dtf_loadres {
 };
 
 struct dtf_loadres dtf_payload_load(struct dicey_view src);
-
-#if defined(_MSC_VER)
-#pragma warning(default: 4200)
-#endif
 
 #endif // DTF_DHCBDDHD_H
