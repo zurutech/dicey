@@ -62,11 +62,6 @@ enum dicey_type {
 bool dicey_type_is_valid(enum dicey_type type);
 const char* dicey_type_name(enum dicey_type type);
 
-struct dicey_packet {
-    void *payload;
-    size_t nbytes;
-};
-
 struct dicey_version {
     uint16_t major;
     uint16_t revision;
@@ -95,6 +90,11 @@ struct dicey_message {
     const struct dtf_message *_data;
 };
 
+struct dicey_packet {
+    void *payload;
+    size_t nbytes;
+};
+
 enum dicey_error dicey_packet_as_bye(struct dicey_packet packet, struct dicey_bye *bye);
 enum dicey_error dicey_packet_as_hello(struct dicey_packet packet, struct dicey_hello *hello);
 enum dicey_error dicey_packet_as_message(struct dicey_packet packet, struct dicey_message *message);
@@ -104,108 +104,6 @@ enum dicey_error dicey_packet_get_seq(struct dicey_packet packet, uint32_t *seq)
 
 enum dicey_error dicey_packet_bye(struct dicey_packet *dest, uint32_t seq, enum dicey_bye_reason reason);
 enum dicey_error dicey_packet_hello(struct dicey_packet *dest, uint32_t seq, struct dicey_version version);
-
-struct dicey_message_builder {
-    int state;
-
-    enum dicey_message_type type;
-    uint32_t seq;
-
-    const char *path;
-    struct dicey_selector selector;
-    struct dicey_arg *root;
-};
-
-enum dicey_error dicey_message_builder_init(struct dicey_message_builder *builder);
-
-enum dicey_error dicey_message_builder_begin(struct dicey_message_builder *builder, enum dicey_message_type type);
-enum dicey_error dicey_message_builder_build(struct dicey_message_builder *builder, struct dicey_packet *packet);
-enum dicey_error dicey_message_builder_destroy(struct dicey_message_builder *builder);
-void dicey_message_builder_discard(struct dicey_message_builder *builder);
-enum dicey_error dicey_message_builder_set_path(struct dicey_message_builder *builder, const char *path);
-enum dicey_error dicey_message_builder_set_selector(struct dicey_message_builder *builder, struct dicey_selector selector);
-enum dicey_error dicey_message_builder_set_seq(struct dicey_message_builder *builder, uint32_t seq);
-
-struct dicey_arg {
-    enum dicey_type type;
-
-    union {
-        dicey_bool boolean;
-        dicey_float floating;
-        dicey_int integer;
-
-        struct dicey_array_arg {
-            enum dicey_type type;
-            uint16_t nitems;
-            const struct dicey_arg *elems;
-        } array;
-        struct dicey_tuple_arg {
-            uint16_t nitems;
-            const struct dicey_arg *elems;
-        } tuple;
-        struct dicey_pair_arg {
-            const struct dicey_arg *first;
-            const struct dicey_arg *second;
-        } pair;
-        struct dicey_bytes_arg {
-            uint32_t len;
-            const uint8_t *data;
-        } bytes;
-        const char *str;// for str, path
-        struct dicey_selector selector;
-        struct dicey_error_arg {
-            uint16_t code;
-            const char *message;
-        } error;
-    };
-};
-
-enum dicey_error dicey_message_builder_set_value(
-    struct dicey_message_builder *builder,
-    struct dicey_arg value
-);
-
-struct dicey_value_builder {
-    int _state;
-
-    // TODO: improve efficency by caching these values
-    struct dicey_arg *_root;
-
-    struct _dicey_value_builder_list {
-        enum dicey_type type;
-        uint16_t nitems;
-        size_t cap;
-        struct dicey_arg *elems;
-    } _list;
-};
-
-enum dicey_error dicey_message_builder_value_start(
-    struct dicey_message_builder *builder,
-    struct dicey_value_builder *value
-);
-
-enum dicey_error dicey_message_builder_value_end(
-    struct dicey_message_builder *builder,
-    struct dicey_value_builder *value
-);
-
-enum dicey_error dicey_value_builder_array_start(struct dicey_value_builder *builder, enum dicey_type type);
-
-enum dicey_error dicey_value_builder_array_end(struct dicey_value_builder *builder);
-
-enum dicey_error dicey_value_builder_next(
-    struct dicey_value_builder *list,
-    struct dicey_value_builder *elem
-);
-
-
-enum dicey_error dicey_value_builder_set(
-    struct dicey_value_builder *builder,
-    struct dicey_arg value
-);
-
-enum dicey_error dicey_value_builder_tuple_start(struct dicey_value_builder *builder);
-enum dicey_error dicey_value_builder_tuple_end(struct dicey_value_builder *builder);
 
 #if defined(__cplusplus)
 }

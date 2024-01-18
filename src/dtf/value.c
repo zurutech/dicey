@@ -3,7 +3,6 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <stdlib.h>
-#include <string.h>
 
 #include <dicey/errors.h>
 #include <dicey/types.h>
@@ -12,6 +11,7 @@
 
 #include "payload.h"
 #include "to.h"
+#include "value.h"
 
 enum item_write_policy {
     ITEM_WRITE_POLICY_EXACT,

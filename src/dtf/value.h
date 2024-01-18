@@ -9,6 +9,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include <dicey/builders.h>
 #include <dicey/packet.h>
 #include <dicey/types.h>
 

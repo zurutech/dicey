@@ -4,6 +4,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 
+#include <dicey/builders.h>
 #include <dicey/errors.h>
 #include <dicey/types.h>
 

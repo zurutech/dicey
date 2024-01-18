@@ -5,6 +5,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <dicey/builders.h>
+
 #include "packet-args.h"
 
 static void arg_free_contents(const struct dicey_arg *const arg) {

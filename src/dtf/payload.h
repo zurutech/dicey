@@ -9,10 +9,10 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include <dicey/builders.h>
 #include <dicey/types.h>
 
 #include "to.h"
-#include "value.h"
 
 enum dtf_payload_kind {
     DTF_PAYLOAD_INVALID = 0x00,
