@@ -14,6 +14,7 @@
 #include <dicey/types.h>
 
 #include "to.h"
+#include "writer.h"
 
 #define DTF_SIZE_DYNAMIC PTRDIFF_MAX
 
@@ -25,5 +26,6 @@ struct dtf_valueres {
 
 ptrdiff_t dtf_value_estimate_size(const struct dicey_arg *item);
 struct dtf_valueres dtf_value_write(struct dicey_view_mut dest, const struct dicey_arg *item);
+ptrdiff_t dtf_value_write_to(struct dtf_bytes_writer writer, const struct dicey_arg *item);
 
 #endif // CNHZVJKDMF_DTF_VALUE_H

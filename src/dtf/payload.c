@@ -10,9 +10,10 @@
 
 #include "util.h"
 
-#include "payload.h"
 #include "to.h"
 #include "value.h"
+
+#include "payload.h"
 
 static_assert(sizeof(uint32_t) <= sizeof(size_t), "uint32_t must fit in a size_t");
 static_assert(sizeof(uint32_t) <= sizeof(ptrdiff_t), "uint32_t must fit in a ptrdiff_t");
