@@ -61,12 +61,12 @@ static bool msgbuilder_is_complete(const
  struct dicey_message_builder *const builder) {
     assert(builder);
 
-    return builder->state == BUILDER_STATE_PENDING
-        && builder->path 
-        && selector_is_valid(builder->selector)
-        && builder->type != DICEY_MESSAGE_TYPE_INVALID
+    return builder->_state == BUILDER_STATE_PENDING
+        && builder->_path 
+        && selector_is_valid(builder->_selector)
+        && builder->_type != DICEY_MESSAGE_TYPE_INVALID
         // get messages must not have a root, everything else does
-        && (builder->type == DICEY_MESSAGE_TYPE_GET) ^ (bool) { builder->root }; 
+        && (builder->_type == DICEY_MESSAGE_TYPE_GET) ^ (bool) { builder->_root }; 
 }
 
 static ptrdiff_t msgkind_to_dtf(const enum dicey_message_type kind) {
@@ -117,8 +117,8 @@ enum dicey_error dicey_message_builder_begin(
     }
 
     *builder = (struct dicey_message_builder) {
-        .state = BUILDER_STATE_PENDING,
-        .type = type,
+        ._state = BUILDER_STATE_PENDING,
+        ._type = type,
     };
 
     return DICEY_OK;
@@ -138,7 +138,7 @@ enum dicey_error dicey_message_builder_build(
         return DICEY_EAGAIN;
     }
 
-    const ptrdiff_t payload_kind = msgkind_to_dtf(builder->type);
+    const ptrdiff_t payload_kind = msgkind_to_dtf(builder->_type);
     if (payload_kind < 0) {
         return payload_kind;
     }
@@ -146,10 +146,10 @@ enum dicey_error dicey_message_builder_build(
     const struct dtf_writeres craft_res = dtf_message_write(
         DICEY_NULL,
         (enum dtf_payload_kind) payload_kind,
-        builder->seq,
-        builder->path,
-        builder->selector,
-        builder->root
+        builder->_seq,
+        builder->_path,
+        builder->_selector,
+        builder->_root
     );
 
     if (craft_res.result < 0) {
@@ -169,7 +169,7 @@ enum dicey_error dicey_message_builder_build(
 enum dicey_error dicey_message_builder_destroy(struct dicey_message_builder *const builder) {
     assert(builder);
 
-    dicey_arg_free(builder->root);
+    dicey_arg_free(builder->_root);
 
     *builder = (struct dicey_message_builder) {0};
 
@@ -180,7 +180,7 @@ void dicey_message_builder_discard(struct dicey_message_builder *const builder) 
     assert(builder);
 
     if (builder_state_get(builder) != BUILDER_STATE_IDLE) {
-        dicey_arg_free(builder->root);
+        dicey_arg_free(builder->_root);
 
         *builder = (struct dicey_message_builder) {0};
     }
@@ -196,7 +196,7 @@ enum dicey_error dicey_message_builder_set_path(
         return DICEY_EINVAL;
     }
 
-    builder->path = path;
+    builder->_path = path;
 
     return DICEY_OK;
 }
@@ -211,7 +211,7 @@ enum dicey_error dicey_message_builder_set_selector(
         return DICEY_EINVAL;
     }
 
-    builder->selector = selector;
+    builder->_selector = selector;
 
     return DICEY_OK;
 }
@@ -223,7 +223,7 @@ enum dicey_error dicey_message_builder_set_seq(struct dicey_message_builder *con
         return DICEY_EINVAL;
     }
 
-    builder->seq = seq;
+    builder->_seq = seq;
 
     return DICEY_OK;
 }
@@ -268,9 +268,10 @@ enum dicey_error dicey_message_builder_value_start(
         return DICEY_ENOMEM;
     }
 
-    dicey_arg_free(builder->root);
+    dicey_arg_free(builder->_root);
 
-    builder->root = root;
+    builder->_root = root;
+    builder->_borrowed_to = value;
 
     *value = (struct dicey_value_builder) {
         ._state = BUILDER_STATE_PENDING,
@@ -290,11 +291,12 @@ enum dicey_error dicey_message_builder_value_end(
         return DICEY_EINVAL;
     }
 
-    if (value->_state != BUILDER_STATE_PENDING) {
+    if (value != builder->_borrowed_to) {
         return DICEY_EINVAL;
     }
 
     *value = (struct dicey_value_builder) {0};
+    builder->_state = BUILDER_STATE_PENDING;
 
     return DICEY_OK;    
 }
@@ -310,7 +312,7 @@ enum dicey_error dicey_value_builder_array_start(
     }
 
     builder->_list = (struct _dicey_value_builder_list) {
-        .type = DICEY_TYPE_ARRAY,
+        .type = type,
     };
 
     builder_state_set(builder, BUILDER_STATE_ARRAY);
@@ -416,9 +418,7 @@ enum dicey_error dicey_value_builder_tuple_start(struct dicey_value_builder *con
         return DICEY_EINVAL;
     }
 
-    builder->_list = (struct _dicey_value_builder_list) {
-        .type = DICEY_TYPE_TUPLE,
-    };
+    builder->_list = (struct _dicey_value_builder_list) {0};
 
     builder_state_set(builder, BUILDER_STATE_TUPLE);
 

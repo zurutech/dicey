@@ -10,14 +10,16 @@ extern "C" {
 #endif
 
 struct dicey_message_builder {
-    int state;
+    int _state;
 
-    enum dicey_message_type type;
-    uint32_t seq;
+    enum dicey_message_type _type;
+    uint32_t _seq;
 
-    const char *path;
-    struct dicey_selector selector;
-    struct dicey_arg *root;
+    const char *_path;
+    struct dicey_selector _selector;
+    struct dicey_arg *_root;
+
+    const struct dicey_value_builder *_borrowed_to;
 };
 
 enum dicey_error dicey_message_builder_init(struct dicey_message_builder *builder);
