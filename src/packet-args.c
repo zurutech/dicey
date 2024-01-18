@@ -66,7 +66,7 @@ struct dicey_arg* dicey_arg_dup(struct dicey_arg *const dest, const struct dicey
         break;
 
     case DICEY_TYPE_TUPLE:
-        if (!arglist_copy(&dest->tuple.elems, dest->tuple.elems, src->array.nitems)) {
+        if (!arglist_copy(&dest->tuple.elems, dest->tuple.elems, src->tuple.nitems)) {
             return NULL;
         }
 
