@@ -32,7 +32,7 @@ enum dicey_packet_kind {
 enum dicey_message_type {
     DICEY_MESSAGE_TYPE_INVALID = 0,
 
-    DICEY_MESSAGE_TYPE_GET,
+    DICEY_MESSAGE_TYPE_GET = 0x10,
     DICEY_MESSAGE_TYPE_SET,
     DICEY_MESSAGE_TYPE_EXEC,
     DICEY_MESSAGE_TYPE_EVENT,

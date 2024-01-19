@@ -165,7 +165,11 @@ enum dicey_error dicey_packet_as_message(const struct dicey_packet packet, struc
     return DICEY_OK;
 }
 
-enum dicey_error dicey_packet_bye(struct dicey_packet *const dest, const uint32_t seq, const enum dicey_bye_reason reason) {
+enum dicey_error dicey_packet_bye(
+    struct dicey_packet *const dest,
+    const uint32_t seq,
+    const enum dicey_bye_reason reason
+) {
     assert(dest && bye_reason_is_valid(reason));
 
     struct dtf_bye *const bye = calloc(sizeof *bye, 1U);
@@ -231,7 +235,11 @@ enum dicey_error dicey_packet_get_seq(const struct dicey_packet packet, uint32_t
     return DICEY_OK;
 }
 
-enum dicey_error dicey_packet_hello(struct dicey_packet *const dest, const uint32_t seq, const struct dicey_version version) {
+enum dicey_error dicey_packet_hello(
+    struct dicey_packet *const dest,
+    const uint32_t seq,
+    const struct dicey_version version
+) {
     assert(dest);
 
     struct dtf_hello *const hello = calloc(sizeof *hello, 1U);

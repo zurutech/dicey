@@ -10,20 +10,22 @@
 #include <stdint.h>
 
 #include <dicey/builders.h>
+#include <dicey/packet.h>
 #include <dicey/types.h>
 
 #include "to.h"
 
 enum dtf_payload_kind {
-    DTF_PAYLOAD_INVALID = 0x00,
-    DTF_PAYLOAD_HELLO   = 0x01,
-    DTF_PAYLOAD_BYE     = 0x02,
+    DTF_PAYLOAD_INVALID = DICEY_PACKET_KIND_INVALID,
 
-    DTF_PAYLOAD_GET      = 0x10,
-    DTF_PAYLOAD_SET      = 0x11,
-    DTF_PAYLOAD_EXEC     = 0x12,
-    DTF_PAYLOAD_EVENT    = 0x13,
-    DTF_PAYLOAD_RESPONSE = 0x14,
+    DTF_PAYLOAD_HELLO   = DICEY_PACKET_KIND_HELLO,
+    DTF_PAYLOAD_BYE     = DICEY_PACKET_KIND_BYE,
+
+    DTF_PAYLOAD_GET      = DICEY_MESSAGE_TYPE_GET,
+    DTF_PAYLOAD_SET      = DICEY_MESSAGE_TYPE_SET,
+    DTF_PAYLOAD_EXEC     = DICEY_MESSAGE_TYPE_EXEC,
+    DTF_PAYLOAD_EVENT    = DICEY_MESSAGE_TYPE_EVENT,
+    DTF_PAYLOAD_RESPONSE = DICEY_MESSAGE_TYPE_RESPONSE,
 };
 
 static inline bool dtf_payload_kind_is_message(enum dtf_payload_kind kind) {
