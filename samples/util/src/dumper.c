@@ -19,13 +19,13 @@ void util_dumper_dump_hex(struct util_dumper *const dumper, const void *const da
         util_dumper_printf(dumper, "%02zu ", i);
     }
 
-    puts("");
+    util_dumper_printlnf(dumper, "");
 
     for (const unsigned char *ptr = data; ptr < end; ++ptr) {
         util_dumper_printf(dumper, "%02X ", *ptr);
     }
 
-    puts("");
+    util_dumper_printlnf(dumper, "");
 
     for (const unsigned char *ptr = data; ptr < end; ++ptr) {
         util_dumper_printf(dumper, "%c", is_ascii_printable(*ptr) ? *ptr : '.');
