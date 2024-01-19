@@ -218,6 +218,8 @@ int main(void) {
 
     util_dumper_dump_hex(&dumper, pkt.payload, pkt.nbytes);
 
+    dicey_packet_deinit(&pkt);
+
     return EXIT_SUCCESS;
 
 fail:
