@@ -11,7 +11,7 @@
 #define PAIR_END '}'
 #define TUPLE_END ')'
 
-static bool is_valid_type(const char ch) {
+static bool is_valid_type(const int ch) {
     return dicey_type_is_valid(ch) || ch == DICEY_VARIANT_ID;
 }
 
@@ -76,7 +76,7 @@ static bool parse_type(const char **const cur, const char *const end) {
         return cur;
     }
 
-    const char first = take_one(cur, end);
+    const int first = take_one(cur, end);
 
     switch (first) {
     default:

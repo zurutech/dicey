@@ -94,9 +94,13 @@ static ptrdiff_t msgkind_to_dtf(const enum dicey_message_type kind) {
     }
 }
 
+#if !defined(NDEBUG)
+
 static bool valbuilder_is_valid(const struct dicey_value_builder *const builder) {
     return builder && builder->_root;
 }
+
+#endif
 
 enum dicey_error dicey_message_builder_init(struct dicey_message_builder *const builder) {
     assert(builder);

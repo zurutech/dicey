@@ -173,7 +173,8 @@ struct dtf_writeres dtf_bye_write(struct dicey_view_mut dest, const uint32_t seq
     };
     
     const ptrdiff_t write_res = dicey_view_mut_write(&dest, (struct dicey_view) { .data = &bye, .len = sizeof bye });
-    assert(write_res >= 0); 
+    assert(write_res >= 0);
+    (void) write_res; // suppress unused warning
 
     return (struct dtf_writeres) { .result = DICEY_OK, .start = dest.data, .size = needed_len };
 }
@@ -195,6 +196,7 @@ struct dtf_writeres dtf_hello_write(struct dicey_view_mut dest, const uint32_t s
 
     const ptrdiff_t write_res = dicey_view_mut_write(&dest, (struct dicey_view) { .data = &hello, .len = sizeof hello });
     assert(write_res >= 0); 
+    (void) write_res; // suppress unused warning
 
     return (struct dtf_writeres) { .result = DICEY_OK, .start = dest.data, .size = needed_len };
 }

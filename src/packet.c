@@ -52,11 +52,15 @@ static enum dicey_message_type msgkind_from_dtf(const ptrdiff_t kind) {
     }
 }
 
+#if !defined(NDEBUG)
+
 static bool packet_is_valid(const struct dicey_packet *const packet) {
     assert(packet);
 
     return packet->payload && packet->nbytes;
 }
+
+#endif
 
 static enum dicey_packet_kind pktkind_from_dtf(const enum dtf_payload_kind kind) {
     switch (kind) {

@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.16.0)
+cmake_minimum_required(VERSION 3.20.0)
 
 project(dicey VERSION 0.0.1 LANGUAGES C)
 
@@ -18,6 +18,8 @@ else()
     add_compile_options(-Wall -Wextra -pedantic -Werror)
 endif()
 
+set(DICEY_ROOT ${CMAKE_CURRENT_LIST_DIR})
+
 file(GLOB common_SRC
     "include/*.h"
     "src/*.c"
@@ -25,7 +27,7 @@ file(GLOB common_SRC
     "src/dtf/*.c"
     "src/dtf/*.h"
 )
-
+    
 set(CMAKE_C_STANDARD 17)
 
 set(CMAKE_C_STANDARD_REQUIRED ON)
@@ -36,10 +38,13 @@ target_sources(${PROJECT_NAME} PRIVATE ${common_SRC})
 
 target_include_directories(${PROJECT_NAME}
     PRIVATE
-        ${CMAKE_CURRENT_SOURCE_DIR}/src
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
     PUBLIC
-        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-        $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
 )
 
 install(TARGETS dicey)
+
+add_subdirectory(samples)
+    
