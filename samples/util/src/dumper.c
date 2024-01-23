@@ -5,7 +5,7 @@
 #include <stdint.h>
 #include <stdio.h>
 
-#include <dicey/types.h>
+#include <dicey/views.h>
 
 #include <util/dumper.h>
 

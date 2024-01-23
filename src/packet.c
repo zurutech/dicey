@@ -7,7 +7,7 @@
 
 #include <dicey/errors.h>
 #include <dicey/packet.h>
-#include <dicey/types.h>
+#include <dicey/views.h>
 
 #include "dtf/dtf.h"
 
@@ -272,75 +272,4 @@ enum dicey_error dicey_packet_hello(
     };
 
     return DICEY_OK;
-}
-
-bool dicey_type_is_valid(const enum dicey_type type) {
-    switch (type) {
-    case DICEY_TYPE_UNIT:
-    case DICEY_TYPE_BOOL:
-    case DICEY_TYPE_FLOAT:
-    case DICEY_TYPE_INT:
-
-    case DICEY_TYPE_ARRAY:
-    case DICEY_TYPE_TUPLE:
-    case DICEY_TYPE_PAIR:
-    case DICEY_TYPE_BYTES:
-    case DICEY_TYPE_STR:
-
-    case DICEY_TYPE_PATH:
-    case DICEY_TYPE_SELECTOR:
-
-    case DICEY_TYPE_ERROR:
-        return true;
-
-    default:
-        return false;
-    }
-}
-
-const char* dicey_type_name(const enum dicey_type type) {
-    switch (type) {
-    default:
-        assert(false);
-        return NULL;
-    
-    case DICEY_TYPE_INVALID:
-        return "invalid";
-    
-    case DICEY_TYPE_UNIT:
-        return "unit";
-    
-    case DICEY_TYPE_BOOL:
-        return "bool";
-    
-    case DICEY_TYPE_FLOAT:
-        return "float";
-
-    case DICEY_TYPE_INT:
-        return "int";
-    
-    case DICEY_TYPE_ARRAY:
-        return "array";
-
-    case DICEY_TYPE_PAIR:
-        return "pair";
-
-    case DICEY_TYPE_TUPLE:
-        return "tuple";
-
-    case DICEY_TYPE_BYTES:
-        return "bytes";
-
-    case DICEY_TYPE_STR:
-        return "str";
-
-    case DICEY_TYPE_PATH:
-        return "path";
-
-    case DICEY_TYPE_SELECTOR:
-        return "selector";
-
-    case DICEY_TYPE_ERROR:
-        return "error";
-    }
 }

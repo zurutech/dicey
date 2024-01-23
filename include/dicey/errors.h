@@ -12,15 +12,21 @@ extern "C" {
 // existing code.
 enum dicey_error {
     DICEY_OK = 0,
+    
     DICEY_EAGAIN    = -EAGAIN,
     DICEY_ENOMEM    = -ENOMEM,
     DICEY_EINVAL    = -EINVAL,
     DICEY_EBADMSG   = -EBADMSG,
     DICEY_EOVERFLOW = -EOVERFLOW,
 
-    DICEY_EPATH_TOO_LONG = -0x1000,
+    DICEY_EPATH_TOO_LONG  = -0x1000,
     DICEY_ETUPLE_TOO_LONG = -0x1001,
     DICEY_EARRAY_TOO_LONG = -0x1002,
+
+    DICEY_EBUILDER_TYPE_MISMATCH = -0x2000,
+    DICEY_EVALUE_TYPE_MISMATCH   = -0x2001,
+
+    DICEY_ENOT_SUPPORTED = -0x3000,
 };
 
 const char* dicey_strerror(int errnum);

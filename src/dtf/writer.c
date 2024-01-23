@@ -2,53 +2,85 @@
 #include <stdint.h>
 
 #include <dicey/errors.h>
-#include <dicey/types.h>
+#include <dicey/views.h>
 
 #include "util.h"
 
 #include "writer.h"
 
-static ptrdiff_t buffer_write(void *const context, const struct dicey_view data) {
-    struct dicey_view_mut *const dest = context;
-
+static ptrdiff_t buffer_write(struct dicey_view_mut *const dest, const struct dicey_view data) {
     return dicey_view_mut_write(dest, data);
 }
 
-static ptrdiff_t sizer_write(void *const context, const struct dicey_view data) {
-    ptrdiff_t *const size = context;
-
-    if (!dutl_ssize_add(size, *size, data.len)) {
+static ptrdiff_t sizer_write(ptrdiff_t *const size, const struct dicey_view data) {
+    if (!dutl_checked_add(size, *size, data.len)) {
         return DICEY_EOVERFLOW;
     }
 
     return DICEY_OK;
 }
 
-bool dtf_bytes_writer_is_valid(const struct dtf_bytes_writer writer) {
-    return writer.write && writer.context;
+enum dtf_bytes_writer_kind dtf_bytes_writer_get_kind(struct dtf_bytes_writer *const writer) {
+    return writer->kind;
 }
 
-struct dtf_bytes_writer dtf_bytes_writer_new(struct dicey_view_mut *const buffer) {
+union dtf_bytes_writer_state dtf_bytes_writer_get_state(struct dtf_bytes_writer *const writer) {
+    return writer->state;
+}
+
+bool dtf_bytes_writer_is_valid(struct dtf_bytes_writer *const writer) {
+    switch (writer->kind) {
+        case DTF_BYTES_WRITER_KIND_BUFFER:
+            return writer->state.buffer.data;
+
+        case DTF_BYTES_WRITER_KIND_SIZER:
+            return true;
+
+        default:
+            return false;
+    }
+}
+
+struct dtf_bytes_writer dtf_bytes_writer_new(const struct dicey_view_mut buffer) {
     return (struct dtf_bytes_writer) {
-        .context = buffer,
-        .write = buffer_write,
+        .kind = DTF_BYTES_WRITER_KIND_BUFFER,
+        .state = {
+            .buffer = buffer,
+        },
     };
 }
-    
 
-struct dtf_bytes_writer dtf_bytes_writer_new_sizer(ptrdiff_t *const size) {
+struct dtf_bytes_writer dtf_bytes_writer_new_sizer(void) {
     return (struct dtf_bytes_writer) {
-        .context = size,
-        .write = sizer_write,
+        .kind = DTF_BYTES_WRITER_KIND_SIZER,
+        .state = {
+            .size = 0,
+        },
     };
 }
 
-ptrdiff_t dtf_bytes_writer_write(const struct dtf_bytes_writer writer, const struct dicey_view data) {
-    return writer.write(writer.context, data);
+ptrdiff_t dtf_bytes_writer_snapshot(struct dtf_bytes_writer *const writer, struct dtf_bytes_writer *const clone) {
+    // all writers support snapshotting for now
+    *clone = *writer;
+
+    return DICEY_OK;
+}
+
+ptrdiff_t dtf_bytes_writer_write(struct dtf_bytes_writer *const writer, const struct dicey_view data) {
+    switch (writer->kind) {
+        case DTF_BYTES_WRITER_KIND_BUFFER:
+            return buffer_write(&writer->state.buffer, data);
+
+        case DTF_BYTES_WRITER_KIND_SIZER:
+            return sizer_write(&writer->state.size, data);
+
+        default:
+            return DICEY_EINVAL;
+    }
 }
 
 ptrdiff_t dtf_bytes_writer_write_chunks(
-    const struct dtf_bytes_writer writer,
+    struct dtf_bytes_writer *const writer,
     const struct dicey_view *const chunks,
     const size_t nchunks
 ) {
@@ -58,17 +90,23 @@ ptrdiff_t dtf_bytes_writer_write_chunks(
 
     const struct dicey_view *const end = chunks + nchunks;
 
+    ptrdiff_t written_bytes = 0;
+
     for (const struct dicey_view *chunk = chunks; chunk < end; ++chunk) {
         const ptrdiff_t res = dtf_bytes_writer_write(writer, *chunk);
         if (res < 0) {
             return res;
         }
+
+        if (!dutl_checked_add(&written_bytes, written_bytes, res)) {
+            return DICEY_EOVERFLOW;
+        }
     }
 
-    return DICEY_OK;
+    return written_bytes;
 }
 
-ptrdiff_t dtf_bytes_writer_write_selector(const struct dtf_bytes_writer writer, const struct dicey_selector sel) {
+ptrdiff_t dtf_bytes_writer_write_selector(struct dtf_bytes_writer *const writer, const struct dicey_selector sel) {
     if (!dtf_bytes_writer_is_valid(writer) || !sel.trait || !sel.elem) {
         return DICEY_EINVAL;
     }
@@ -91,7 +129,7 @@ ptrdiff_t dtf_bytes_writer_write_selector(const struct dtf_bytes_writer writer, 
     return dtf_bytes_writer_write_chunks(writer, chunks, sizeof chunks / sizeof *chunks);
 }
 
-ptrdiff_t dtf_bytes_writer_write_zstring(const struct dtf_bytes_writer writer, const char *const str) {
+ptrdiff_t dtf_bytes_writer_write_zstring(struct dtf_bytes_writer *const writer, const char *const str) {
     const ptrdiff_t size = dutl_zstring_size(str);
 
     if (size < 0) {

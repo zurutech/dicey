@@ -6,7 +6,8 @@
 
 #include <dicey/builders.h>
 #include <dicey/errors.h>
-#include <dicey/types.h>
+#include <dicey/value.h>
+#include <dicey/views.h>
 
 #include "util.h"
 
@@ -227,7 +228,7 @@ ptrdiff_t dtf_message_get_content(
         .len = (size_t) (trailer_size - path_len),
     };
 
-    const ptrdiff_t selector_len = dicey_selector_from(&dest->selector, &cursor);
+    const ptrdiff_t selector_len = dtf_selector_from(&dest->selector, &cursor);
     if (selector_len < 0) {
         return selector_len;
     }
@@ -289,7 +290,7 @@ ptrdiff_t dtf_message_get_size(const struct dtf_message *const msg) {
         return size;
     }
 
-    if (!dutl_ssize_add(&size, size, (ptrdiff_t) sizeof msg->head)) {
+    if (!dutl_checked_add(&size, size, (ptrdiff_t) sizeof msg->head)) {
         return DICEY_EOVERFLOW;
     }
 
@@ -342,7 +343,7 @@ struct dtf_writeres dtf_message_write(
         goto fail;
     }
 
-    result = dicey_view_mut_write_selector(&dest, selector);
+    result = dicey_selector_write(selector, &dest);
     if (result < 0) {
         goto fail;
     }
@@ -400,7 +401,7 @@ ptrdiff_t dtf_message_estimate_size(
     const ptrdiff_t *end = sizes + sizeof sizes / sizeof *sizes;
 
     for (const ptrdiff_t *size = sizes; size != end; ++size) {
-        if (*size < 0 || !dutl_u32_add(&total_size, total_size, (uint32_t) *size)) {
+        if (*size < 0 || !dutl_checked_add(&total_size, total_size, (uint32_t) *size)) {
             return DICEY_EOVERFLOW;
         }
     }
@@ -463,7 +464,7 @@ struct dtf_loadres dtf_payload_load(struct dicey_view src) {
         return res;
     }
 
-    if (!dutl_size_add(&needed_len, needed_len, (size_t) trailer_size)) {
+    if (!dutl_checked_add(&needed_len, needed_len, (size_t) trailer_size)) {
         res.result = DICEY_EOVERFLOW;
 
         return res;

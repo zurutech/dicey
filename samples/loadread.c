@@ -4,6 +4,7 @@
 
 #include <dicey/dicey.h>
 
+#include "dicey/builders.h"
 #include "util/dumper.h"
 
 struct pupil {
@@ -14,12 +15,9 @@ struct pupil {
 static enum dicey_error pupil_dump(const struct pupil *const pupil, struct dicey_value_builder *const tuple) {
     return dicey_value_builder_set(
         tuple,
-        (struct dicey_arg) { .type = DICEY_TYPE_TUPLE, .tuple = {
-            .nitems = 2U,
-            .elems = (struct dicey_arg[]) {
-                { .type = DICEY_TYPE_STR, .str = pupil->name },
-                { .type = DICEY_TYPE_INT, .integer = pupil->age },
-            },
+        (struct dicey_arg) { .type = DICEY_TYPE_PAIR, .pair = {
+            .first = &(struct dicey_arg){ .type = DICEY_TYPE_STR, .str = pupil->name },
+            .second = &(struct dicey_arg){ .type = DICEY_TYPE_BYTE, .byte = pupil->age },
         } }
     );
 }
@@ -55,7 +53,7 @@ static enum dicey_error classroom_dump(const struct classroom *const classroom, 
         return err;
     }
 
-    err = dicey_value_builder_array_start(&pupils, DICEY_TYPE_TUPLE);
+    err = dicey_value_builder_array_start(&pupils, DICEY_TYPE_PAIR);
     if (err != DICEY_OK) {
         return err;
     }
@@ -223,6 +221,8 @@ int main(void) {
     return EXIT_SUCCESS;
 
 fail:
+    dicey_message_builder_destroy(&msgbuild);
+
     fprintf(stderr, "error: %s\n", dicey_strerror(err));
 
     return err;

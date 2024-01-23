@@ -3,21 +3,38 @@
 
 #include <stdint.h>
 
+#include <dicey/asserts.h>
+#include <dicey/value.h>
+
 #if defined(_MSC_VER)
 #pragma warning(disable: 4200)
 #endif
 
-typedef uint8_t dtf_bool;
-typedef int64_t dtf_int;
-typedef double dtf_float;
+typedef dicey_bool dtf_bool;
+typedef dicey_byte dtf_byte;
 
-// this should be pointless, in theory: all structs fields below are already packed.
-// This is here if some smarty pants compiler decides to add padding anyway before the flexible array members
+typedef dicey_float dtf_float;
+
+typedef dicey_i16 dtf_i16;
+typedef dicey_i32 dtf_i32;
+typedef dicey_i64 dtf_i64;
+
+typedef dicey_u16 dtf_u16;
+typedef dicey_u32 dtf_u32;
+typedef dicey_u64 dtf_u64;
+
+// this should be pointless, in theory: all structs fields below are already packed except for the flexible array members
+// This is here if some smarty pants compiler decides to add padding anyway 
 #pragma pack(push, 1)
 
+#define DTF_LIST_HEAD \
+    uint32_t nbytes; \
+    uint16_t nitems;
+
 struct dtf_array_header {
+    DTF_LIST_HEAD
+
     uint16_t type;
-    uint16_t len;
 };
 
 struct dtf_array {
@@ -27,13 +44,23 @@ struct dtf_array {
 };
 
 struct dtf_tuple_header {
-    uint16_t nitems;
+    DTF_LIST_HEAD
 };
 
 struct dtf_tuple {
     struct dtf_tuple_header header;
 
     // assume this is a list of dtf_value 
+    uint8_t data[];
+};
+
+struct dtf_pair_header {
+    uint32_t nbytes;
+};
+
+struct dtf_pair {
+    struct dtf_pair_header header;
+
     uint8_t data[];
 };
 

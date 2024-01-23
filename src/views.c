@@ -6,50 +6,17 @@
 #include <string.h>
 
 #include <dicey/errors.h>
-#include <dicey/types.h>
+#include <dicey/views.h>
 
 #include "unsafe.h"
 #include "util.h"
 
-ptrdiff_t dicey_selector_from(struct dicey_selector *const sel, struct dicey_view *const src) {
-    if (!sel || !src || !src->data) {
+ptrdiff_t dicey_view_advance(struct dicey_view *const view, const ptrdiff_t offset) {
+    if (!view || !view->data || offset < 0) {
         return DICEY_EINVAL;
     }
 
-    const ptrdiff_t trait_len = dicey_view_as_zstring(src, &sel->trait);
-    if (trait_len < 0) {
-        return trait_len;
-    }
-
-    const ptrdiff_t elem_len = dicey_view_as_zstring(src, &sel->elem);
-    if (elem_len < 0) {
-        return elem_len;
-    }
-
-    return DICEY_OK;
-}
-
-ptrdiff_t dicey_selector_size(const struct dicey_selector selector) {
-    const ptrdiff_t trait_len = dutl_zstring_size(selector.trait); 
-    if (trait_len < 0) {
-        return trait_len;
-    }
-
-    const ptrdiff_t elem_len = dutl_zstring_size(selector.elem);
-    if (elem_len < 0) {
-        return elem_len;
-    }
-
-    ptrdiff_t result = 0;
-    if (!dutl_ssize_add(&result, trait_len, elem_len)) {
-        return DICEY_EOVERFLOW;
-    }
-
-    return trait_len + elem_len;
-}
-
-ptrdiff_t dicey_view_advance(struct dicey_view *const view, const ptrdiff_t offset) {
-    if (offset < 0 || (size_t) offset > view->len) {
+    if ((size_t) offset > view->len) {
         return DICEY_EOVERFLOW;
     }
 
@@ -98,8 +65,29 @@ ptrdiff_t dicey_view_read(struct dicey_view *const view, const struct dicey_view
     return dicey_view_advance(view, (ptrdiff_t) dest.len);
 }
 
-ptrdiff_t dicey_view_mut_advance(struct dicey_view_mut *const view, const size_t offset) {
-    if (offset > view->len) {
+ptrdiff_t dicey_view_take(struct dicey_view *const view, const ptrdiff_t nbytes, struct dicey_view *const slice) {
+    if (!view || !view->data || !slice || nbytes < 0) {
+        return DICEY_EINVAL;
+    }
+
+    if ((size_t) nbytes > view->len) {
+        return DICEY_EAGAIN;
+    }
+
+    *slice = (struct dicey_view) {
+        .data = view->data,
+        .len = nbytes,
+    };
+
+    return dicey_view_advance(view, nbytes);
+}
+
+ptrdiff_t dicey_view_mut_advance(struct dicey_view_mut *const view, const ptrdiff_t offset) {
+    if (!view || !view->data || offset < 0) {
+        return DICEY_EINVAL;
+    }
+
+    if ((size_t) offset > view->len) {
         return DICEY_EOVERFLOW;
     }
 
@@ -108,7 +96,7 @@ ptrdiff_t dicey_view_mut_advance(struct dicey_view_mut *const view, const size_t
         .len = view->len - offset,
     };
 
-    return DICEY_OK;
+    return offset;
 }
 
 ptrdiff_t dicey_view_mut_ensure_cap(struct dicey_view_mut *const dest, const size_t required) {
@@ -171,29 +159,6 @@ ptrdiff_t dicey_view_mut_write_chunks(
     }
 
     return DICEY_OK;
-}
-
-ptrdiff_t dicey_view_mut_write_selector(struct dicey_view_mut *const dest, const struct dicey_selector sel) {
-    if (!dest || !dest->data || !sel.trait || !sel.elem) {
-        return DICEY_EINVAL;
-    }
-
-    const ptrdiff_t trait_len = dutl_zstring_size(sel.trait);
-    if (trait_len < 0) {
-        return trait_len;
-    }
-
-    const ptrdiff_t elem_len = dutl_zstring_size(sel.elem);
-    if (elem_len < 0) {
-        return elem_len;
-    }
-
-    struct dicey_view chunks[] = {
-        (struct dicey_view) { .data = (void*) sel.trait, .len = (size_t) trait_len },
-        (struct dicey_view) { .data = (void*) sel.elem, .len = (size_t) elem_len },
-    };
-
-    return dicey_view_mut_write_chunks(dest, chunks, sizeof chunks / sizeof *chunks);
 }
 
 ptrdiff_t dicey_view_mut_write_zstring(struct dicey_view_mut *const dest, const char *const str) {

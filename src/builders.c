@@ -7,7 +7,8 @@
 #include <dicey/builders.h>
 #include <dicey/errors.h>
 #include <dicey/packet.h>
-#include <dicey/types.h>
+#include <dicey/value.h>
+#include <dicey/views.h>
 
 #include "dtf/dtf.h"
 
@@ -405,7 +406,7 @@ enum dicey_error dicey_value_builder_set(
     const struct dicey_arg *const root = builder->_root;
 
     if (dicey_type_is_valid(root->type) && root->type != value.type) {
-        return DICEY_EINVAL;
+        return DICEY_EBUILDER_TYPE_MISMATCH;
     }
 
     if (!dicey_arg_dup(builder->_root, &value)) {

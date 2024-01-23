@@ -1,19 +1,16 @@
-#include <stddef.h>
 #if !defined(XYDQQUJZAI_PACKET_H)
 #define XYDQQUJZAI_PACKET_H
 
+#include <stddef.h>
 #include <stdint.h>
 
 #include "errors.h"
-#include "types.h"
+#include "value.h"
+#include "views.h"
 
 #if defined (__cplusplus)
 extern "C" {
 #endif
-
-typedef uint8_t dicey_bool;
-typedef int64_t dicey_int;
-typedef double dicey_float;
 
 enum dicey_bye_reason {
     DICEY_BYE_REASON_INVALID = 0,
@@ -39,29 +36,6 @@ enum dicey_message_type {
     DICEY_MESSAGE_TYPE_RESPONSE,
 };
 
-enum dicey_type {
-    DICEY_TYPE_INVALID = 0,
-
-    DICEY_TYPE_UNIT  = 'u',
-    DICEY_TYPE_BOOL  = 'b',
-    DICEY_TYPE_FLOAT = 'f',
-    DICEY_TYPE_INT   = 'i',
-
-    DICEY_TYPE_ARRAY = '[', // an array of elements
-    DICEY_TYPE_TUPLE = '(', // an array of variable elements
-    DICEY_TYPE_PAIR  = '{', // specialised tuple of two elements
-    DICEY_TYPE_BYTES = 'y', // optimized array of bytes
-    DICEY_TYPE_STR   = 's', // alias for a null terminated byte array
-
-    DICEY_TYPE_PATH     = '@', // alias for str
-    DICEY_TYPE_SELECTOR = '%', // an optimized tuple of two strings
-
-    DICEY_TYPE_ERROR = 'e',
-};
-
-bool dicey_type_is_valid(enum dicey_type type);
-const char* dicey_type_name(enum dicey_type type);
-
 struct dicey_version {
     uint16_t major;
     uint16_t revision;
@@ -75,19 +49,11 @@ struct dicey_hello {
     struct dicey_version version;
 };
 
-struct dicey_value {
-    enum dicey_type type;
-
-    const struct dtf_value *_data;
-};
-
 struct dicey_message {
     enum dicey_message_type type;
     const char *path;
     struct dicey_selector selector;
     struct dicey_value value;
-
-    const struct dtf_message *_data;
 };
 
 struct dicey_packet {

@@ -1,4 +1,3 @@
-#include <sys/types.h>
 #if !defined(DTF_DHCBDDHD_H)
 #define DTF_DHCBDDHD_H
 
@@ -11,7 +10,8 @@
 
 #include <dicey/builders.h>
 #include <dicey/packet.h>
-#include <dicey/types.h>
+#include <dicey/value.h>
+#include <dicey/views.h>
 
 #include "to.h"
 

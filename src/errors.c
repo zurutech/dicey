@@ -31,5 +31,14 @@ const char* dicey_strerror(const int errnum) {
 
     case DICEY_EARRAY_TOO_LONG:
         return "array too long";
+
+    case DICEY_EBUILDER_TYPE_MISMATCH:
+        return "builder type mismatch";
+
+    case DICEY_EVALUE_TYPE_MISMATCH:
+        return "value type mismatch";
+
+    case DICEY_ENOT_SUPPORTED:
+        return "unsupported operation";
     }
 }

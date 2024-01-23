@@ -3,7 +3,8 @@
 
 #include <stdint.h>
 
-#include <dicey/packet.h>
+#include "packet.h"
+#include "value.h"
 
 #if defined (__cplusplus)
 extern "C" {
@@ -42,8 +43,17 @@ struct dicey_arg {
 
     union {
         dicey_bool boolean;
+        dicey_byte byte;
+
         dicey_float floating;
-        dicey_int integer;
+
+        dicey_i16 i16;
+        dicey_i32 i32;
+        dicey_i64 i64;
+
+        dicey_u16 u16;
+        dicey_u32 u32;
+        dicey_u64 u64;
 
         struct dicey_array_arg {
             enum dicey_type type;

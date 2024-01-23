@@ -5,6 +5,8 @@
 #include <dicey/errors.h>
 #include <dicey/packet.h>
 
+#include "dtf/dtf.h"
+
 #include "typedescr.h"
 
 #define ARRAY_END ']'
