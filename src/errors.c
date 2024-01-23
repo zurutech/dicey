@@ -17,6 +17,9 @@ const char* dicey_strerror(const int errnum) {
     case DICEY_EINVAL:
         return "invalid argument";
 
+    case DICEY_ENODATA:
+        return "no data available";
+
     case DICEY_EBADMSG:
         return "bad message";
 

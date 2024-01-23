@@ -6,28 +6,60 @@
 #include <dicey/value.h>
 #include <dicey/views.h>
 
+#include <dicey/internal/data-info.h>
+
 #include "dtf/dtf.h"
 
 #include "util.h"
 
-static enum dicey_error value_get_full(
-    const enum dicey_type type,
-    const struct dicey_value value,
-    union dtf_probed_data *const probed_data 
-) {
-    if (!dicey_value_is(value, type)) {
-        return DICEY_EINVAL;
-    }
+static enum dicey_error value_get_list(const struct dicey_value *const value, struct dicey_list *const dest) {
+    assert(value && dest);
 
-    struct dicey_view view = value._data;
-    const ptrdiff_t probe_val = dtf_value_probe_as(type, &view, probed_data);
-    if (probe_val < 0) {
-        return probe_val;
-    }
-
-    assert(dicey_view_is_empty(view));
+    *dest = (struct dicey_list) {
+        ._type = value->_data.list.inner_type,
+        ._data = value->_data.list.data,
+    };
 
     return DICEY_OK;
+}
+
+bool dicey_iterator_has_next(const struct dicey_iterator iter) {
+    return iter._data.len > 0;
+}
+
+enum dicey_error dicey_iterator_next(struct dicey_iterator *const iter, struct dicey_value *const dest) {
+    assert(iter && dest);
+
+    if (!dicey_iterator_has_next(*iter)) {
+        return DICEY_ENODATA;
+    }
+
+    struct dicey_view view = iter->_data;
+    struct dtf_probed_value probed_value = {0};
+    const ptrdiff_t read_bytes = dtf_value_probe(&view, &probed_value);
+    if (read_bytes < 0) {
+        return read_bytes;
+    }
+
+    assert(iter->_type == probed_value.type);
+
+    *dest = (struct dicey_value) {
+        ._type = probed_value.type,
+        ._data = probed_value.data,
+    };
+
+    iter->_data = view;
+
+    return DICEY_OK;    
+}
+
+struct dicey_iterator dicey_list_iter(const struct dicey_list *const list) {
+    assert(list);
+
+    return (struct dicey_iterator) {
+        ._type = list->_type,
+        ._data = list->_data,
+    };
 }
 
 ptrdiff_t dicey_selector_size(const struct dicey_selector selector) {
@@ -153,54 +185,94 @@ const char* dicey_type_name(const enum dicey_type type) {
     }
 }
 
-enum dicey_type dicey_value_get_type(const struct dicey_value value) {
-    return value._type;
+enum dicey_type dicey_value_get_type(const struct dicey_value *const value) {
+    return value->_type;
 }
 
 #define DICEY_VALUE_GET_IMPL_TRIVIAL(NAME, TYPE, DICEY_TYPE, FIELD) \
-    enum dicey_error dicey_value_get_##NAME(const struct dicey_value value, TYPE *const dest) { \
-        assert(dicey_value_is_valid(value) && dest);                                            \
-        union dtf_probed_data probed_data = {0};                                                \
-        const enum dicey_error err = value_get_full(DICEY_TYPE_BOOL, value, &probed_data);      \
-        if (err) {                                                                              \
-            return err;                                                                         \
-        }                                                                                       \
-        *dest = probed_data.FIELD;                                                              \
-        return DICEY_OK;                                                                        \
+    enum dicey_error dicey_value_get_##NAME(const struct dicey_value *const value, TYPE *const dest) { \
+        assert(value && dest);                                                                         \
+        if (dicey_value_get_type(value) != DICEY_TYPE) {                                               \
+            return DICEY_EVALUE_TYPE_MISMATCH;                                                         \
+        }                                                                                              \
+        *dest = value->_data.FIELD;                                                                     \
+        return DICEY_OK;                                                                               \
     }
+
+enum dicey_error dicey_value_get_array(const struct dicey_value *const value, struct dicey_list *const dest) {
+    return value_get_list(value, dest);
+}
 
 DICEY_VALUE_GET_IMPL_TRIVIAL(bool, bool, DICEY_TYPE_BOOL, boolean)
 DICEY_VALUE_GET_IMPL_TRIVIAL(byte, uint8_t, DICEY_TYPE_BYTE, byte)
 
+enum dicey_error dicey_value_get_bytes(
+    const struct dicey_value *const value,
+    const void **const dest,
+    size_t *const nbytes
+) {
+    assert(value && dest && nbytes);
+
+    if (dicey_value_get_type(value) != DICEY_TYPE_BYTES) {
+        return DICEY_EVALUE_TYPE_MISMATCH;
+    }
+
+    *dest = value->_data.bytes.data;
+    *nbytes = value->_data.bytes.len;
+
+    return DICEY_OK;
+}
+
+DICEY_VALUE_GET_IMPL_TRIVIAL(error, struct dicey_errmsg, DICEY_TYPE_ERROR, error)
 DICEY_VALUE_GET_IMPL_TRIVIAL(float, double, DICEY_TYPE_FLOAT, floating)
 
 DICEY_VALUE_GET_IMPL_TRIVIAL(i16, int16_t, DICEY_TYPE_INT16, i16)
 DICEY_VALUE_GET_IMPL_TRIVIAL(i32, int32_t, DICEY_TYPE_INT32, i32)
 DICEY_VALUE_GET_IMPL_TRIVIAL(i64, int64_t, DICEY_TYPE_INT64, i64)
 
-DICEY_VALUE_GET_IMPL_TRIVIAL(u16, uint16_t, DICEY_TYPE_UINT16, u16)
-DICEY_VALUE_GET_IMPL_TRIVIAL(u32, uint32_t, DICEY_TYPE_UINT32, u32)
-DICEY_VALUE_GET_IMPL_TRIVIAL(u64, uint64_t, DICEY_TYPE_UINT64, u64)
+DICEY_VALUE_GET_IMPL_TRIVIAL(path, const char*, DICEY_TYPE_PATH, str)
 
-enum dicey_error dicey_value_get_array(struct dicey_value value, struct dicey_array *dest);
+enum dicey_error dicey_value_get_pair(const struct dicey_value *const value, struct dicey_pair *const dest) {
+    assert(value && dest);
 
-enum dicey_error dicey_value_get_bytes(struct dicey_value value, const void **dest, size_t *nbytes) {
-    assert(dest && nbytes);
-
-    union dtf_probed_data probed_data = {0};
-    const enum dicey_error err = value_get_full(DICEY_TYPE_BYTES, value, &probed_data);
-    if (err) {
-        return err;
+    if (dicey_value_get_type(value) != DICEY_TYPE_PAIR) {
+        return DICEY_EVALUE_TYPE_MISMATCH;
     }
 
-    *dest = probed_data.bytes.data;
-    *nbytes = probed_data.bytes.len;
+    // hack: craft a tuple and use it to get the pair, given that in memory is identical to (vv) after the header
+    struct dicey_list tuple = {
+        ._type = DICEY_VARIANT_ID,
+        ._nitems = 2U,
+        ._data = value->_data.list.data,
+    };
+
+    struct dicey_iterator iter = dicey_list_iter(&tuple);
+
+    struct dicey_value *const items[] = { &dest->first, &dest->second, NULL };
+
+    for (struct dicey_value *const *item = items; *item; ++item) {
+        const enum dicey_error err = dicey_iterator_next(&iter, *item);
+        assert(!err);
+
+        (void) err; // silence unused warning, damn you MSVC
+    }
 
     return DICEY_OK;
 }
 
-DICEY_VALUE_GET_IMPL_TRIVIAL(error, struct dicey_errmsg, DICEY_TYPE_ERROR, error)
-
-DICEY_VALUE_GET_IMPL_TRIVIAL(str, const char*, DICEY_TYPE_STR, str)
-DICEY_VALUE_GET_IMPL_TRIVIAL(path, const char*, DICEY_TYPE_PATH, str)
 DICEY_VALUE_GET_IMPL_TRIVIAL(selector, struct dicey_selector, DICEY_TYPE_SELECTOR, selector)
+DICEY_VALUE_GET_IMPL_TRIVIAL(str, const char*, DICEY_TYPE_STR, str)
+
+enum dicey_error dicey_value_get_tuple(const struct dicey_value *const value, struct dicey_list *const dest) {
+    assert(value && dest);
+
+    if (dicey_value_get_type(value) != DICEY_TYPE_TUPLE) {
+        return DICEY_EVALUE_TYPE_MISMATCH;
+    }
+
+    return value_get_list(value, dest);
+}
+
+DICEY_VALUE_GET_IMPL_TRIVIAL(u16, uint16_t, DICEY_TYPE_UINT16, u16)
+DICEY_VALUE_GET_IMPL_TRIVIAL(u32, uint32_t, DICEY_TYPE_UINT32, u32)
+DICEY_VALUE_GET_IMPL_TRIVIAL(u64, uint64_t, DICEY_TYPE_UINT64, u64)

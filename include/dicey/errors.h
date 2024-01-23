@@ -16,6 +16,7 @@ enum dicey_error {
     DICEY_EAGAIN    = -EAGAIN,
     DICEY_ENOMEM    = -ENOMEM,
     DICEY_EINVAL    = -EINVAL,
+    DICEY_ENODATA   = -ENODATA,
     DICEY_EBADMSG   = -EBADMSG,
     DICEY_EOVERFLOW = -EOVERFLOW,
 
