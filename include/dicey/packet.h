@@ -26,6 +26,8 @@ enum dicey_packet_kind {
     DICEY_PACKET_KIND_MESSAGE,
 };
 
+bool dicey_packet_kind_is_valid(enum dicey_packet_kind kind);
+
 enum dicey_message_type {
     DICEY_MESSAGE_TYPE_INVALID = 0,
 
@@ -61,10 +63,13 @@ struct dicey_packet {
     size_t nbytes;
 };
 
+enum dicey_error dicey_packet_load(struct dicey_packet *packet, const void **data, size_t *nbytes);
+
 enum dicey_error dicey_packet_as_bye(struct dicey_packet packet, struct dicey_bye *bye);
 enum dicey_error dicey_packet_as_hello(struct dicey_packet packet, struct dicey_hello *hello);
 enum dicey_error dicey_packet_as_message(struct dicey_packet packet, struct dicey_message *message);
 void dicey_packet_deinit(struct dicey_packet *packet);
+enum dicey_error dicey_packet_dump(struct dicey_packet packet, void **data, size_t *nbytes);
 enum dicey_packet_kind dicey_packet_get_kind(struct dicey_packet packet);
 enum dicey_error dicey_packet_get_seq(struct dicey_packet packet, uint32_t *seq);
 

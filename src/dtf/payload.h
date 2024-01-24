@@ -32,14 +32,14 @@ static inline bool dtf_payload_kind_is_message(enum dtf_payload_kind kind) {
     return kind >= DTF_PAYLOAD_GET;
 }
 
-struct dtf_writeres {
+struct dtf_result {
     ptrdiff_t result;
     size_t size;
-    void* start;
+    void* data;
 };
 
-struct dtf_writeres dtf_bye_write(struct dicey_view_mut dest, uint32_t seq, uint32_t reason);
-struct dtf_writeres dtf_hello_write(struct dicey_view_mut dest, uint32_t seq, uint32_t version);
+struct dtf_result dtf_bye_write(struct dicey_view_mut dest, uint32_t seq, uint32_t reason);
+struct dtf_result dtf_hello_write(struct dicey_view_mut dest, uint32_t seq, uint32_t version);
 
 ptrdiff_t dtf_message_estimate_size(
     enum dtf_payload_kind kind,
@@ -65,7 +65,7 @@ ptrdiff_t dtf_message_get_path(const struct dtf_message *msg, size_t alloc_len, 
 ptrdiff_t dtf_message_get_selector(const struct dtf_message *msg, size_t alloc_len, struct dicey_selector *dest);
 ptrdiff_t dtf_message_get_value(const struct dtf_message *msg, size_t alloc_len, struct dicey_arg *dest);
 
-struct dtf_writeres dtf_message_write(
+struct dtf_result dtf_message_write(
     struct dicey_view_mut dest,
     enum dtf_payload_kind kind,
     uint32_t seq,
@@ -87,17 +87,6 @@ union dtf_payload {
 enum dtf_payload_kind dtf_payload_get_kind(union dtf_payload msg); 
 ptrdiff_t dtf_payload_get_seq(union dtf_payload msg);
 
-struct dtf_loadres {
-    // result will be:
-    // 0 if the message is invalid
-    // >0, and a valid value of dtf_msgkind if the message is valid
-    // <0, and a valid value of dtf_error if an error occured
-    ptrdiff_t result;
-    struct dicey_view remainder;
-
-    union dtf_payload payload;
-};
-
-struct dtf_loadres dtf_payload_load(struct dicey_view src);
+struct dtf_result dtf_payload_load(union dtf_payload *dest, struct dicey_view *src);
 
 #endif // DTF_DHCBDDHD_H

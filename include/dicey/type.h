@@ -25,6 +25,8 @@ struct dicey_errmsg {
     const char *message;
 };
 
+bool dicey_errmsg_is_valid(struct dicey_errmsg msg);
+
 typedef double dicey_float;
 
 struct dicey_selector {
@@ -32,7 +34,7 @@ struct dicey_selector {
     const char *elem;
 };
 
-enum dicey_error dicey_selector_from(struct dicey_selector *sel, struct dicey_view *src);
+bool dicey_selector_is_valid(struct dicey_selector selector);
 ptrdiff_t dicey_selector_size(struct dicey_selector sel);
 ptrdiff_t dicey_selector_write(struct dicey_selector sel, struct dicey_view_mut *dest);
 

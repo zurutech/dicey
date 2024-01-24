@@ -54,17 +54,13 @@ static void builder_state_set(const void *const builder, const enum builder_stat
     *(int*) builder = state;
 }
 
-static bool selector_is_valid(const struct dicey_selector selector) {
-    return selector.trait && selector.elem;
-}
-
 static bool msgbuilder_is_complete(const
  struct dicey_message_builder *const builder) {
     assert(builder);
 
     return builder->_state == BUILDER_STATE_PENDING
         && builder->_path 
-        && selector_is_valid(builder->_selector)
+        && dicey_selector_is_valid(builder->_selector)
         && builder->_type != DICEY_MESSAGE_TYPE_INVALID
         // get messages must not have a root, everything else does
         && (builder->_type == DICEY_MESSAGE_TYPE_GET) ^ (bool) { builder->_root }; 
@@ -148,7 +144,7 @@ enum dicey_error dicey_message_builder_build(
         return payload_kind;
     }
     
-    const struct dtf_writeres craft_res = dtf_message_write(
+    const struct dtf_result craft_res = dtf_message_write(
         DICEY_NULL,
         (enum dtf_payload_kind) payload_kind,
         builder->_seq,
@@ -164,7 +160,7 @@ enum dicey_error dicey_message_builder_build(
     dicey_message_builder_discard(builder);
 
     *packet = (struct dicey_packet) {
-        .payload = craft_res.start,
+        .payload = craft_res.data,
         .nbytes = craft_res.size,
     };
 
@@ -210,7 +206,7 @@ enum dicey_error dicey_message_builder_set_selector(
     struct dicey_message_builder *const builder,
     const struct dicey_selector selector
 ) {
-    assert(builder && selector_is_valid(selector));
+    assert(builder && dicey_selector_is_valid(selector));
 
     if (builder_state_get(builder) != BUILDER_STATE_PENDING) {
         return DICEY_EINVAL;

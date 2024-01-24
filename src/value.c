@@ -62,6 +62,14 @@ struct dicey_iterator dicey_list_iter(const struct dicey_list *const list) {
     };
 }
 
+bool dicey_errmsg_is_valid(const struct dicey_errmsg msg) {
+    return msg.message;
+}
+
+bool dicey_selector_is_valid(const struct dicey_selector selector) {
+    return selector.trait && selector.elem;
+}
+
 ptrdiff_t dicey_selector_size(const struct dicey_selector selector) {
     const ptrdiff_t trait_len = dutl_zstring_size(selector.trait); 
     if (trait_len < 0) {
