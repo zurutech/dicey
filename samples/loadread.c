@@ -243,7 +243,7 @@ int main(const int argc, const char *const argv[]) {
         size_t written = 0;
 
         while (written < nbytes) {
-            const unsigned long n = fwrite((char*) dumped_bytes + written, 1, nbytes - written, stdout);
+            const size_t n = fwrite((char*) dumped_bytes + written, 1, nbytes - written, stdout);
             if (!n) {
                 break;
             }
