@@ -190,7 +190,7 @@ int main(const int argc, const char *const argv[]) {
         goto fail;
     }
 
-    err = dicey_message_builder_begin(&msgbuild, DICEY_MESSAGE_TYPE_SET);
+    err = dicey_message_builder_begin(&msgbuild, DICEY_OP_SET);
     if (err != DICEY_OK) {
         goto fail;
     }

@@ -74,7 +74,7 @@ void util_dumper_dump_hex(struct util_dumper *const dumper, const void *const da
             util_dumper_printf(dumper, "%c", is_ascii_printable(byte) ? byte : '.');
         }
 
-        util_dumper_printlnf(dumper, "");
+        util_dumper_newline(dumper);
 
         i += HEX_LINE_BYTES;
     }
@@ -103,11 +103,16 @@ void util_dumper_printlnf(const struct util_dumper *const dumper, const char *co
     va_list args;
     va_start(args, fmt);
 
-    util_dumper_indent(dumper);
     vfprintf(dumper->dest, fmt, args);
-    fputc('\n', dumper->dest);
 
     va_end(args);
+
+    util_dumper_newline(dumper);
+}
+
+void util_dumper_newline(const struct util_dumper *const dumper) {
+    fputc('\n', dumper->dest);
+    util_dumper_indent(dumper);
 }
 
 void util_dumper_reset_pad(struct util_dumper *const dumper) {
