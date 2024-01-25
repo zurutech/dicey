@@ -18,6 +18,15 @@ static bool is_ascii_printable(const int c) {
     return c >= ' ' && c <= '~';
 }
 
+static void dumper_vprintf(struct util_dumper *const dumper, const char *const fmt, va_list args) {
+    if (dumper->newline) {
+        util_dumper_indent(dumper);
+        dumper->newline = false;
+    }
+
+    vfprintf(dumper->dest, fmt, args);
+}
+
 static bool next_chunk(struct dicey_view *const from, struct dicey_view *const chunk, const size_t chunk_size) {
     if (from->len == 0U) {
         return false;
@@ -90,29 +99,29 @@ void util_dumper_pad(struct util_dumper *const util_dumper) {
     util_dumper->pad += DEFAULT_PAD;
 }
 
-void util_dumper_printf(const struct util_dumper *const dumper, const char *const fmt, ...) {
+void util_dumper_printf(struct util_dumper *const dumper, const char *const fmt, ...) {
     va_list args;
     va_start(args, fmt);
 
-    vfprintf(dumper->dest, fmt, args);
+    dumper_vprintf(dumper, fmt, args);
 
     va_end(args);
 }
 
-void util_dumper_printlnf(const struct util_dumper *const dumper, const char *const fmt, ...) {
+void util_dumper_printlnf(struct util_dumper *const dumper, const char *const fmt, ...) {
     va_list args;
     va_start(args, fmt);
 
-    vfprintf(dumper->dest, fmt, args);
+    dumper_vprintf(dumper, fmt, args);
 
     va_end(args);
 
     util_dumper_newline(dumper);
 }
 
-void util_dumper_newline(const struct util_dumper *const dumper) {
+void util_dumper_newline(struct util_dumper *const dumper) {
     fputc('\n', dumper->dest);
-    util_dumper_indent(dumper);
+    dumper->newline = true;
 }
 
 void util_dumper_reset_pad(struct util_dumper *const dumper) {

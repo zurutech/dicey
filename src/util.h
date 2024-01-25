@@ -7,6 +7,8 @@
 
 #include <dicey/views.h>
 
+#define DICEY_UNUSED(X) ((void) (X))
+
 #if defined(__GNUC__) || defined(__clang__)
 #define SAFE_ADD(DEST, A, B) (!__builtin_add_overflow((A), (B), (DEST)))
 #else

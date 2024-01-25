@@ -67,6 +67,12 @@ struct dicey_iterator dicey_list_iter(const struct dicey_list *const list) {
     };
 }
 
+int dicey_list_type(const struct dicey_list *const list) {
+    assert(list);
+
+    return list->_type;
+}
+
 bool dicey_errmsg_is_valid(const struct dicey_errmsg msg) {
     return msg.message;
 }
@@ -115,6 +121,18 @@ ptrdiff_t dicey_selector_write(struct dicey_selector sel, struct dicey_view_mut 
     };
 
     return dicey_view_mut_write_chunks(dest, chunks, sizeof chunks / sizeof *chunks);
+}
+
+bool dicey_type_is_container(const enum dicey_type type) {
+    switch (type) {
+    case DICEY_TYPE_ARRAY:
+    case DICEY_TYPE_PAIR:
+    case DICEY_TYPE_TUPLE:
+        return true;
+
+    default:
+        return false;
+    }
 }
 
 bool dicey_type_is_valid(const enum dicey_type type) {
@@ -166,6 +184,9 @@ const char* dicey_type_name(const enum dicey_type type) {
     case DICEY_TYPE_BOOL:
         return "bool";
     
+    case DICEY_TYPE_BYTE:
+        return "byte";
+
     case DICEY_TYPE_FLOAT:
         return "float";
 
@@ -221,7 +242,7 @@ DICEY_VALUE_GET_IMPL_TRIVIAL(byte, uint8_t, DICEY_TYPE_BYTE, byte)
 
 enum dicey_error dicey_value_get_bytes(
     const struct dicey_value *const value,
-    const void **const dest,
+    const uint8_t **const dest,
     size_t *const nbytes
 ) {
     assert(value && dest && nbytes);
@@ -267,7 +288,7 @@ enum dicey_error dicey_value_get_pair(const struct dicey_value *const value, str
         const enum dicey_error err = dicey_iterator_next(&iter, *item);
         assert(!err);
 
-        (void) err; // silence unused warning, damn you MSVC
+        DICEY_UNUSED(err); // silence unused warning, damn you MSVC
     }
 
     return DICEY_OK;

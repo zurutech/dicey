@@ -8,6 +8,7 @@
 #include "dicey/builders.h"
 #include "dicey/packet.h"
 #include "util/dumper.h"
+#include "util/packet-dump.h"
 
 struct pupil {
     const char *name;
@@ -254,14 +255,17 @@ int main(const int argc, const char *const argv[]) {
         struct util_dumper dumper = util_dumper_for(stdout);
 
         util_dumper_dump_hex(&dumper, dumped_bytes, nbytes);
+
+        dicey_packet_deinit(&pkt);
+        err = dicey_packet_load(&pkt, &(const void*) { dumped_bytes }, &(size_t) { nbytes });
+        if (err != DICEY_OK) {
+            goto fail;
+        }
+
+        util_dumper_dump_packet(&dumper, pkt);
     }
 
     dicey_packet_deinit(&pkt);
-
-    err = dicey_packet_load(&pkt, &(const void*) { dumped_bytes }, &(size_t) { nbytes });
-    if (err != DICEY_OK) {
-        goto fail;
-    }
 
     return EXIT_SUCCESS;
 

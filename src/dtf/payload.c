@@ -166,7 +166,7 @@ struct dtf_result dtf_bye_write(struct dicey_view_mut dest, const uint32_t seq, 
     
     const ptrdiff_t write_res = dicey_view_mut_write(&dest, (struct dicey_view) { .data = &bye, .len = sizeof bye });
     assert(write_res >= 0);
-    (void) write_res; // suppress unused warning
+    DICEY_UNUSED(write_res); // suppress unused warning
 
     return (struct dtf_result) { .result = DICEY_OK, .data = dest.data, .size = needed_len };
 }
@@ -188,7 +188,7 @@ struct dtf_result dtf_hello_write(struct dicey_view_mut dest, const uint32_t seq
 
     const ptrdiff_t write_res = dicey_view_mut_write(&dest, (struct dicey_view) { .data = &hello, .len = sizeof hello });
     assert(write_res >= 0); 
-    (void) write_res; // suppress unused warning
+    DICEY_UNUSED(write_res); // suppress unused warning
 
     return (struct dtf_result) { .result = DICEY_OK, .data = dest.data, .size = needed_len };
 }
@@ -363,7 +363,7 @@ struct dtf_result dtf_message_write(
     assert(value_res.result == DICEY_OK); // no allocation should happen
     assert((char*) value_res.value == (char*) dval.data);
 
-    (void) dval; // suppress unused warning
+    DICEY_UNUSED(dval); // suppress unused warning
 
     // success: return the payload. Return the size as well, in case the caller wants to know how much was written
     // result will either be DICEY_OK or, if positive, the number of bytes that were allocated (aka size)

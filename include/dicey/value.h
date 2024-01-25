@@ -38,6 +38,7 @@ struct dicey_list {
 };
 
 struct dicey_iterator dicey_list_iter(const struct dicey_list *list);
+int dicey_list_type(const struct dicey_list *list);
 
 struct dicey_pair {
     struct dicey_value first;
@@ -51,7 +52,7 @@ enum dicey_error dicey_value_get_array(const struct dicey_value *value, struct d
 enum dicey_error dicey_value_get_bool(const struct dicey_value *value, bool *dest);
 enum dicey_error dicey_value_get_byte(const struct dicey_value *value, uint8_t *dest);
 
-enum dicey_error dicey_value_get_bytes(const struct dicey_value *value, const void **dest, size_t *nbytes);
+enum dicey_error dicey_value_get_bytes(const struct dicey_value *value, const uint8_t **dest, size_t *nbytes);
 
 enum dicey_error dicey_value_get_error(const struct dicey_value *value, struct dicey_errmsg *dest);
 

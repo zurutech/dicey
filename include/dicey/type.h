@@ -68,6 +68,7 @@ enum dicey_type {
     DICEY_TYPE_ERROR = 'e',
 };
 
+bool dicey_type_is_container(enum dicey_type type);
 bool dicey_type_is_valid(enum dicey_type type);
 const char* dicey_type_name(enum dicey_type type);
 
