@@ -28,20 +28,24 @@ ptrdiff_t dicey_view_advance(struct dicey_view *const view, const ptrdiff_t offs
     return offset;
 }
 
-ptrdiff_t dicey_view_as_zstring(struct dicey_view *view, const char **str) {
+ptrdiff_t dicey_view_as_zstring(struct dicey_view *const view, const char **const str) {
     if (!view || !view->data || !str) {
         return DICEY_EINVAL;
     }
 
-    const size_t size = strnlen(view->data, view->len);
-    if (size > PTRDIFF_MAX) {
+    size_t size = strnlen(view->data, view->len);
+    if (!dutl_checked_add(&size, size, 1)) {
         return DICEY_EOVERFLOW;
     }
-    
+
     if (size == view->len) {
         return DICEY_EINVAL;
     }
 
+    if (size > PTRDIFF_MAX) {
+        return DICEY_EOVERFLOW;
+    }
+    
     *str = view->data;
 
     return dicey_view_advance(view, (ptrdiff_t) size);

@@ -1,10 +1,12 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include <dicey/dicey.h>
 
 #include "dicey/builders.h"
+#include "dicey/packet.h"
 #include "util/dumper.h"
 
 struct pupil {
@@ -102,7 +104,26 @@ static enum dicey_error classes_dump(const struct classroom *const classes, cons
     return dicey_value_builder_array_end(array);
 }
 
-int main(void) {
+int main(const int argc, const char *const argv[]) {
+    bool dump_binary = false;
+
+    switch (argc) {
+    case 1:
+        break;
+
+    case 2:
+        if (strcmp(argv[1], "-t") == 0) {
+            dump_binary = true;
+            break;
+        }
+
+        // fallthrough    
+    default:
+        fprintf(stderr, "usage: %s [-t]\n", argv[0]);
+
+        return EXIT_FAILURE;
+    }
+
     const struct classroom classes[3] = {
         {
                 .name = "A",
@@ -160,6 +181,8 @@ int main(void) {
             },
     };
 
+    void *dumped_bytes = NULL;
+
     struct dicey_message_builder msgbuild = {0};
 
     enum dicey_error err = dicey_message_builder_init(&msgbuild);
@@ -212,15 +235,38 @@ int main(void) {
         goto fail;
     }
 
-    struct util_dumper dumper = util_dumper_for(stdout);
+    const size_t nbytes = pkt.nbytes;
+    dumped_bytes = calloc(1, nbytes);
+    err = dicey_packet_dump(pkt, &(void*) { dumped_bytes }, &(size_t) { nbytes });
 
-    util_dumper_dump_hex(&dumper, pkt.payload, pkt.nbytes);
+    if (dump_binary) {
+        size_t written = 0;
+
+        while (written < nbytes) {
+            const unsigned long n = fwrite((char*) dumped_bytes + written, 1, nbytes - written, stdout);
+            if (!n) {
+                break;
+            }
+
+            written += n;
+        }
+    } else  {
+        struct util_dumper dumper = util_dumper_for(stdout);
+
+        util_dumper_dump_hex(&dumper, dumped_bytes, nbytes);
+    }
 
     dicey_packet_deinit(&pkt);
+
+    err = dicey_packet_load(&pkt, &(const void*) { dumped_bytes }, &(size_t) { nbytes });
+    if (err != DICEY_OK) {
+        goto fail;
+    }
 
     return EXIT_SUCCESS;
 
 fail:
+    free(dumped_bytes);
     dicey_message_builder_destroy(&msgbuild);
 
     fprintf(stderr, "error: %s\n", dicey_strerror(err));

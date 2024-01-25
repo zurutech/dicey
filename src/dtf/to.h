@@ -23,18 +23,26 @@ typedef dicey_u16 dtf_u16;
 typedef dicey_u32 dtf_u32;
 typedef dicey_u64 dtf_u64;
 
+typedef uint8_t dtf_typeid;
+typedef uint16_t dtf_nmemb;
+typedef uint32_t dtf_size;
+
+#define DTF_TYPEID_MAX UINT8_MAX
+#define DTF_NMEMB_MAX UINT16_MAX
+#define DTF_SIZE_MAX UINT32_MAX
+
 // this should be pointless, in theory: all structs fields below are already packed except for the flexible array members
 // This is here if some smarty pants compiler decides to add padding anyway 
 #pragma pack(push, 1)
 
 #define DTF_LIST_HEAD \
-    uint32_t nbytes; \
-    uint16_t nitems;
+    dtf_size nbytes; \
+    dtf_nmemb nitems;
 
 struct dtf_array_header {
     DTF_LIST_HEAD
 
-    uint16_t type;
+    dtf_typeid type;
 };
 
 struct dtf_array {
@@ -55,7 +63,7 @@ struct dtf_tuple {
 };
 
 struct dtf_pair_header {
-    uint32_t nbytes;
+    dtf_size nbytes;
 };
 
 struct dtf_pair {
@@ -65,7 +73,7 @@ struct dtf_pair {
 };
 
 struct dtf_bytes_header {
-    uint32_t len;
+    dtf_size len;
 };
 
 struct dtf_bytes {
@@ -83,7 +91,7 @@ struct dtf_error {
 };
 
 struct dtf_value_header {
-    uint8_t type;
+    dtf_typeid type;
 };
 
 struct dtf_value {

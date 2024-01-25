@@ -133,7 +133,7 @@ static ptrdiff_t trailer_read_size(struct dicey_view src, const enum dtf_payload
     }
 }
 
-static ptrdiff_t payload_kind_is_valid(const enum dtf_payload_kind kind) {
+static bool payload_kind_is_valid(const enum dtf_payload_kind kind) {
     switch (kind) {
     case DTF_PAYLOAD_HELLO:
     case DTF_PAYLOAD_BYE:
@@ -142,10 +142,10 @@ static ptrdiff_t payload_kind_is_valid(const enum dtf_payload_kind kind) {
     case DTF_PAYLOAD_EXEC:
     case DTF_PAYLOAD_EVENT:
     case DTF_PAYLOAD_RESPONSE:
-        return DICEY_OK;
+        return true;
 
     default:
-        return DICEY_EINVAL;
+        return false;
     }
 }
 
@@ -195,11 +195,15 @@ struct dtf_result dtf_hello_write(struct dicey_view_mut dest, const uint32_t seq
 
 ptrdiff_t dtf_message_get_content(
     const struct dtf_message *msg,
-    const size_t alloc_len,
+    const size_t alloc_size,
     struct dtf_message_content *dest
 ) {
     if (!msg || !dest) {
         return DICEY_EINVAL;
+    }
+
+    if (alloc_size <= offsetof(struct dtf_message, data)) {
+        return DICEY_EOVERFLOW;
     }
 
     const ptrdiff_t trailer_size = dtf_message_get_trailer_size(msg);
@@ -207,7 +211,15 @@ ptrdiff_t dtf_message_get_content(
         return trailer_size;
     }
 
-    const ptrdiff_t path_len = dtf_message_get_path(msg, alloc_len, &dest->path);
+    if (alloc_size < (size_t) trailer_size) {
+        return DICEY_EOVERFLOW;
+    }
+
+    const ptrdiff_t path_len = dicey_view_as_zstring(
+        &(struct dicey_view) { .data = msg->data, .len = trailer_size }, 
+        &dest->path
+    );
+
     if (path_len < 0) {
         return path_len;
     }

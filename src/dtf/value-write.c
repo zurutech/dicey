@@ -62,11 +62,11 @@ static ptrdiff_t len_write(struct dtf_bytes_writer *const dest, const ptrdiff_t 
         return DICEY_EINVAL;
     }
 
-    if (slen > UINT32_MAX) {
+    if (slen > DTF_SIZE_MAX) {
         return DICEY_EOVERFLOW;
     }
 
-    const uint32_t len = (uint32_t) slen;
+    const dtf_size len = (dtf_size) slen;
 
     return blob_write(dest, &len, sizeof len);
 }
@@ -75,7 +75,7 @@ static ptrdiff_t list_write(
     struct dtf_bytes_writer *const dest,
     const struct dicey_view header,
     const struct dicey_arg *elems,
-    const uint16_t nitems,
+    const dtf_nmemb nitems,
     const enum item_policy policy
 ){
     // snapshot the writer. We will use the clone to write the byte size of the array. The byte size of the array
@@ -200,7 +200,7 @@ static ptrdiff_t tuple_write(struct dtf_bytes_writer *const dest, const struct d
         .len = sizeof (struct dtf_tuple_header),
     };
 
-    return list_write(dest, header, tuple.elems, tuple.nitems, ITEM_POLICY_EXACT);
+    return list_write(dest, header, tuple.elems, tuple.nitems, ITEM_POLICY_VARIANT);
 }
 
 static ptrdiff_t value_header_write(struct dtf_bytes_writer *const dest, const struct dicey_arg *const value) {

@@ -8,6 +8,7 @@
 
 #include <dicey/internal/data-info.h>
 
+#include "dicey/type.h"
 #include "dtf/dtf.h"
 
 #include "util.h"
@@ -35,13 +36,17 @@ enum dicey_error dicey_iterator_next(struct dicey_iterator *const iter, struct d
     }
 
     struct dicey_view view = iter->_data;
-    struct dtf_probed_value probed_value = {0};
-    const ptrdiff_t read_bytes = dtf_value_probe(&view, &probed_value);
+    struct dtf_probed_value probed_value = {.type = iter->_type};
+    
+    const ptrdiff_t read_bytes = iter->_type == DICEY_VARIANT_ID 
+        ? dtf_value_probe(&view, &probed_value) 
+        : dtf_value_probe_as(iter->_type, &view, &probed_value.data);
+
     if (read_bytes < 0) {
         return read_bytes;
     }
 
-    assert(iter->_type == probed_value.type);
+    assert(iter->_type == DICEY_VARIANT_ID || iter->_type == probed_value.type);
 
     *dest = (struct dicey_value) {
         ._type = probed_value.type,

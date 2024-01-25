@@ -104,7 +104,7 @@ static enum dicey_packet_kind pktkind_from_dtf(const enum dtf_payload_kind kind)
 
 static enum dicey_error validate_value(const struct dicey_value *value);
 
-static enum dicey_error validate_value_list(const struct dicey_list *const list, const enum dicey_type type) {
+static enum dicey_error validate_value_list(const struct dicey_list *const list) {
     assert(list);
 
     struct dicey_iterator iter = dicey_list_iter(list);
@@ -115,10 +115,6 @@ static enum dicey_error validate_value_list(const struct dicey_list *const list,
         const enum dicey_error next_err = dicey_iterator_next(&iter, &value);
         if (next_err) {
             return next_err;
-        }
-
-        if (value._type != type) {
-            return DICEY_EINVAL;
         }
 
         const enum dicey_error validate_err = validate_value(&value);
@@ -171,7 +167,23 @@ static enum dicey_error validate_value(const struct dicey_value *const value) {
             ? dicey_value_get_array(value, &list)
             : dicey_value_get_tuple(value, &list);
 
-        return as_list_err ? as_list_err : validate_value_list(&list, type);
+        return as_list_err ? as_list_err : validate_value_list(&list);
+    }
+
+    case DICEY_TYPE_PAIR: {
+        struct dicey_pair pair = {0};
+
+        const enum dicey_error as_pair_err = dicey_value_get_pair(value, &pair);
+        if (as_pair_err) {
+            return as_pair_err;
+        }
+
+        const enum dicey_error validate_first_err = validate_value(&pair.first);
+        if (validate_first_err) {
+            return validate_first_err;
+        }
+
+        return validate_value(&pair.second);
     }
 
     case DICEY_TYPE_STR:
