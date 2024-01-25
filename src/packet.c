@@ -479,6 +479,7 @@ enum dicey_error dicey_packet_load(struct dicey_packet *const packet, const void
         .nbytes = load_res.size,
     };
 
+#if !defined(DICEY_NO_VALIDATION)
     if (kind == DICEY_PACKET_KIND_MESSAGE) {
         const enum dicey_error validate_err = validate_message(packet);
         if (validate_err) {
@@ -486,6 +487,7 @@ enum dicey_error dicey_packet_load(struct dicey_packet *const packet, const void
             goto fail;
         }
     }
+#endif
 
     return DICEY_OK;
 
