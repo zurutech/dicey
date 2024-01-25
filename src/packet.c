@@ -13,7 +13,8 @@
 #include <dicey/internal/data-info.h>
 
 #include "dtf/dtf.h"
-#include "dtf/to.h"
+
+#include "view-ops.h"
 
 static bool bye_reason_is_valid(const enum dicey_bye_reason reason) {
     switch (reason) {

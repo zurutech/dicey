@@ -13,6 +13,7 @@
 
 #include "to.h"
 #include "value.h"
+#include "view-ops.h"
 
 #include "payload.h"
 
@@ -346,7 +347,7 @@ struct dtf_result dtf_message_write(
         goto fail;
     }
 
-    result = dicey_selector_write(selector, &dest);
+    result = dtf_selector_write(selector, &dest);
     if (result < 0) {
         goto fail;
     }

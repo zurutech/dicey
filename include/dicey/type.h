@@ -1,10 +1,11 @@
 #if !defined(PTDFNAAZWS_TYPE_H)
 #define PTDFNAAZWS_TYPE_H
 
+#include <stdbool.h>
+#include <stddef.h>
 #include <stdint.h>
 
-#include "errors.h"
-#include "views.h"
+#include "dicey_export.h"
 
 #if defined (__cplusplus)
 extern "C" {
@@ -25,7 +26,7 @@ struct dicey_errmsg {
     const char *message;
 };
 
-bool dicey_errmsg_is_valid(struct dicey_errmsg msg);
+DICEY_EXPORT bool dicey_errmsg_is_valid(struct dicey_errmsg msg);
 
 typedef double dicey_float;
 
@@ -34,9 +35,8 @@ struct dicey_selector {
     const char *elem;
 };
 
-bool dicey_selector_is_valid(struct dicey_selector selector);
-ptrdiff_t dicey_selector_size(struct dicey_selector sel);
-ptrdiff_t dicey_selector_write(struct dicey_selector sel, struct dicey_view_mut *dest);
+DICEY_EXPORT bool dicey_selector_is_valid(struct dicey_selector selector);
+DICEY_EXPORT ptrdiff_t dicey_selector_size(struct dicey_selector sel);
 
 enum dicey_type {
     DICEY_TYPE_INVALID = 0,
@@ -68,9 +68,9 @@ enum dicey_type {
     DICEY_TYPE_ERROR = 'e',
 };
 
-bool dicey_type_is_container(enum dicey_type type);
-bool dicey_type_is_valid(enum dicey_type type);
-const char* dicey_type_name(enum dicey_type type);
+DICEY_EXPORT bool dicey_type_is_container(enum dicey_type type);
+DICEY_EXPORT bool dicey_type_is_valid(enum dicey_type type);
+DICEY_EXPORT const char* dicey_type_name(enum dicey_type type);
 
 #define DICEY_VARIANT_ID ((uint16_t) 'v')
 

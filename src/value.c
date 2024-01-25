@@ -3,12 +3,12 @@
 #include <stddef.h>
 
 #include <dicey/errors.h>
+#include <dicey/type.h>
 #include <dicey/value.h>
 #include <dicey/views.h>
 
 #include <dicey/internal/data-info.h>
 
-#include "dicey/type.h"
 #include "dtf/dtf.h"
 
 #include "util.h"
@@ -98,29 +98,6 @@ ptrdiff_t dicey_selector_size(const struct dicey_selector selector) {
     }
 
     return trait_len + elem_len;
-}
-
-ptrdiff_t dicey_selector_write(struct dicey_selector sel, struct dicey_view_mut *const dest) {
-    if (!dest || !dest->data || !sel.trait || !sel.elem) {
-        return DICEY_EINVAL;
-    }
-
-    const ptrdiff_t trait_len = dutl_zstring_size(sel.trait);
-    if (trait_len < 0) {
-        return trait_len;
-    }
-
-    const ptrdiff_t elem_len = dutl_zstring_size(sel.elem);
-    if (elem_len < 0) {
-        return elem_len;
-    }
-
-    struct dicey_view chunks[] = {
-        (struct dicey_view) { .data = (void*) sel.trait, .len = (size_t) trait_len },
-        (struct dicey_view) { .data = (void*) sel.elem, .len = (size_t) elem_len },
-    };
-
-    return dicey_view_mut_write_chunks(dest, chunks, sizeof chunks / sizeof *chunks);
 }
 
 bool dicey_type_is_container(const enum dicey_type type) {
@@ -310,3 +287,11 @@ enum dicey_error dicey_value_get_tuple(const struct dicey_value *const value, st
 DICEY_VALUE_GET_IMPL_TRIVIAL(u16, uint16_t, DICEY_TYPE_UINT16, u16)
 DICEY_VALUE_GET_IMPL_TRIVIAL(u32, uint32_t, DICEY_TYPE_UINT32, u32)
 DICEY_VALUE_GET_IMPL_TRIVIAL(u64, uint64_t, DICEY_TYPE_UINT64, u64)
+
+bool dicey_value_is(const struct dicey_value *const value, const enum dicey_type type) {
+    return value->_type == type;
+}
+
+bool dicey_value_is_valid(const struct dicey_value *const value) {
+    return dicey_type_is_valid(value->_type);
+}

@@ -13,6 +13,7 @@
 #include "dtf/dtf.h"
 
 #include "packet-args.h"
+#include "view-ops.h"
 
 #define DEFAULT_VAL_CAP 16U
 

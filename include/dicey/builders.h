@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 
+#include "dicey_export.h"
 #include "packet.h"
 #include "value.h"
 
@@ -23,20 +24,20 @@ struct dicey_message_builder {
     const struct dicey_value_builder *_borrowed_to;
 };
 
-enum dicey_error dicey_message_builder_init(struct dicey_message_builder *builder);
+DICEY_EXPORT enum dicey_error dicey_message_builder_init(struct dicey_message_builder *builder);
 
-enum dicey_error dicey_message_builder_begin(struct dicey_message_builder *builder, enum dicey_op type);
-enum dicey_error dicey_message_builder_build(struct dicey_message_builder *builder, struct dicey_packet *packet);
-enum dicey_error dicey_message_builder_destroy(struct dicey_message_builder *builder);
-void dicey_message_builder_discard(struct dicey_message_builder *builder);
-enum dicey_error dicey_message_builder_set_path(struct dicey_message_builder *builder, const char *path);
+DICEY_EXPORT enum dicey_error dicey_message_builder_begin(struct dicey_message_builder *builder, enum dicey_op type);
+DICEY_EXPORT enum dicey_error dicey_message_builder_build(struct dicey_message_builder *builder, struct dicey_packet *packet);
+DICEY_EXPORT enum dicey_error dicey_message_builder_destroy(struct dicey_message_builder *builder);
+DICEY_EXPORT void dicey_message_builder_discard(struct dicey_message_builder *builder);
+DICEY_EXPORT enum dicey_error dicey_message_builder_set_path(struct dicey_message_builder *builder, const char *path);
 
-enum dicey_error dicey_message_builder_set_selector(
+DICEY_EXPORT enum dicey_error dicey_message_builder_set_selector(
     struct dicey_message_builder *builder,
     struct dicey_selector selector
 );
 
-enum dicey_error dicey_message_builder_set_seq(struct dicey_message_builder *builder, uint32_t seq);
+DICEY_EXPORT enum dicey_error dicey_message_builder_set_seq(struct dicey_message_builder *builder, uint32_t seq);
 
 struct dicey_arg {
     enum dicey_type type;
@@ -81,7 +82,7 @@ struct dicey_arg {
     };
 };
 
-enum dicey_error dicey_message_builder_set_value(
+DICEY_EXPORT enum dicey_error dicey_message_builder_set_value(
     struct dicey_message_builder *builder,
     struct dicey_arg value
 );
@@ -100,33 +101,33 @@ struct dicey_value_builder {
     } _list;
 };
 
-enum dicey_error dicey_message_builder_value_start(
+DICEY_EXPORT enum dicey_error dicey_message_builder_value_start(
     struct dicey_message_builder *builder,
     struct dicey_value_builder *value
 );
 
-enum dicey_error dicey_message_builder_value_end(
+DICEY_EXPORT enum dicey_error dicey_message_builder_value_end(
     struct dicey_message_builder *builder,
     struct dicey_value_builder *value
 );
 
-enum dicey_error dicey_value_builder_array_start(struct dicey_value_builder *builder, enum dicey_type type);
+DICEY_EXPORT enum dicey_error dicey_value_builder_array_start(struct dicey_value_builder *builder, enum dicey_type type);
 
-enum dicey_error dicey_value_builder_array_end(struct dicey_value_builder *builder);
+DICEY_EXPORT enum dicey_error dicey_value_builder_array_end(struct dicey_value_builder *builder);
 
-enum dicey_error dicey_value_builder_next(
+DICEY_EXPORT enum dicey_error dicey_value_builder_next(
     struct dicey_value_builder *list,
     struct dicey_value_builder *elem
 );
 
 
-enum dicey_error dicey_value_builder_set(
+DICEY_EXPORT enum dicey_error dicey_value_builder_set(
     struct dicey_value_builder *builder,
     struct dicey_arg value
 );
 
-enum dicey_error dicey_value_builder_tuple_start(struct dicey_value_builder *builder);
-enum dicey_error dicey_value_builder_tuple_end(struct dicey_value_builder *builder);
+DICEY_EXPORT enum dicey_error dicey_value_builder_tuple_start(struct dicey_value_builder *builder);
+DICEY_EXPORT enum dicey_error dicey_value_builder_tuple_end(struct dicey_value_builder *builder);
 
 #if defined(__cplusplus)
 }

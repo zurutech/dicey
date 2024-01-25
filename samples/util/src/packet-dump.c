@@ -68,18 +68,18 @@ static void dump_hello(struct util_dumper *const dumper, const struct dicey_pack
     util_dumper_printlnf(dumper, "hello { version = " PRIu16 "r" PRIu16 " }", hello.version.major, hello.version.revision);
 }
 
-static void dump_hex_short(struct util_dumper *const dumper, const struct dicey_view view) {
+static void dump_hex_short(struct util_dumper *const dumper, const void *const data, const size_t nbytes) {
     assert(dumper);
 
-    if (dicey_view_is_empty(view)) {
+    if (!data || !nbytes) {
         util_dumper_printf(dumper, "null");
     } else {
         util_dumper_printf(dumper, "[ ");
 
         // if the view is 4 bytes or less, print the hex as separate bytes
         // otherwise, print b0 b1 .. bN-1 bN
-        const size_t n = view.len;
-        const uint8_t *bytes = view.data, *const end = bytes + n;
+        const size_t n = nbytes;
+        const uint8_t *bytes = data, *const end = bytes + n;
 
         if (n <= 4U) {
             while (bytes < end) {
@@ -267,7 +267,7 @@ static void dump_value(struct util_dumper *const dumper, const struct dicey_valu
         assert(!err);
         (void) err; // silence unused warning
 
-        dump_hex_short(dumper, (struct dicey_view) { .data = dest, .len = nbytes});
+        dump_hex_short(dumper, dest, nbytes);
         break;
     }
 

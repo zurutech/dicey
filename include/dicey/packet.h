@@ -4,9 +4,9 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include "dicey_export.h"
 #include "errors.h"
 #include "value.h"
-#include "views.h"
 
 #if defined (__cplusplus)
 extern "C" {
@@ -18,7 +18,7 @@ enum dicey_bye_reason {
     DICEY_BYE_REASON_ERROR = 3,
 };
 
-const char* dicey_bye_reason_to_string(enum dicey_bye_reason reason);
+DICEY_EXPORT const char* dicey_bye_reason_to_string(enum dicey_bye_reason reason);
 
 enum dicey_op {
     DICEY_OP_INVALID = 0,
@@ -30,7 +30,7 @@ enum dicey_op {
     DICEY_OP_RESPONSE = ':',
 };
 
-const char* dicey_message_type_to_string(enum dicey_op type);
+DICEY_EXPORT const char* dicey_message_type_to_string(enum dicey_op type);
 
 enum dicey_packet_kind {
     DICEY_PACKET_KIND_INVALID = 0,
@@ -40,7 +40,7 @@ enum dicey_packet_kind {
     DICEY_PACKET_KIND_MESSAGE,
 };
 
-bool dicey_packet_kind_is_valid(enum dicey_packet_kind kind);
+DICEY_EXPORT bool dicey_packet_kind_is_valid(enum dicey_packet_kind kind);
 
 struct dicey_version {
     uint16_t major;
@@ -67,19 +67,19 @@ struct dicey_packet {
     size_t nbytes;
 };
 
-enum dicey_error dicey_packet_load(struct dicey_packet *packet, const void **data, size_t *nbytes);
+DICEY_EXPORT enum dicey_error dicey_packet_load(struct dicey_packet *packet, const void **data, size_t *nbytes);
 
-enum dicey_error dicey_packet_as_bye(struct dicey_packet packet, struct dicey_bye *bye);
-enum dicey_error dicey_packet_as_hello(struct dicey_packet packet, struct dicey_hello *hello);
-enum dicey_error dicey_packet_as_message(struct dicey_packet packet, struct dicey_message *message);
-void dicey_packet_deinit(struct dicey_packet *packet);
-enum dicey_error dicey_packet_dump(struct dicey_packet packet, void **data, size_t *nbytes);
-enum dicey_packet_kind dicey_packet_get_kind(struct dicey_packet packet);
-enum dicey_error dicey_packet_get_seq(struct dicey_packet packet, uint32_t *seq);
-bool dicey_packet_is_valid(struct dicey_packet packet);
+DICEY_EXPORT enum dicey_error dicey_packet_as_bye(struct dicey_packet packet, struct dicey_bye *bye);
+DICEY_EXPORT enum dicey_error dicey_packet_as_hello(struct dicey_packet packet, struct dicey_hello *hello);
+DICEY_EXPORT enum dicey_error dicey_packet_as_message(struct dicey_packet packet, struct dicey_message *message);
+DICEY_EXPORT void dicey_packet_deinit(struct dicey_packet *packet);
+DICEY_EXPORT enum dicey_error dicey_packet_dump(struct dicey_packet packet, void **data, size_t *nbytes);
+DICEY_EXPORT enum dicey_packet_kind dicey_packet_get_kind(struct dicey_packet packet);
+DICEY_EXPORT enum dicey_error dicey_packet_get_seq(struct dicey_packet packet, uint32_t *seq);
+DICEY_EXPORT bool dicey_packet_is_valid(struct dicey_packet packet);
 
-enum dicey_error dicey_packet_bye(struct dicey_packet *dest, uint32_t seq, enum dicey_bye_reason reason);
-enum dicey_error dicey_packet_hello(struct dicey_packet *dest, uint32_t seq, struct dicey_version version);
+DICEY_EXPORT enum dicey_error dicey_packet_bye(struct dicey_packet *dest, uint32_t seq, enum dicey_bye_reason reason);
+DICEY_EXPORT enum dicey_error dicey_packet_hello(struct dicey_packet *dest, uint32_t seq, struct dicey_version version);
 
 #if defined(__cplusplus)
 }

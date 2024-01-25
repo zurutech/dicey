@@ -1,7 +1,7 @@
-#include <stdint.h>
 #define _POSIX_C_SOURCE 200809L
 
 #include <stddef.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -10,6 +10,8 @@
 
 #include "unsafe.h"
 #include "util.h"
+
+#include "view-ops.h"
 
 ptrdiff_t dicey_view_advance(struct dicey_view *const view, const ptrdiff_t offset) {
     if (!view || !view->data || offset < 0) {

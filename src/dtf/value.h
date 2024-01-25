@@ -25,6 +25,7 @@ struct dtf_probed_value {
 };
 
 ptrdiff_t dtf_selector_from(struct dicey_selector *sel, struct dicey_view *src);
+ptrdiff_t dtf_selector_write(struct dicey_selector sel, struct dicey_view_mut *dest);
 
 struct dtf_valueres {
     ptrdiff_t result;

@@ -7,6 +7,7 @@
 
 #include <dicey/internal/data-info.h>
 
+#include "view-ops.h"
 #include "util.h"
 
 #include "value.h"

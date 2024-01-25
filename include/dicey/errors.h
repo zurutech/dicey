@@ -3,6 +3,8 @@
 
 #include <errno.h>
 
+#include "dicey_export.h"
+
 #if defined (__cplusplus)
 extern "C" {
 #endif
@@ -30,7 +32,7 @@ enum dicey_error {
     DICEY_ENOT_SUPPORTED = -0x3000,
 };
 
-const char* dicey_strerror(int errnum);
+DICEY_EXPORT const char* dicey_strerror(int errnum);
 
 #if defined(__cplusplus)
 }

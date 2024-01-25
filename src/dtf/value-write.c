@@ -1,7 +1,6 @@
 #include <assert.h>
 #include <stdbool.h>
 #include <stddef.h>
-#include <stdint.h>
 #include <stdlib.h>
 
 #include <dicey/builders.h>
@@ -11,8 +10,8 @@
 
 #include "util.h"
 
-#include "payload.h"
 #include "to.h"
+#include "view-ops.h"
 #include "writer.h"
 
 #include "value.h"
@@ -341,6 +340,29 @@ ptrdiff_t dtf_selector_from(struct dicey_selector *const sel, struct dicey_view 
     }
 
     return read_bytes;
+}
+
+ptrdiff_t dtf_selector_write(struct dicey_selector sel, struct dicey_view_mut *const dest) {
+    if (!dest || !dest->data || !sel.trait || !sel.elem) {
+        return DICEY_EINVAL;
+    }
+
+    const ptrdiff_t trait_len = dutl_zstring_size(sel.trait);
+    if (trait_len < 0) {
+        return trait_len;
+    }
+
+    const ptrdiff_t elem_len = dutl_zstring_size(sel.elem);
+    if (elem_len < 0) {
+        return elem_len;
+    }
+
+    struct dicey_view chunks[] = {
+        (struct dicey_view) { .data = (void*) sel.trait, .len = (size_t) trait_len },
+        (struct dicey_view) { .data = (void*) sel.elem, .len = (size_t) elem_len },
+    };
+
+    return dicey_view_mut_write_chunks(dest, chunks, sizeof chunks / sizeof *chunks);
 }
 
 ptrdiff_t dtf_value_estimate_size(const struct dicey_arg *const item) {

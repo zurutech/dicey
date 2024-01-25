@@ -4,6 +4,7 @@
 #include <dicey/errors.h>
 #include <dicey/views.h>
 
+#include "view-ops.h"
 #include "util.h"
 
 #include "writer.h"
