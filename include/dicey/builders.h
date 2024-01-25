@@ -13,7 +13,7 @@ extern "C" {
 struct dicey_message_builder {
     int _state;
 
-    enum dicey_message_type _type;
+    enum dicey_op _type;
     uint32_t _seq;
 
     const char *_path;
@@ -25,7 +25,7 @@ struct dicey_message_builder {
 
 enum dicey_error dicey_message_builder_init(struct dicey_message_builder *builder);
 
-enum dicey_error dicey_message_builder_begin(struct dicey_message_builder *builder, enum dicey_message_type type);
+enum dicey_error dicey_message_builder_begin(struct dicey_message_builder *builder, enum dicey_op type);
 enum dicey_error dicey_message_builder_build(struct dicey_message_builder *builder, struct dicey_packet *packet);
 enum dicey_error dicey_message_builder_destroy(struct dicey_message_builder *builder);
 void dicey_message_builder_discard(struct dicey_message_builder *builder);

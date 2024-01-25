@@ -1,6 +1,8 @@
 #if !defined(OQJPHQJJLF_DTF_TO_H)
 #define OQJPHQJJLF_DTF_TO_H
 
+#include <assert.h>
+#include <stddef.h>
 #include <stdint.h>
 
 #include <dicey/asserts.h>
@@ -26,6 +28,8 @@ typedef dicey_u64 dtf_u64;
 typedef uint8_t dtf_typeid;
 typedef uint16_t dtf_nmemb;
 typedef uint32_t dtf_size;
+
+static_assert(sizeof(dtf_size) <= sizeof(ptrdiff_t), "dtf_size must never be larger than ptrdiff_t");
 
 #define DTF_TYPEID_MAX UINT8_MAX
 #define DTF_NMEMB_MAX UINT16_MAX

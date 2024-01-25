@@ -15,9 +15,6 @@
 extern "C" {
 #endif
 
-bool dicey_type_is_valid(enum dicey_type type);
-const char* dicey_type_name(enum dicey_type type);
-
 struct dicey_value {
     enum dicey_type _type;
 

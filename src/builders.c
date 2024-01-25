@@ -61,32 +61,32 @@ static bool msgbuilder_is_complete(const
     return builder->_state == BUILDER_STATE_PENDING
         && builder->_path 
         && dicey_selector_is_valid(builder->_selector)
-        && builder->_type != DICEY_MESSAGE_TYPE_INVALID
+        && builder->_type != DICEY_OP_INVALID
         // get messages must not have a root, everything else does
-        && (builder->_type == DICEY_MESSAGE_TYPE_GET) ^ (bool) { builder->_root }; 
+        && (builder->_type == DICEY_OP_GET) ^ (bool) { builder->_root }; 
 }
 
-static ptrdiff_t msgkind_to_dtf(const enum dicey_message_type kind) {
+static ptrdiff_t msgkind_to_dtf(const enum dicey_op kind) {
     switch (kind) {
     default:
         assert(false);
 
-    case DICEY_MESSAGE_TYPE_INVALID:
+    case DICEY_OP_INVALID:
         return DICEY_EINVAL;
 
-    case DICEY_MESSAGE_TYPE_SET:
+    case DICEY_OP_SET:
         return DTF_PAYLOAD_SET;
 
-    case DICEY_MESSAGE_TYPE_GET:
+    case DICEY_OP_GET:
         return DTF_PAYLOAD_GET;
         
-    case DICEY_MESSAGE_TYPE_EXEC:
+    case DICEY_OP_EXEC:
         return DTF_PAYLOAD_EXEC;
 
-    case DICEY_MESSAGE_TYPE_EVENT:
+    case DICEY_OP_EVENT:
         return DTF_PAYLOAD_EVENT;
 
-    case DICEY_MESSAGE_TYPE_RESPONSE:
+    case DICEY_OP_RESPONSE:
         return DTF_PAYLOAD_RESPONSE;
     }
 }
@@ -109,7 +109,7 @@ enum dicey_error dicey_message_builder_init(struct dicey_message_builder *const 
 
 enum dicey_error dicey_message_builder_begin(
     struct dicey_message_builder *const builder,
-    const enum dicey_message_type type
+    const enum dicey_op type
 ) {
     assert(builder);
 

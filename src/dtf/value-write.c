@@ -62,7 +62,7 @@ static ptrdiff_t len_write(struct dtf_bytes_writer *const dest, const ptrdiff_t 
         return DICEY_EINVAL;
     }
 
-    if (slen > DTF_SIZE_MAX) {
+    if ((dtf_size) slen > DTF_SIZE_MAX) {
         return DICEY_EOVERFLOW;
     }
 

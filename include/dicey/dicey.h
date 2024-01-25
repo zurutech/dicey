@@ -5,6 +5,7 @@
 #include "builders.h"
 #include "errors.h"
 #include "packet.h"
+#include "type.h"
 #include "value.h"
 #include "views.h"
 

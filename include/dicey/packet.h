@@ -18,6 +18,20 @@ enum dicey_bye_reason {
     DICEY_BYE_REASON_ERROR = 3,
 };
 
+const char* dicey_bye_reason_to_string(enum dicey_bye_reason reason);
+
+enum dicey_op {
+    DICEY_OP_INVALID = 0,
+
+    DICEY_OP_GET      = '<',
+    DICEY_OP_SET      = '>',
+    DICEY_OP_EXEC     = '?',
+    DICEY_OP_EVENT    = '!',
+    DICEY_OP_RESPONSE = ':',
+};
+
+const char* dicey_message_type_to_string(enum dicey_op type);
+
 enum dicey_packet_kind {
     DICEY_PACKET_KIND_INVALID = 0,
         
@@ -27,16 +41,6 @@ enum dicey_packet_kind {
 };
 
 bool dicey_packet_kind_is_valid(enum dicey_packet_kind kind);
-
-enum dicey_message_type {
-    DICEY_MESSAGE_TYPE_INVALID = 0,
-
-    DICEY_MESSAGE_TYPE_GET = 0x10,
-    DICEY_MESSAGE_TYPE_SET,
-    DICEY_MESSAGE_TYPE_EXEC,
-    DICEY_MESSAGE_TYPE_EVENT,
-    DICEY_MESSAGE_TYPE_RESPONSE,
-};
 
 struct dicey_version {
     uint16_t major;
@@ -52,7 +56,7 @@ struct dicey_hello {
 };
 
 struct dicey_message {
-    enum dicey_message_type type;
+    enum dicey_op type;
     const char *path;
     struct dicey_selector selector;
     struct dicey_value value;
@@ -72,6 +76,7 @@ void dicey_packet_deinit(struct dicey_packet *packet);
 enum dicey_error dicey_packet_dump(struct dicey_packet packet, void **data, size_t *nbytes);
 enum dicey_packet_kind dicey_packet_get_kind(struct dicey_packet packet);
 enum dicey_error dicey_packet_get_seq(struct dicey_packet packet, uint32_t *seq);
+bool dicey_packet_is_valid(struct dicey_packet packet);
 
 enum dicey_error dicey_packet_bye(struct dicey_packet *dest, uint32_t seq, enum dicey_bye_reason reason);
 enum dicey_error dicey_packet_hello(struct dicey_packet *dest, uint32_t seq, struct dicey_version version);
