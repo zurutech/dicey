@@ -53,13 +53,10 @@ static bool is_message(const enum dtf_payload_kind kind) {
     }
 }
 
-static size_t message_fixed_size(const enum dtf_payload_kind kind) {
+static ptrdiff_t message_fixed_size(const enum dtf_payload_kind kind) {
     switch (kind) {
     default:
-        assert(false);
-
-    case DTF_PAYLOAD_INVALID:
-        return 0U;
+        return DICEY_EINVAL;
 
     case DTF_PAYLOAD_HELLO:
         return sizeof(struct dtf_hello);
@@ -390,7 +387,7 @@ ptrdiff_t dtf_message_estimate_size(
     }
 
     // the value should always be present, except for GET messages
-    if (!((kind == DTF_PAYLOAD_GET) ^ (bool) { value })) {
+    if ((kind != DTF_PAYLOAD_GET) != (bool) { value }) {
         return DICEY_EINVAL;
     }
 
@@ -449,10 +446,12 @@ struct dtf_result dtf_payload_load(union dtf_payload *const payload, struct dice
     }
 
     // get the base size of the message (fixed part)
-    size_t needed_len = message_fixed_size(head.kind);
-    assert(needed_len > 0U);
+    ptrdiff_t needed_len = message_fixed_size(head.kind);
+    if (needed_len < 0) {
+        return (struct dtf_result) { .result = DICEY_EINVAL };
+    }
 
-    if (needed_len > src->len) {
+    if ((size_t) needed_len > src->len) {
         return (struct dtf_result) { .result = DICEY_EAGAIN };
     }
 
@@ -469,27 +468,27 @@ struct dtf_result dtf_payload_load(union dtf_payload *const payload, struct dice
         return res;
     }
 
-    if (!dutl_checked_add(&needed_len, needed_len, (size_t) trailer_size)) {
+    if (!dutl_checked_add(&needed_len, needed_len, trailer_size)) {
         res.result = DICEY_EOVERFLOW;
 
         return res;
     }
 
-    if (needed_len > src->len) {
+    if ((size_t) needed_len > src->len) {
         res.result = DICEY_EAGAIN;
 
         return res;
     }
 
     // allocate the payload and then load it
-    void *const data = malloc(needed_len);
+    void *const data = malloc((size_t) needed_len);
     if (!data) {
         res.result = DICEY_ENOMEM;
 
         return res;
     }
 
-    struct dicey_view_mut dest = { .data = data, .len = needed_len };
+    struct dicey_view_mut dest = { .data = data, .len = (size_t) needed_len };
 
     struct dicey_view remainder = *src;
     read_res = dicey_view_read(&remainder, dest);
@@ -499,5 +498,5 @@ struct dtf_result dtf_payload_load(union dtf_payload *const payload, struct dice
     *src = remainder;
     *payload = (union dtf_payload) { .header = data };
 
-    return (struct dtf_result) { .result = DICEY_OK, .data = data, .size = needed_len };
+    return (struct dtf_result) { .result = DICEY_OK, .data = data, .size = (size_t) needed_len };
 }

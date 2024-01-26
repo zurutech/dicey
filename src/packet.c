@@ -525,6 +525,7 @@ enum dicey_error dicey_packet_load(struct dicey_packet *const packet, const void
 
 fail:
     free(load_res.data);
+    *packet = (struct dicey_packet) {0};
 
     return err;
 }

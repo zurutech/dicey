@@ -1,3 +1,4 @@
+#include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -5,10 +6,14 @@
 
 #include <dicey/dicey.h>
 
-#include "dicey/builders.h"
-#include "dicey/packet.h"
 #include "util/dumper.h"
-#include "util/packet-dump.h"
+
+#if defined(__unix__) || defined(__APPLE__)
+#   include <unistd.h>
+#   define IS_PIPED() (!isatty(fileno(stdout)))
+#else
+#   define IS_PIPED() false
+#endif
 
 struct pupil {
     const char *name;
@@ -105,22 +110,23 @@ static enum dicey_error classes_dump(const struct classroom *const classes, cons
     return dicey_value_builder_array_end(array);
 }
 
+
 int main(const int argc, const char *const argv[]) {
-    bool dump_binary = false;
+    bool dump_binary = IS_PIPED();
 
     switch (argc) {
     case 1:
         break;
 
     case 2:
-        if (strcmp(argv[1], "-t") == 0) {
-            dump_binary = true;
+        if (!strcmp(argv[1], "-t") || !strcmp(argv[1], "-b")) {
+            dump_binary = argv[1][1] == 'b';
             break;
         }
 
         // fallthrough    
     default:
-        fprintf(stderr, "usage: %s [-t]\n", argv[0]);
+        fprintf(stderr, "usage: %s [-bt]\n", argv[0]);
 
         return EXIT_FAILURE;
     }
@@ -255,14 +261,6 @@ int main(const int argc, const char *const argv[]) {
         struct util_dumper dumper = util_dumper_for(stdout);
 
         util_dumper_dump_hex(&dumper, dumped_bytes, nbytes);
-
-        dicey_packet_deinit(&pkt);
-        err = dicey_packet_load(&pkt, &(const void*) { dumped_bytes }, &(size_t) { nbytes });
-        if (err != DICEY_OK) {
-            goto fail;
-        }
-
-        util_dumper_dump_packet(&dumper, pkt);
     }
 
     dicey_packet_deinit(&pkt);

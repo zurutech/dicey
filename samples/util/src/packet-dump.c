@@ -6,6 +6,7 @@
 
 #include <dicey/dicey.h>
 
+#include <stdint.h>
 #include <util/dumper.h>
 #include <util/packet-dump.h>
 
@@ -335,10 +336,20 @@ static void dump_message(struct util_dumper *const dumper, const struct dicey_pa
     util_dumper_printf(dumper, "value = ");
     dump_value(dumper, &message.value);
     util_dumper_newline(dumper);
+
+    util_dumper_unpad(dumper);
+    util_dumper_printlnf(dumper, "}");
 }
 
 void util_dumper_dump_packet(struct util_dumper *const dumper, const struct dicey_packet packet) {
     assert(dumper && dicey_packet_is_valid(packet));
+
+    uint32_t seq = 0U;
+    const enum dicey_error err = dicey_packet_get_seq(packet, &seq);
+    assert(!err);
+    (void) err; // silence unused warning
+
+    util_dumper_printf(dumper, "#%" PRIu32 " = ", seq);
 
     switch (dicey_packet_get_kind(packet)) {
     default:
