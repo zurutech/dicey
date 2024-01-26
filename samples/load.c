@@ -31,6 +31,11 @@ int main(void) {
         nbytes = new_len;
     }
 
+    if (!nbytes || !dumped_bytes) {
+        fputs("error: no input\n", stderr);
+        return EXIT_FAILURE;
+    }
+
     struct dicey_packet pkt = {0};
     const enum dicey_error err = dicey_packet_load(&pkt, &(const void*) { dumped_bytes }, &(size_t) { nbytes });
     if (err) {
