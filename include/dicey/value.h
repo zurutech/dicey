@@ -1,8 +1,8 @@
-#include <stddef.h>
 #if !defined(TOJAFCVDUG_VALUE_H)
 #define TOJAFCVDUG_VALUE_H
 
 #include <stdbool.h>
+#include <stddef.h>
 #include <stdint.h>
 
 #include "dicey_export.h"
