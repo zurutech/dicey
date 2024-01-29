@@ -271,7 +271,7 @@ fail:
     free(dumped_bytes);
     dicey_message_builder_destroy(&msgbuild);
 
-    fprintf(stderr, "error: %s\n", dicey_strerror(err));
+    fprintf(stderr, "error: %s\n", dicey_error_msg(err));
 
     return err;
 }

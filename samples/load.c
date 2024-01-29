@@ -50,7 +50,7 @@ quit:
     free(dumped_bytes);
 
     if (err) {
-        fprintf(stderr, "error: %s\n", dicey_strerror(err));
+        fprintf(stderr, "error: %s\n", dicey_error_msg(err));
         return EXIT_FAILURE;
     }
 
