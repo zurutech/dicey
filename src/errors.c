@@ -23,13 +23,6 @@ static const struct dicey_error_def error_info[] = {
     ERROR_INFO_FOR(DICEY_ENOT_SUPPORTED, "NotSupported", "unsupported operation"),
 };
 
-DICEY_EXPORT const struct dicey_error_def* dicey_error_def(const enum dicey_error errnum) {
-    const ptrdiff_t index = INDEX_OF(errnum);
-    const ptrdiff_t count = sizeof error_info / sizeof *error_info;
-
-    return index >= 0 && index < count ? &error_info[index] : NULL;
-}
-
 DICEY_EXPORT void dicey_error_defs(const struct dicey_error_def **const  defs, size_t *const count) {
     assert(defs && count);
 
@@ -37,14 +30,21 @@ DICEY_EXPORT void dicey_error_defs(const struct dicey_error_def **const  defs, s
     *count = sizeof error_info / sizeof *error_info;
 }
 
+DICEY_EXPORT const struct dicey_error_def* dicey_error_info(const enum dicey_error errnum) {
+    const ptrdiff_t index = INDEX_OF(errnum);
+    const ptrdiff_t count = sizeof error_info / sizeof *error_info;
+
+    return index >= 0 && index < count ? &error_info[index] : NULL;
+}
+
 DICEY_EXPORT const char* dicey_error_name(const enum dicey_error errnum) {
-    const struct dicey_error_def *const def = dicey_error_def(errnum);
+    const struct dicey_error_def *const def = dicey_error_info(errnum);
 
     return def ? def->name : "UnknownError";
 }
 
 const char* dicey_error_msg(const enum dicey_error errnum) {
-    const struct dicey_error_def *const def = dicey_error_def(errnum);
+    const struct dicey_error_def *const def = dicey_error_info(errnum);
 
     return def ? def->message : "unknown error";
 }

@@ -31,11 +31,12 @@ enum dicey_error {
 
 struct dicey_error_def {
     enum dicey_error errnum;
-    const char* name, *message;
+    const char *name;
+    const char *message;
 };
 
-DICEY_EXPORT const struct dicey_error_def* dicey_error_def(enum dicey_error errnum);
 DICEY_EXPORT void dicey_error_defs(const struct dicey_error_def **defs, size_t *count);
+DICEY_EXPORT const struct dicey_error_def* dicey_error_info(enum dicey_error errnum);
 DICEY_EXPORT const char* dicey_error_msg(enum dicey_error errnum);
 DICEY_EXPORT const char* dicey_error_name(enum dicey_error errnum);
 
