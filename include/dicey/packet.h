@@ -15,7 +15,7 @@ extern "C" {
 enum dicey_bye_reason {
     DICEY_BYE_REASON_INVALID = 0,
     DICEY_BYE_REASON_SHUTDOWN = 1,
-    DICEY_BYE_REASON_ERROR = 3,
+    DICEY_BYE_REASON_ERROR = 2,
 };
 
 DICEY_EXPORT const char* dicey_bye_reason_to_string(enum dicey_bye_reason reason);
