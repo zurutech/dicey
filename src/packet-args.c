@@ -11,28 +11,6 @@
 
 #include "packet-args.h"
 
-static void arg_free_contents(const struct dicey_arg *const arg) {
-    if (!arg) {
-        return;
-    }
-
-    const struct dicey_arg *list = NULL, *end = NULL;
-    dicey_arg_get_list(arg, &list, &end);
-
-    if (list) {
-        assert(end);
-
-        for (const struct dicey_arg *item = list; item != end; ++item) {
-            arg_free_contents(item);
-        }
-
-        free((void *) list);
-    } else if (arg->type == DICEY_TYPE_PAIR) {
-        dicey_arg_free(arg->pair.first);
-        dicey_arg_free(arg->pair.second);
-    }
-}
-
 static bool arglist_copy(
     const struct dicey_arg **const dest,
     const struct dicey_arg *const  src,
@@ -105,11 +83,33 @@ void dicey_arg_free(const struct dicey_arg *const arg) {
         return;
     }
 
-    arg_free_contents(arg);
+    dicey_arg_free_contents(arg);
 
     // these are guaranteed to come from malloc - so I have no problems casting them back to mutable.
     // free is just a bad API
     free((void *) arg);
+}
+
+void dicey_arg_free_contents(const struct dicey_arg *const arg) {
+    if (!arg) {
+        return;
+    }
+
+    const struct dicey_arg *list = NULL, *end = NULL;
+    dicey_arg_get_list(arg, &list, &end);
+
+    if (list) {
+        assert(end);
+
+        for (const struct dicey_arg *item = list; item != end; ++item) {
+            dicey_arg_free_contents(item);
+        }
+
+        free((void *) list);
+    } else if (arg->type == DICEY_TYPE_PAIR) {
+        dicey_arg_free(arg->pair.first);
+        dicey_arg_free(arg->pair.second);
+    }
 }
 
 void dicey_arg_get_list(

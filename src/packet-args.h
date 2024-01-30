@@ -8,6 +8,7 @@
 struct dicey_arg *dicey_arg_dup(struct dicey_arg *dest, const struct dicey_arg *src);
 
 void dicey_arg_free(const struct dicey_arg *arg);
+void dicey_arg_free_contents(const struct dicey_arg *arg);
 
 void dicey_arg_get_list(const struct dicey_arg *arg, const struct dicey_arg **list, const struct dicey_arg **end);
 
