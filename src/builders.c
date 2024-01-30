@@ -264,7 +264,7 @@ enum dicey_error dicey_message_builder_value_start(
 
     builder_state_set(builder, BUILDER_STATE_VALUE);
 
-    struct dicey_arg *const root = calloc(sizeof *value, 1U);
+    struct dicey_arg *const root = calloc(sizeof(struct dicey_arg), 1U);
     if (!root) {
         return DICEY_ENOMEM;
     }
@@ -403,6 +403,9 @@ enum dicey_error dicey_value_builder_set(struct dicey_value_builder *const build
     if (dicey_type_is_valid(root->type) && root->type != value.type) {
         return DICEY_EBUILDER_TYPE_MISMATCH;
     }
+
+    // free any previously set value
+    dicey_arg_free_contents(root);
 
     if (!dicey_arg_dup(builder->_root, &value)) {
         return DICEY_ENOMEM;
