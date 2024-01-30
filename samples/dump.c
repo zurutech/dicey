@@ -46,46 +46,46 @@ static enum dicey_error classroom_dump(
     struct dicey_value_builder item = { 0 };
 
     enum dicey_error err = dicey_value_builder_tuple_start(tuple);
-    if (err != DICEY_OK) {
+    if (err) {
         return err;
     }
 
     err = dicey_value_builder_next(tuple, &item);
-    if (err != DICEY_OK) {
+    if (err) {
         return err;
     }
 
     err = dicey_value_builder_set(&item, (struct dicey_arg) { .type = DICEY_TYPE_STR, .str = classroom->name });
-    if (err != DICEY_OK) {
+    if (err) {
         return err;
     }
 
     struct dicey_value_builder pupils = { 0 };
     err = dicey_value_builder_next(tuple, &pupils);
-    if (err != DICEY_OK) {
+    if (err) {
         return err;
     }
 
     err = dicey_value_builder_array_start(&pupils, DICEY_TYPE_PAIR);
-    if (err != DICEY_OK) {
+    if (err) {
         return err;
     }
 
     const struct pupil *const end = classroom->pupils + classroom->npupils;
     for (const struct pupil *pupil = classroom->pupils; pupil < end; ++pupil) {
         err = dicey_value_builder_next(&pupils, &item);
-        if (err != DICEY_OK) {
+        if (err) {
             return err;
         }
 
         err = pupil_dump(pupil, &item);
-        if (err != DICEY_OK) {
+        if (err) {
             return err;
         }
     }
 
     err = dicey_value_builder_array_end(&pupils);
-    if (err != DICEY_OK) {
+    if (err) {
         return err;
     }
 
@@ -98,7 +98,7 @@ static enum dicey_error classes_dump(
     struct dicey_value_builder *const array
 ) {
     enum dicey_error err = dicey_value_builder_array_start(array, DICEY_TYPE_TUPLE);
-    if (err != DICEY_OK) {
+    if (err) {
         return err;
     }
 
@@ -106,12 +106,12 @@ static enum dicey_error classes_dump(
     for (const struct classroom *classroom = classes; classroom < end; ++classroom) {
         struct dicey_value_builder item = { 0 };
         err = dicey_value_builder_next(array, &item);
-        if (err != DICEY_OK) {
+        if (err) {
             return err;
         }
 
         err = classroom_dump(classroom, &item);
-        if (err != DICEY_OK) {
+        if (err) {
             return err;
         }
     }
@@ -201,17 +201,17 @@ int main(const int argc, const char *const argv[]) {
     struct dicey_message_builder msgbuild = { 0 };
 
     enum dicey_error err = dicey_message_builder_init(&msgbuild);
-    if (err != DICEY_OK) {
+    if (err) {
         goto fail;
     }
 
     err = dicey_message_builder_begin(&msgbuild, DICEY_OP_SET);
-    if (err != DICEY_OK) {
+    if (err) {
         goto fail;
     }
 
     err = dicey_message_builder_set_path(&msgbuild, "/foo/bar/baz");
-    if (err != DICEY_OK) {
+    if (err) {
         goto fail;
     }
 
@@ -221,24 +221,24 @@ int main(const int argc, const char *const argv[]) {
     };
 
     err = dicey_message_builder_set_selector(&msgbuild, selector);
-    if (err != DICEY_OK) {
+    if (err) {
         goto fail;
     }
 
     struct dicey_value_builder valbuild = { 0 };
 
     err = dicey_message_builder_value_start(&msgbuild, &valbuild);
-    if (err != DICEY_OK) {
+    if (err) {
         goto fail;
     }
 
     err = classes_dump(classes, sizeof classes / sizeof *classes, &valbuild);
-    if (err != DICEY_OK) {
+    if (err) {
         goto fail;
     }
 
     err = dicey_message_builder_value_end(&msgbuild, &valbuild);
-    if (err != DICEY_OK) {
+    if (err) {
         goto fail;
     }
 
@@ -246,13 +246,16 @@ int main(const int argc, const char *const argv[]) {
 
     err = dicey_message_builder_build(&msgbuild, &pkt);
 
-    if (err != DICEY_OK) {
+    if (err) {
         goto fail;
     }
 
     const size_t nbytes = pkt.nbytes;
     dumped_bytes = calloc(1, nbytes);
     err = dicey_packet_dump(pkt, &(void *) { dumped_bytes }, &(size_t) { nbytes });
+    if (err) {
+        goto fail;
+    }
 
     if (dump_binary) {
         size_t written = 0;

@@ -28,11 +28,11 @@ struct dtf_bytes_writer {
 struct dtf_bytes_writer dtf_bytes_writer_new(struct dicey_view_mut buffer);
 struct dtf_bytes_writer dtf_bytes_writer_new_sizer(void);
 
-enum dtf_bytes_writer_kind   dtf_bytes_writer_get_kind(struct dtf_bytes_writer *writer);
-union dtf_bytes_writer_state dtf_bytes_writer_get_state(struct dtf_bytes_writer *writer);
-bool                         dtf_bytes_writer_is_valid(struct dtf_bytes_writer *writer);
-ptrdiff_t                    dtf_bytes_writer_snapshot(struct dtf_bytes_writer *writer, struct dtf_bytes_writer *clone);
-ptrdiff_t                    dtf_bytes_writer_write(struct dtf_bytes_writer *writer, struct dicey_view data);
+enum dtf_bytes_writer_kind   dtf_bytes_writer_get_kind(const struct dtf_bytes_writer *writer);
+union dtf_bytes_writer_state dtf_bytes_writer_get_state(const struct dtf_bytes_writer *writer);
+bool                         dtf_bytes_writer_is_valid(const struct dtf_bytes_writer *writer);
+ptrdiff_t dtf_bytes_writer_snapshot(const struct dtf_bytes_writer *writer, struct dtf_bytes_writer *clone);
+ptrdiff_t dtf_bytes_writer_write(struct dtf_bytes_writer *writer, struct dicey_view data);
 
 ptrdiff_t dtf_bytes_writer_write_chunks(
     struct dtf_bytes_writer *writer,

@@ -1,6 +1,5 @@
 // Copyright (c) 2014-2024 Zuru Tech HK Limited, All rights reserved.
 
-#include <assert.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -26,7 +25,9 @@ int main(void) {
         if (new_len > bcap) {
             bcap += sizeof buf;
             dumped_bytes = realloc(dumped_bytes, bcap);
-            assert(dumped_bytes);
+            if (!dumped_bytes) {
+                abort(); // this silences cppcheck, we don't care about safety in this dummy program
+            }
         }
 
         memcpy(dumped_bytes + nbytes, buf, n);

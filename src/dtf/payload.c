@@ -75,6 +75,14 @@ static ptrdiff_t message_fixed_size(const enum dtf_payload_kind kind) {
     }
 }
 
+static ptrdiff_t message_get_trailer_size(const struct dtf_message *const msg) {
+    if (!msg) {
+        return DICEY_EINVAL;
+    }
+
+    return (ptrdiff_t) msg->head.data_len;
+}
+
 static ptrdiff_t message_header_read(struct dtf_message_head *const head, struct dicey_view *const src) {
     if (!head) {
         return DICEY_EINVAL;
@@ -209,7 +217,7 @@ ptrdiff_t dtf_message_get_content(
         return DICEY_EOVERFLOW;
     }
 
-    const ptrdiff_t trailer_size = dtf_message_get_trailer_size(msg);
+    const ptrdiff_t trailer_size = message_get_trailer_size(msg);
     if (trailer_size < 0) {
         return trailer_size;
     }
@@ -247,66 +255,6 @@ ptrdiff_t dtf_message_get_content(
     };
 
     return DICEY_OK;
-}
-
-ptrdiff_t dtf_message_get_path(const struct dtf_message *const msg, const size_t alloc_size, const char **const dest) {
-    if (!msg || !dest) {
-        return DICEY_EINVAL;
-    }
-
-    if (alloc_size <= offsetof(struct dtf_message, data)) {
-        return DICEY_EOVERFLOW;
-    }
-
-    const ptrdiff_t trailer_size = dtf_message_get_trailer_size(msg);
-
-    if (trailer_size < 0) {
-        return trailer_size;
-    }
-
-    if (alloc_size < (size_t) trailer_size) {
-        return DICEY_EOVERFLOW;
-    }
-
-    return dicey_view_as_zstring(&(struct dicey_view) { .data = msg->data, .len = trailer_size }, dest);
-}
-
-ptrdiff_t dtf_message_get_selector(
-    const struct dtf_message *const msg,
-    const size_t                    alloc_len,
-    struct dicey_selector *const    dest
-) {
-    struct dtf_message_content content = { 0 };
-
-    const ptrdiff_t content_res = dtf_message_get_content(msg, alloc_len, &content);
-    if (content_res < 0) {
-        return content_res;
-    }
-
-    *dest = content.selector;
-
-    return dicey_selector_size(*dest);
-}
-
-ptrdiff_t dtf_message_get_size(const struct dtf_message *const msg) {
-    ptrdiff_t size = dtf_message_get_trailer_size(msg);
-    if (size < 0) {
-        return size;
-    }
-
-    if (!dutl_checked_add(&size, size, (ptrdiff_t) sizeof msg->head)) {
-        return DICEY_EOVERFLOW;
-    }
-
-    return size;
-}
-
-ptrdiff_t dtf_message_get_trailer_size(const struct dtf_message *const msg) {
-    if (!msg) {
-        return DICEY_EINVAL;
-    }
-
-    return (ptrdiff_t) msg->head.data_len;
 }
 
 struct dtf_result dtf_message_write(

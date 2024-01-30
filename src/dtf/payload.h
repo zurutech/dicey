@@ -50,9 +50,6 @@ ptrdiff_t dtf_message_estimate_size(
     const struct dicey_arg *value
 );
 
-ptrdiff_t dtf_message_get_size(const struct dtf_message *msg);
-ptrdiff_t dtf_message_get_trailer_size(const struct dtf_message *msg);
-
 struct dtf_message_content {
     const char           *path;
     struct dicey_selector selector;
@@ -62,10 +59,6 @@ struct dtf_message_content {
 };
 
 ptrdiff_t dtf_message_get_content(const struct dtf_message *msg, size_t alloc_len, struct dtf_message_content *dest);
-
-ptrdiff_t dtf_message_get_path(const struct dtf_message *msg, size_t alloc_len, const char **dest);
-ptrdiff_t dtf_message_get_selector(const struct dtf_message *msg, size_t alloc_len, struct dicey_selector *dest);
-ptrdiff_t dtf_message_get_value(const struct dtf_message *msg, size_t alloc_len, struct dicey_arg *dest);
 
 struct dtf_result dtf_message_write(
     struct dicey_view_mut   dest,

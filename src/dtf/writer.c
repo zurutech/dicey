@@ -23,15 +23,15 @@ static ptrdiff_t sizer_write(ptrdiff_t *const size, const struct dicey_view data
     return DICEY_OK;
 }
 
-enum dtf_bytes_writer_kind dtf_bytes_writer_get_kind(struct dtf_bytes_writer *const writer) {
+enum dtf_bytes_writer_kind dtf_bytes_writer_get_kind(const struct dtf_bytes_writer *const writer) {
     return writer->kind;
 }
 
-union dtf_bytes_writer_state dtf_bytes_writer_get_state(struct dtf_bytes_writer *const writer) {
+union dtf_bytes_writer_state dtf_bytes_writer_get_state(const struct dtf_bytes_writer *const writer) {
     return writer->state;
 }
 
-bool dtf_bytes_writer_is_valid(struct dtf_bytes_writer *const writer) {
+bool dtf_bytes_writer_is_valid(const struct dtf_bytes_writer *const writer) {
     switch (writer->kind) {
     case DTF_BYTES_WRITER_KIND_BUFFER:
         return writer->state.buffer.data;
@@ -62,7 +62,7 @@ struct dtf_bytes_writer dtf_bytes_writer_new_sizer(void) {
     };
 }
 
-ptrdiff_t dtf_bytes_writer_snapshot(struct dtf_bytes_writer *const writer, struct dtf_bytes_writer *const clone) {
+ptrdiff_t dtf_bytes_writer_snapshot(const struct dtf_bytes_writer *const writer, struct dtf_bytes_writer *const clone) {
     // all writers support snapshotting for now
     *clone = *writer;
 
