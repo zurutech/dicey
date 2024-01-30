@@ -1,3 +1,5 @@
+// Copyright (c) 2014-2024 Zuru Tech HK Limited, All rights reserved.
+
 #include <inttypes.h>
 #include <stdarg.h>
 #include <stdbool.h>
@@ -40,19 +42,19 @@ static bool next_chunk(struct dicey_view *const from, struct dicey_view *const c
     *from = (struct dicey_view) {
         .data = (const uint8_t *) from->data + chunk->len,
         .len = from->len - chunk->len,
-    };    
+    };
 
     return true;
 }
 
 void util_dumper_dump_hex(struct util_dumper *const dumper, const void *const data, const size_t size) {
-    struct dicey_view left = {.data = data, .len = size}, chunk = {0};
+    struct dicey_view left = { .data = data, .len = size }, chunk = { 0 };
 
-    uintptr_t i = 0U; 
-    
-    while(next_chunk(&left, &chunk, HEX_LINE_BYTES)) {
+    uintptr_t i = 0U;
+
+    while (next_chunk(&left, &chunk, HEX_LINE_BYTES)) {
         const uint8_t *const bytes = chunk.data;
-        const size_t n = chunk.len;
+        const size_t         n = chunk.len;
 
         for (size_t j = 0U; j < HEX_LINE_BYTES; ++j) {
             const bool line_start = j % HEX_LINE_BYTES == 0U;
@@ -63,14 +65,14 @@ void util_dumper_dump_hex(struct util_dumper *const dumper, const void *const da
             if (j % HEX_GROUP_BYTES == 0U) {
                 util_dumper_printf(dumper, " ");
             }
-            
+
             if (j < n) {
                 util_dumper_printf(dumper, "%02" PRIx8, bytes[j]);
             } else {
                 util_dumper_printf(dumper, "  ");
             }
         }
-        
+
         util_dumper_printf(dumper, "  ");
 
         for (uintptr_t j = 0U; j < HEX_LINE_BYTES; ++j) {

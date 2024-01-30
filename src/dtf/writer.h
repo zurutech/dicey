@@ -1,3 +1,5 @@
+// Copyright (c) 2014-2024 Zuru Tech HK Limited, All rights reserved.
+
 #if !defined(WMDYUOXBZM_WRITER_H)
 #define WMDYUOXBZM_WRITER_H
 
@@ -15,27 +17,27 @@ enum dtf_bytes_writer_kind {
 
 union dtf_bytes_writer_state {
     struct dicey_view_mut buffer; // for DTF_BYTES_WRITER_KIND_BUFFER
-    ptrdiff_t size;               // for DTF_BYTES_WRITER_KIND_SIZER
+    ptrdiff_t             size;   // for DTF_BYTES_WRITER_KIND_SIZER
 };
 
 struct dtf_bytes_writer {
-    enum dtf_bytes_writer_kind kind;
+    enum dtf_bytes_writer_kind   kind;
     union dtf_bytes_writer_state state;
 };
 
 struct dtf_bytes_writer dtf_bytes_writer_new(struct dicey_view_mut buffer);
 struct dtf_bytes_writer dtf_bytes_writer_new_sizer(void);
 
-enum dtf_bytes_writer_kind dtf_bytes_writer_get_kind(struct dtf_bytes_writer *writer);
+enum dtf_bytes_writer_kind   dtf_bytes_writer_get_kind(struct dtf_bytes_writer *writer);
 union dtf_bytes_writer_state dtf_bytes_writer_get_state(struct dtf_bytes_writer *writer);
-bool dtf_bytes_writer_is_valid(struct dtf_bytes_writer *writer);
-ptrdiff_t dtf_bytes_writer_snapshot(struct dtf_bytes_writer *writer, struct dtf_bytes_writer *clone);
-ptrdiff_t dtf_bytes_writer_write(struct dtf_bytes_writer *writer, struct dicey_view data);
+bool                         dtf_bytes_writer_is_valid(struct dtf_bytes_writer *writer);
+ptrdiff_t                    dtf_bytes_writer_snapshot(struct dtf_bytes_writer *writer, struct dtf_bytes_writer *clone);
+ptrdiff_t                    dtf_bytes_writer_write(struct dtf_bytes_writer *writer, struct dicey_view data);
 
 ptrdiff_t dtf_bytes_writer_write_chunks(
     struct dtf_bytes_writer *writer,
     const struct dicey_view *chunks,
-    size_t nchunks
+    size_t                   nchunks
 );
 
 ptrdiff_t dtf_bytes_writer_write_selector(struct dtf_bytes_writer *writer, struct dicey_selector sel);

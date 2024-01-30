@@ -1,3 +1,5 @@
+// Copyright (c) 2014-2024 Zuru Tech HK Limited, All rights reserved.
+
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
@@ -8,17 +10,17 @@
 
 #if defined(_MSC_VER)
 
-#define CHECKED_SUM_IMPL(NAME, T) \
-    bool dutl_internal_##NAME##_add(T *const res, const T a, const T b) { \
-        const T sum = a + b; \
-        \
-        if (sum < a) { \
-            return false; \
-        } \
-        \
-        *res = sum; \
-        \
-        return true; \
+#define CHECKED_SUM_IMPL(NAME, T)                                                                                      \
+    bool dutl_internal_##NAME##_add(T *const res, const T a, const T b) {                                              \
+        const T sum = a + b;                                                                                           \
+                                                                                                                       \
+        if (sum < a) {                                                                                                 \
+            return false;                                                                                              \
+        }                                                                                                              \
+                                                                                                                       \
+        *res = sum;                                                                                                    \
+                                                                                                                       \
+        return true;                                                                                                   \
     }
 
 CHECKED_SUM_IMPL(i8, int8_t)

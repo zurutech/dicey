@@ -1,3 +1,5 @@
+// Copyright (c) 2014-2024 Zuru Tech HK Limited, All rights reserved.
+
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -9,15 +11,15 @@
 #include "util/dumper.h"
 
 #if defined(__unix__) || defined(__APPLE__)
-#   include <unistd.h>
-#   define IS_PIPED() (!isatty(fileno(stdout)))
+#include <unistd.h>
+#define IS_PIPED() (!isatty(fileno(stdout)))
 #else
-#   define IS_PIPED() false
+#define IS_PIPED() false
 #endif
 
 struct pupil {
     const char *name;
-    uint8_t age;
+    uint8_t     age;
 };
 
 static enum dicey_error pupil_dump(const struct pupil *const pupil, struct dicey_value_builder *const tuple) {
@@ -34,11 +36,14 @@ struct classroom {
     const char *name;
 
     struct pupil *pupils;
-    size_t npupils;
+    size_t        npupils;
 };
 
-static enum dicey_error classroom_dump(const struct classroom *const classroom, struct dicey_value_builder *const tuple) {
-    struct dicey_value_builder item = {0};
+static enum dicey_error classroom_dump(
+    const struct classroom *const     classroom,
+    struct dicey_value_builder *const tuple
+) {
+    struct dicey_value_builder item = { 0 };
 
     enum dicey_error err = dicey_value_builder_tuple_start(tuple);
     if (err != DICEY_OK) {
@@ -55,7 +60,7 @@ static enum dicey_error classroom_dump(const struct classroom *const classroom, 
         return err;
     }
 
-    struct dicey_value_builder pupils = {0};
+    struct dicey_value_builder pupils = { 0 };
     err = dicey_value_builder_next(tuple, &pupils);
     if (err != DICEY_OK) {
         return err;
@@ -87,7 +92,11 @@ static enum dicey_error classroom_dump(const struct classroom *const classroom, 
     return dicey_value_builder_tuple_end(tuple);
 }
 
-static enum dicey_error classes_dump(const struct classroom *const classes, const size_t nclasses, struct dicey_value_builder *const array) {
+static enum dicey_error classes_dump(
+    const struct classroom *const     classes,
+    const size_t                      nclasses,
+    struct dicey_value_builder *const array
+) {
     enum dicey_error err = dicey_value_builder_array_start(array, DICEY_TYPE_TUPLE);
     if (err != DICEY_OK) {
         return err;
@@ -95,7 +104,7 @@ static enum dicey_error classes_dump(const struct classroom *const classes, cons
 
     const struct classroom *const end = classes + nclasses;
     for (const struct classroom *classroom = classes; classroom < end; ++classroom) {
-        struct dicey_value_builder item = {0};
+        struct dicey_value_builder item = { 0 };
         err = dicey_value_builder_next(array, &item);
         if (err != DICEY_OK) {
             return err;
@@ -110,7 +119,6 @@ static enum dicey_error classes_dump(const struct classroom *const classes, cons
     return dicey_value_builder_array_end(array);
 }
 
-
 int main(const int argc, const char *const argv[]) {
     bool dump_binary = IS_PIPED();
 
@@ -124,7 +132,7 @@ int main(const int argc, const char *const argv[]) {
             break;
         }
 
-        // fallthrough    
+        // fallthrough
     default:
         fprintf(stderr, "usage: %s [-bt]\n", argv[0]);
 
@@ -133,64 +141,64 @@ int main(const int argc, const char *const argv[]) {
 
     const struct classroom classes[3] = {
         {
-                .name = "A",
-                .pupils = (struct pupil[]) {
-                        {
-                                .name = "Alice",
-                                .age = 10U,
-                        },
-                        {
-                                .name = "Bob",
-                                .age = 11U,
-                        },
-                        {
-                                .name = "Charlie",
-                                .age = 12U,
-                        },
-                },
-                .npupils = 3U,
-            },
-            {
-                .name = "B",
-                .pupils = (struct pupil[]) {
-                        {
-                                .name = "Dave",
-                                .age = 10U,
-                        },
-                        {
-                                .name = "Eve",
-                                .age = 11U,
-                        },
-                        {
-                                .name = "Frank",
-                                .age = 12U,
-                        },
-                },
-                .npupils = 3U,
-            },
-            {
-                .name = "C",
-                .pupils = (struct pupil[]) {
-                        {
-                                .name = "Grace",
-                                .age = 10U,
-                        },
-                        {
-                                .name = "Heidi",
-                                .age = 11U,
-                        },
-                        {
-                                .name = "Ivan",
-                                .age = 12U,
-                        },
-                },
-                .npupils = 3U,
-            },
+         .name = "A",
+         .pupils =
+                (struct pupil[]) {
+                    {
+                        .name = "Alice",
+                        .age = 10U,
+                    },
+                    {
+                        .name = "Bob",
+                        .age = 11U,
+                    },
+                    {
+                        .name = "Charlie",
+                        .age = 12U,
+                    },
+                },                 .npupils = 3U,
+         },
+        {
+         .name = "B",
+         .pupils =
+                (struct pupil[]) {
+                    {
+                        .name = "Dave",
+                        .age = 10U,
+                    },
+                    {
+                        .name = "Eve",
+                        .age = 11U,
+                    },
+                    {
+                        .name = "Frank",
+                        .age = 12U,
+                    },
+                },                                  .npupils = 3U,
+         },
+        {
+         .name = "C",
+         .pupils =
+                (struct pupil[]) {
+                    {
+                        .name = "Grace",
+                        .age = 10U,
+                    },
+                    {
+                        .name = "Heidi",
+                        .age = 11U,
+                    },
+                    {
+                        .name = "Ivan",
+                        .age = 12U,
+                    },
+                },.npupils = 3U,
+         },
     };
 
     void *dumped_bytes = NULL;
 
-    struct dicey_message_builder msgbuild = {0};
+    struct dicey_message_builder msgbuild = { 0 };
 
     enum dicey_error err = dicey_message_builder_init(&msgbuild);
     if (err != DICEY_OK) {
@@ -217,7 +225,7 @@ int main(const int argc, const char *const argv[]) {
         goto fail;
     }
 
-    struct dicey_value_builder valbuild = {0};
+    struct dicey_value_builder valbuild = { 0 };
 
     err = dicey_message_builder_value_start(&msgbuild, &valbuild);
     if (err != DICEY_OK) {
@@ -234,7 +242,7 @@ int main(const int argc, const char *const argv[]) {
         goto fail;
     }
 
-    struct dicey_packet pkt = {0};
+    struct dicey_packet pkt = { 0 };
 
     err = dicey_message_builder_build(&msgbuild, &pkt);
 
@@ -244,20 +252,20 @@ int main(const int argc, const char *const argv[]) {
 
     const size_t nbytes = pkt.nbytes;
     dumped_bytes = calloc(1, nbytes);
-    err = dicey_packet_dump(pkt, &(void*) { dumped_bytes }, &(size_t) { nbytes });
+    err = dicey_packet_dump(pkt, &(void *) { dumped_bytes }, &(size_t) { nbytes });
 
     if (dump_binary) {
         size_t written = 0;
 
         while (written < nbytes) {
-            const size_t n = fwrite((char*) dumped_bytes + written, 1, nbytes - written, stdout);
+            const size_t n = fwrite((char *) dumped_bytes + written, 1, nbytes - written, stdout);
             if (!n) {
                 break;
             }
 
             written += n;
         }
-    } else  {
+    } else {
         struct util_dumper dumper = util_dumper_for(stdout);
 
         util_dumper_dump_hex(&dumper, dumped_bytes, nbytes);

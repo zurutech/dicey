@@ -1,11 +1,13 @@
+// Copyright (c) 2014-2024 Zuru Tech HK Limited, All rights reserved.
+
 #include <stddef.h>
 #include <stdint.h>
 
 #include <dicey/errors.h>
 #include <dicey/views.h>
 
-#include "view-ops.h"
 #include "util.h"
+#include "view-ops.h"
 
 #include "writer.h"
 
@@ -31,14 +33,14 @@ union dtf_bytes_writer_state dtf_bytes_writer_get_state(struct dtf_bytes_writer 
 
 bool dtf_bytes_writer_is_valid(struct dtf_bytes_writer *const writer) {
     switch (writer->kind) {
-        case DTF_BYTES_WRITER_KIND_BUFFER:
-            return writer->state.buffer.data;
+    case DTF_BYTES_WRITER_KIND_BUFFER:
+        return writer->state.buffer.data;
 
-        case DTF_BYTES_WRITER_KIND_SIZER:
-            return true;
+    case DTF_BYTES_WRITER_KIND_SIZER:
+        return true;
 
-        default:
-            return false;
+    default:
+        return false;
     }
 }
 
@@ -69,21 +71,21 @@ ptrdiff_t dtf_bytes_writer_snapshot(struct dtf_bytes_writer *const writer, struc
 
 ptrdiff_t dtf_bytes_writer_write(struct dtf_bytes_writer *const writer, const struct dicey_view data) {
     switch (writer->kind) {
-        case DTF_BYTES_WRITER_KIND_BUFFER:
-            return buffer_write(&writer->state.buffer, data);
+    case DTF_BYTES_WRITER_KIND_BUFFER:
+        return buffer_write(&writer->state.buffer, data);
 
-        case DTF_BYTES_WRITER_KIND_SIZER:
-            return sizer_write(&writer->state.size, data);
+    case DTF_BYTES_WRITER_KIND_SIZER:
+        return sizer_write(&writer->state.size, data);
 
-        default:
-            return DICEY_EINVAL;
+    default:
+        return DICEY_EINVAL;
     }
 }
 
 ptrdiff_t dtf_bytes_writer_write_chunks(
     struct dtf_bytes_writer *const writer,
     const struct dicey_view *const chunks,
-    const size_t nchunks
+    const size_t                   nchunks
 ) {
     if (!dtf_bytes_writer_is_valid(writer) || !chunks) {
         return DICEY_EINVAL;
@@ -123,8 +125,8 @@ ptrdiff_t dtf_bytes_writer_write_selector(struct dtf_bytes_writer *const writer,
     }
 
     struct dicey_view chunks[] = {
-        (struct dicey_view) { .data = (void*) sel.trait, .len = (size_t) trait_len },
-        (struct dicey_view) { .data = (void*) sel.elem, .len = (size_t) elem_len },
+        (struct dicey_view) {.data = (void *) sel.trait, .len = (size_t) trait_len},
+        (struct dicey_view) { .data = (void *) sel.elem, .len = (size_t) elem_len },
     };
 
     return dtf_bytes_writer_write_chunks(writer, chunks, sizeof chunks / sizeof *chunks);
@@ -138,9 +140,9 @@ ptrdiff_t dtf_bytes_writer_write_zstring(struct dtf_bytes_writer *const writer, 
     }
 
     struct dicey_view data = {
-        .data = (void*) str,
+        .data = (void *) str,
         .len = (uint32_t) size,
     };
 
     return dtf_bytes_writer_write(writer, data);
-} 
+}

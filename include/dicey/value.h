@@ -1,3 +1,5 @@
+// Copyright (c) 2014-2024 Zuru Tech HK Limited, All rights reserved.
+
 #if !defined(TOJAFCVDUG_VALUE_H)
 #define TOJAFCVDUG_VALUE_H
 
@@ -12,7 +14,7 @@
 
 #include "internal/data-info.h"
 
-#if defined (__cplusplus)
+#if defined(__cplusplus)
 extern "C" {
 #endif
 
@@ -28,7 +30,7 @@ struct dicey_iterator {
     struct dicey_view _data;
 };
 
-DICEY_EXPORT bool dicey_iterator_has_next(struct dicey_iterator iter);
+DICEY_EXPORT bool             dicey_iterator_has_next(struct dicey_iterator iter);
 DICEY_EXPORT enum dicey_error dicey_iterator_next(struct dicey_iterator *iter, struct dicey_value *dest);
 
 struct dicey_list {
@@ -39,7 +41,7 @@ struct dicey_list {
 };
 
 DICEY_EXPORT struct dicey_iterator dicey_list_iter(const struct dicey_list *list);
-DICEY_EXPORT int dicey_list_type(const struct dicey_list *list);
+DICEY_EXPORT int                   dicey_list_type(const struct dicey_list *list);
 
 struct dicey_pair {
     struct dicey_value first;
@@ -53,7 +55,11 @@ DICEY_EXPORT enum dicey_error dicey_value_get_array(const struct dicey_value *va
 DICEY_EXPORT enum dicey_error dicey_value_get_bool(const struct dicey_value *value, bool *dest);
 DICEY_EXPORT enum dicey_error dicey_value_get_byte(const struct dicey_value *value, uint8_t *dest);
 
-DICEY_EXPORT enum dicey_error dicey_value_get_bytes(const struct dicey_value *value, const uint8_t **dest, size_t *nbytes);
+DICEY_EXPORT enum dicey_error dicey_value_get_bytes(
+    const struct dicey_value *value,
+    const uint8_t           **dest,
+    size_t                   *nbytes
+);
 
 DICEY_EXPORT enum dicey_error dicey_value_get_error(const struct dicey_value *value, struct dicey_errmsg *dest);
 
@@ -79,6 +85,5 @@ DICEY_EXPORT bool dicey_value_is_valid(const struct dicey_value *value);
 #if defined(__cplusplus)
 }
 #endif
-
 
 #endif // TOJAFCVDUG_VALUE_H

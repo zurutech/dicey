@@ -1,3 +1,5 @@
+// Copyright (c) 2014-2024 Zuru Tech HK Limited, All rights reserved.
+
 #if !defined(VEGOWIWLXE_DATA_INFO_H)
 #define VEGOWIWLXE_DATA_INFO_H
 
@@ -19,17 +21,17 @@ union _dicey_data_info {
     dicey_u64 u64;
 
     struct dtf_probed_list {
-        uint16_t inner_type;
-        uint16_t nitems;
+        uint16_t          inner_type;
+        uint16_t          nitems;
         struct dicey_view data;
     } list;
 
     struct dtf_probed_bytes {
-        uint32_t len;
+        uint32_t       len;
         const uint8_t *data;
     } bytes;
 
-    const char *str;// for str, path
+    const char           *str; // for str, path
     struct dicey_selector selector;
 
     struct dicey_errmsg error;

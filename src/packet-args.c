@@ -1,3 +1,5 @@
+// Copyright (c) 2014-2024 Zuru Tech HK Limited, All rights reserved.
+
 #include <assert.h>
 #include <complex.h>
 #include <stdbool.h>
@@ -24,14 +26,18 @@ static void arg_free_contents(const struct dicey_arg *const arg) {
             arg_free_contents(item);
         }
 
-        free((void*) list);
+        free((void *) list);
     } else if (arg->type == DICEY_TYPE_PAIR) {
         dicey_arg_free(arg->pair.first);
         dicey_arg_free(arg->pair.second);
     }
 }
 
-static bool arglist_copy(const struct dicey_arg **const dest, const struct dicey_arg *const src, const uint16_t nitems) {
+static bool arglist_copy(
+    const struct dicey_arg **const dest,
+    const struct dicey_arg *const  src,
+    const uint16_t                 nitems
+) {
     struct dicey_arg *const list_dup = calloc(sizeof *list_dup, nitems);
     if (!list_dup) {
         return false;
@@ -49,7 +55,7 @@ static bool arglist_copy(const struct dicey_arg **const dest, const struct dicey
     return true;
 }
 
-struct dicey_arg* dicey_arg_dup(struct dicey_arg *const dest, const struct dicey_arg *src) {
+struct dicey_arg *dicey_arg_dup(struct dicey_arg *const dest, const struct dicey_arg *src) {
     assert(dest && src);
 
     *dest = *src;
@@ -72,46 +78,42 @@ struct dicey_arg* dicey_arg_dup(struct dicey_arg *const dest, const struct dicey
 
         break;
 
-    case DICEY_TYPE_PAIR: {
-        struct dicey_arg 
-            *const first = calloc(sizeof *first, 1U),
-            *const second = calloc(sizeof *second, 1U);
+    case DICEY_TYPE_PAIR:
+        {
+            struct dicey_arg *const first = calloc(sizeof *first, 1U), *const second = calloc(sizeof *second, 1U);
 
-        if (!first || !second) {
-            return NULL;
+            if (!first || !second) {
+                return NULL;
+            }
+
+            if (!dicey_arg_dup(first, src->pair.first) || !dicey_arg_dup(second, src->pair.second)) {
+                dicey_arg_free(first);
+                dicey_arg_free(second);
+
+                return NULL;
+            }
+
+            dest->pair = (struct dicey_pair_arg) { .first = first, .second = second };
         }
-
-        if (!dicey_arg_dup(first, src->pair.first) || !dicey_arg_dup(second, src->pair.second)) {
-            dicey_arg_free(first);
-            dicey_arg_free(second);
-
-            return NULL;
-        }
-
-        dest->pair = (struct dicey_pair_arg) {
-            .first = first,
-            .second = second
-        };
-    }
     }
 
     return dest;
-} 
+}
 
 void dicey_arg_free(const struct dicey_arg *const arg) {
     if (!arg) {
         return;
     }
 
-    arg_free_contents(arg);    
+    arg_free_contents(arg);
 
     // these are guaranteed to come from malloc - so I have no problems casting them back to mutable.
     // free is just a bad API
-    free((void*) arg);
+    free((void *) arg);
 }
 
 void dicey_arg_get_list(
-    const struct dicey_arg *const arg,
+    const struct dicey_arg *const  arg,
     const struct dicey_arg **const list,
     const struct dicey_arg **const end
 ) {

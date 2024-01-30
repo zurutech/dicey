@@ -1,3 +1,5 @@
+// Copyright (c) 2014-2024 Zuru Tech HK Limited, All rights reserved.
+
 #include <assert.h>
 #include <stdbool.h>
 #include <stddef.h>
@@ -7,8 +9,8 @@
 
 #include <dicey/internal/data-info.h>
 
-#include "view-ops.h"
 #include "util.h"
+#include "view-ops.h"
 
 #include "value.h"
 
@@ -25,10 +27,8 @@ static ptrdiff_t list_probe(struct dicey_view *const src, const uint32_t nbytes,
 static ptrdiff_t array_header_read(struct dicey_view *const src, struct dtf_array_header *const header) {
     assert(src && header);
 
-    const ptrdiff_t read_bytes = dicey_view_read(
-        src,
-        (struct dicey_view_mut) { .data = header, .len = sizeof *header }
-    );
+    const ptrdiff_t read_bytes =
+        dicey_view_read(src, (struct dicey_view_mut) { .data = header, .len = sizeof *header });
 
     if (read_bytes >= 0 && !dicey_type_is_valid(header->type)) {
         return DICEY_EBADMSG;
@@ -40,15 +40,15 @@ static ptrdiff_t array_header_read(struct dicey_view *const src, struct dtf_arra
 static ptrdiff_t array_probe(struct dicey_view *const src, union _dicey_data_info *const data) {
     assert(src && data);
 
-    struct dtf_array_header header = {0};
+    struct dtf_array_header header = { 0 };
 
     const ptrdiff_t header_read_res = array_header_read(src, &header);
     if (header_read_res < 0) {
         return header_read_res;
     }
 
-    struct dicey_view elems = {0};
-    const ptrdiff_t content_read_res = list_probe(src, header.nbytes, &elems);
+    struct dicey_view elems = { 0 };
+    const ptrdiff_t   content_read_res = list_probe(src, header.nbytes, &elems);
     if (content_read_res < 0) {
         return content_read_res;
     }
@@ -72,16 +72,13 @@ static ptrdiff_t array_probe(struct dicey_view *const src, union _dicey_data_inf
 static ptrdiff_t bytes_header_read(struct dicey_view *const src, struct dtf_bytes_header *const header) {
     assert(src && header);
 
-    return dicey_view_read(
-        src,
-        (struct dicey_view_mut) { .data = header, .len = sizeof *header }
-    );
+    return dicey_view_read(src, (struct dicey_view_mut) { .data = header, .len = sizeof *header });
 }
 
 static ptrdiff_t bytes_probe(struct dicey_view *const src, struct dtf_probed_bytes *const dest) {
     assert(src && dest);
 
-    struct dtf_bytes_header header = {0};
+    struct dtf_bytes_header header = { 0 };
 
     const ptrdiff_t header_read_res = bytes_header_read(src, &header);
     if (header_read_res < 0) {
@@ -113,23 +110,20 @@ static ptrdiff_t bytes_probe(struct dicey_view *const src, struct dtf_probed_byt
 static ptrdiff_t error_header_read(struct dicey_view *const src, struct dtf_error_header *const header) {
     assert(src && header);
 
-    return dicey_view_read(
-        src,
-        (struct dicey_view_mut) { .data = header, .len = sizeof *header }
-    );
+    return dicey_view_read(src, (struct dicey_view_mut) { .data = header, .len = sizeof *header });
 }
 
 static ptrdiff_t error_probe(struct dicey_view *const src, struct dicey_errmsg *const dest) {
     assert(src && dest);
 
-    struct dtf_error_header header = {0};
+    struct dtf_error_header header = { 0 };
 
     const ptrdiff_t header_read_res = error_header_read(src, &header);
     if (header_read_res < 0) {
         return header_read_res;
     }
 
-    const char *msg = NULL;
+    const char     *msg = NULL;
     const ptrdiff_t content_read_res = dicey_view_as_zstring(src, &msg);
     if (content_read_res < 0) {
         return content_read_res;
@@ -151,24 +145,21 @@ static ptrdiff_t error_probe(struct dicey_view *const src, struct dicey_errmsg *
 static ptrdiff_t pair_header_read(struct dicey_view *const src, struct dtf_pair_header *const header) {
     assert(src && header);
 
-    return dicey_view_read(
-        src,
-        (struct dicey_view_mut) { .data = header, .len = sizeof *header }
-    );
+    return dicey_view_read(src, (struct dicey_view_mut) { .data = header, .len = sizeof *header });
 }
 
 static ptrdiff_t pair_probe(struct dicey_view *const src, union _dicey_data_info *const data) {
     assert(src && data);
 
-    struct dtf_pair_header header = {0};
+    struct dtf_pair_header header = { 0 };
 
     const ptrdiff_t header_read_res = pair_header_read(src, &header);
     if (header_read_res < 0) {
         return header_read_res;
     }
 
-    struct dicey_view elems = {0};
-    const ptrdiff_t content_read_res = list_probe(src, header.nbytes, &elems);
+    struct dicey_view elems = { 0 };
+    const ptrdiff_t   content_read_res = list_probe(src, header.nbytes, &elems);
     if (content_read_res < 0) {
         return content_read_res;
     }
@@ -192,24 +183,21 @@ static ptrdiff_t pair_probe(struct dicey_view *const src, union _dicey_data_info
 static ptrdiff_t tuple_header_read(struct dicey_view *const src, struct dtf_tuple_header *const header) {
     assert(src && header);
 
-    return dicey_view_read(
-        src,
-        (struct dicey_view_mut) { .data = header, .len = sizeof *header }
-    );
+    return dicey_view_read(src, (struct dicey_view_mut) { .data = header, .len = sizeof *header });
 }
 
 static ptrdiff_t tuple_probe(struct dicey_view *const src, union _dicey_data_info *const data) {
     assert(src && data);
 
-    struct dtf_tuple_header header = {0};
+    struct dtf_tuple_header header = { 0 };
 
     const ptrdiff_t header_read_res = tuple_header_read(src, &header);
     if (header_read_res < 0) {
         return header_read_res;
     }
 
-    struct dicey_view elems = {0};
-    const ptrdiff_t content_read_res = list_probe(src, header.nbytes, &elems);
+    struct dicey_view elems = { 0 };
+    const ptrdiff_t   content_read_res = list_probe(src, header.nbytes, &elems);
     if (content_read_res < 0) {
         return content_read_res;
     }
@@ -240,7 +228,7 @@ ptrdiff_t type_size(const enum dicey_type type) {
 
     case DICEY_TYPE_UNIT:
         return 0;
-        
+
     case DICEY_TYPE_BOOL:
         return sizeof(dtf_bool);
 
@@ -267,7 +255,7 @@ ptrdiff_t type_size(const enum dicey_type type) {
 
     case DICEY_TYPE_UINT64:
         return sizeof(dtf_u64);
-    
+
     case DICEY_TYPE_ARRAY:
     case DICEY_TYPE_PAIR:
     case DICEY_TYPE_TUPLE:
@@ -296,8 +284,8 @@ static ptrdiff_t value_header_read(struct dicey_view *const src, struct dtf_valu
 }
 
 static ptrdiff_t value_probe_container(
-    const enum dicey_type type,
-    struct dicey_view *const src,
+    const enum dicey_type         type,
+    struct dicey_view *const      src,
     union _dicey_data_info *const data
 ) {
     switch (type) {
@@ -317,8 +305,8 @@ static ptrdiff_t value_probe_container(
 }
 
 static ptrdiff_t value_probe_dynamic(
-    const enum dicey_type type,
-    struct dicey_view *const src,
+    const enum dicey_type         type,
+    struct dicey_view *const      src,
     union _dicey_data_info *const data
 ) {
     switch (type) {
@@ -347,15 +335,15 @@ static ptrdiff_t value_probe_dynamic(
 }
 
 ptrdiff_t dtf_value_probe(struct dicey_view *const src, struct dtf_probed_value *const info) {
-    struct dtf_value_header header = {0};
+    struct dtf_value_header header = { 0 };
 
     const ptrdiff_t header_read_res = value_header_read(src, &header);
     if (header_read_res < 0) {
         return header_read_res;
     }
 
-    union _dicey_data_info data = {0};
-    const ptrdiff_t content_read_res = dtf_value_probe_as(header.type, src, &data);
+    union _dicey_data_info data = { 0 };
+    const ptrdiff_t        content_read_res = dtf_value_probe_as(header.type, src, &data);
 
     ptrdiff_t read_bytes = 0;
     if (!dutl_checked_add(&read_bytes, header_read_res, content_read_res)) {
@@ -371,8 +359,8 @@ ptrdiff_t dtf_value_probe(struct dicey_view *const src, struct dtf_probed_value 
 }
 
 ptrdiff_t dtf_value_probe_as(
-    const enum dicey_type type,
-    struct dicey_view *const src,
+    const enum dicey_type         type,
+    struct dicey_view *const      src,
     union _dicey_data_info *const info
 ) {
     assert(src && info);
@@ -384,7 +372,6 @@ ptrdiff_t dtf_value_probe_as(
     const ptrdiff_t size = type_size(type);
     assert(size >= 0);
 
-    return size == DTF_SIZE_DYNAMIC
-        ? value_probe_dynamic(type, src, info)
-        : dicey_view_read(src, (struct dicey_view_mut) { .data = info, .len = size });
+    return size == DTF_SIZE_DYNAMIC ? value_probe_dynamic(type, src, info)
+                                    : dicey_view_read(src, (struct dicey_view_mut) { .data = info, .len = size });
 }

@@ -1,3 +1,5 @@
+// Copyright (c) 2014-2024 Zuru Tech HK Limited, All rights reserved.
+
 #define _POSIX_C_SOURCE 200809L
 
 #include <stddef.h>
@@ -23,7 +25,7 @@ ptrdiff_t dicey_view_advance(struct dicey_view *const view, const ptrdiff_t offs
     }
 
     *view = (struct dicey_view) {
-        .data = (char*) view->data + offset,
+        .data = (char *) view->data + offset,
         .len = view->len - (size_t) offset,
     };
 
@@ -47,7 +49,7 @@ ptrdiff_t dicey_view_as_zstring(struct dicey_view *const view, const char **cons
     if (size > PTRDIFF_MAX) {
         return DICEY_EOVERFLOW;
     }
-    
+
     *str = view->data;
 
     return dicey_view_advance(view, (ptrdiff_t) size);
@@ -66,7 +68,7 @@ ptrdiff_t dicey_view_read(struct dicey_view *const view, const struct dicey_view
         return DICEY_EOVERFLOW;
     }
 
-    dunsafe_read_bytes(dest, &(const void*) { view->data });
+    dunsafe_read_bytes(dest, &(const void *) { view->data });
 
     return dicey_view_advance(view, (ptrdiff_t) dest.len);
 }
@@ -98,7 +100,7 @@ ptrdiff_t dicey_view_mut_advance(struct dicey_view_mut *const view, const ptrdif
     }
 
     *view = (struct dicey_view_mut) {
-        .data = (char*) view->data + offset,
+        .data = (char *) view->data + offset,
         .len = view->len - offset,
     };
 
@@ -141,15 +143,15 @@ ptrdiff_t dicey_view_mut_write(struct dicey_view_mut *const dest, const struct d
         return DICEY_EOVERFLOW;
     }
 
-    dunsafe_write_bytes(&(void*) { dest->data }, view);
+    dunsafe_write_bytes(&(void *) { dest->data }, view);
 
     return dicey_view_mut_advance(dest, view.len);
 }
 
 ptrdiff_t dicey_view_mut_write_chunks(
-    struct dicey_view_mut *const dest,
+    struct dicey_view_mut *const   dest,
     const struct dicey_view *const chunks,
-    const size_t nchunks
+    const size_t                   nchunks
 ) {
     if (!dest || !dest->data || !chunks) {
         return DICEY_EINVAL;
@@ -175,7 +177,7 @@ ptrdiff_t dicey_view_mut_write_zstring(struct dicey_view_mut *const dest, const 
     }
 
     struct dicey_view data = {
-        .data = (void*) str,
+        .data = (void *) str,
         .len = (uint32_t) size,
     };
 

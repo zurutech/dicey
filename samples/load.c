@@ -1,3 +1,5 @@
+// Copyright (c) 2014-2024 Zuru Tech HK Limited, All rights reserved.
+
 #include <assert.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -11,10 +13,10 @@
 
 int main(void) {
     uint8_t *dumped_bytes = NULL;
-    size_t nbytes = 0, bcap = 0;
+    size_t   nbytes = 0, bcap = 0;
 
     while (!feof(stdin)) {
-        uint8_t buf[4096];
+        uint8_t      buf[4096];
         const size_t n = fread(buf, 1, sizeof buf, stdin);
         if (!n) {
             break;
@@ -36,8 +38,8 @@ int main(void) {
         return EXIT_FAILURE;
     }
 
-    struct dicey_packet pkt = {0};
-    const enum dicey_error err = dicey_packet_load(&pkt, &(const void*) { dumped_bytes }, &(size_t) { nbytes });
+    struct dicey_packet    pkt = { 0 };
+    const enum dicey_error err = dicey_packet_load(&pkt, &(const void *) { dumped_bytes }, &(size_t) { nbytes });
     if (err) {
         goto quit;
     }

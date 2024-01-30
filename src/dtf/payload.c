@@ -1,3 +1,5 @@
+// Copyright (c) 2014-2024 Zuru Tech HK Limited, All rights reserved.
+
 #include <assert.h>
 #include <stdbool.h>
 #include <stddef.h>
@@ -63,7 +65,7 @@ static ptrdiff_t message_fixed_size(const enum dtf_payload_kind kind) {
 
     case DTF_PAYLOAD_BYE:
         return sizeof(struct dtf_bye);
-    
+
     case DTF_PAYLOAD_GET:
     case DTF_PAYLOAD_SET:
     case DTF_PAYLOAD_EXEC:
@@ -83,16 +85,17 @@ static ptrdiff_t message_header_read(struct dtf_message_head *const head, struct
 
 static ptrdiff_t message_header_write(
     struct dicey_view_mut *const dest,
-    const enum dtf_payload_kind kind,
-    const uint32_t seq,
-    const uint32_t trailer_size
+    const enum dtf_payload_kind  kind,
+    const uint32_t               seq,
+    const uint32_t               trailer_size
 ) {
     const struct dicey_view header = {
-        .data = &(struct dtf_message_head) {
-            .kind = kind,
-            .seq = seq,
-            .data_len = trailer_size,
-        },
+        .data =
+            &(struct dtf_message_head) {
+                                        .kind = kind,
+                                        .seq = seq,
+                                        .data_len = trailer_size,
+                                        },
         .len = sizeof(struct dtf_message_head),
     };
 
@@ -111,23 +114,24 @@ static ptrdiff_t trailer_read_size(struct dicey_view src, const enum dtf_payload
     switch (kind) {
     default:
         return 0U;
-    
+
     case DTF_PAYLOAD_GET:
     case DTF_PAYLOAD_SET:
     case DTF_PAYLOAD_EXEC:
     case DTF_PAYLOAD_EVENT:
-    case DTF_PAYLOAD_RESPONSE: {
-        struct dtf_message_head head = { 0 };
+    case DTF_PAYLOAD_RESPONSE:
+        {
+            struct dtf_message_head head = { 0 };
 
-        // get the length at its offset. It should fit in a size_t, hopefully
-        const ptrdiff_t read_res = message_header_read(&head, &src);
+            // get the length at its offset. It should fit in a size_t, hopefully
+            const ptrdiff_t read_res = message_header_read(&head, &src);
 
-        if (read_res < 0) {
-            return read_res;
+            if (read_res < 0) {
+                return read_res;
+            }
+
+            return head.data_len;
         }
-
-        return head.data_len;
-    }
     }
 }
 
@@ -161,7 +165,7 @@ struct dtf_result dtf_bye_write(struct dicey_view_mut dest, const uint32_t seq, 
         .seq = seq,
         .reason = reason,
     };
-    
+
     const ptrdiff_t write_res = dicey_view_mut_write(&dest, (struct dicey_view) { .data = &bye, .len = sizeof bye });
     assert(write_res >= 0);
     DICEY_UNUSED(write_res); // suppress unused warning
@@ -184,16 +188,17 @@ struct dtf_result dtf_hello_write(struct dicey_view_mut dest, const uint32_t seq
         .version = version,
     };
 
-    const ptrdiff_t write_res = dicey_view_mut_write(&dest, (struct dicey_view) { .data = &hello, .len = sizeof hello });
-    assert(write_res >= 0); 
+    const ptrdiff_t write_res =
+        dicey_view_mut_write(&dest, (struct dicey_view) { .data = &hello, .len = sizeof hello });
+    assert(write_res >= 0);
     DICEY_UNUSED(write_res); // suppress unused warning
 
     return (struct dtf_result) { .result = DICEY_OK, .data = dest.data, .size = needed_len };
 }
 
 ptrdiff_t dtf_message_get_content(
-    const struct dtf_message *msg,
-    const size_t alloc_size,
+    const struct dtf_message   *msg,
+    const size_t                alloc_size,
     struct dtf_message_content *dest
 ) {
     if (!msg || !dest) {
@@ -213,10 +218,8 @@ ptrdiff_t dtf_message_get_content(
         return DICEY_EOVERFLOW;
     }
 
-    const ptrdiff_t path_len = dicey_view_as_zstring(
-        &(struct dicey_view) { .data = msg->data, .len = trailer_size }, 
-        &dest->path
-    );
+    const ptrdiff_t path_len =
+        dicey_view_as_zstring(&(struct dicey_view) { .data = msg->data, .len = trailer_size }, &dest->path);
 
     if (path_len < 0) {
         return path_len;
@@ -270,8 +273,8 @@ ptrdiff_t dtf_message_get_path(const struct dtf_message *const msg, const size_t
 
 ptrdiff_t dtf_message_get_selector(
     const struct dtf_message *const msg,
-    const size_t alloc_len,
-    struct dicey_selector *const dest
+    const size_t                    alloc_len,
+    struct dicey_selector *const    dest
 ) {
     struct dtf_message_content content = { 0 };
 
@@ -307,11 +310,11 @@ ptrdiff_t dtf_message_get_trailer_size(const struct dtf_message *const msg) {
 }
 
 struct dtf_result dtf_message_write(
-    struct dicey_view_mut dest,
-    const enum dtf_payload_kind kind,
-    const uint32_t tid,
-    const char *const path,
-    const struct dicey_selector selector,
+    struct dicey_view_mut         dest,
+    const enum dtf_payload_kind   kind,
+    const uint32_t                tid,
+    const char *const             path,
+    const struct dicey_selector   selector,
     const struct dicey_arg *const value
 ) {
     if (dutl_zstring_size(path) == DICEY_EOVERFLOW) {
@@ -337,7 +340,7 @@ struct dtf_result dtf_message_write(
     ptrdiff_t result = message_header_write(&dest, kind, tid, trailer_size);
     if (result < 0) {
         goto fail;
-    }    
+    }
 
     result = dicey_view_mut_write_zstring(&dest, path);
     if (result < 0) {
@@ -359,7 +362,7 @@ struct dtf_result dtf_message_write(
     }
 
     assert(value_res.result == DICEY_OK); // no allocation should happen
-    assert((char*) value_res.value == (char*) dval.data);
+    assert((char *) value_res.value == (char *) dval.data);
 
     DICEY_UNUSED(dval); // suppress unused warning
 
@@ -377,12 +380,12 @@ fail:
 }
 
 ptrdiff_t dtf_message_estimate_size(
-    const enum dtf_payload_kind kind,
-    const char *const path,
-    const struct dicey_selector selector,
+    const enum dtf_payload_kind   kind,
+    const char *const             path,
+    const struct dicey_selector   selector,
     const struct dicey_arg *const value
 ) {
-    if(!is_message(kind) || !path || !selector.trait || !selector.elem) {
+    if (!is_message(kind) || !path || !selector.trait || !selector.elem) {
         return DICEY_EINVAL;
     }
 
@@ -393,11 +396,9 @@ ptrdiff_t dtf_message_estimate_size(
 
     uint32_t total_size = (uint32_t) message_fixed_size(kind);
 
-    const ptrdiff_t sizes[] = {
-        dutl_zstring_size(path),
-        dicey_selector_size(selector),
-        dtf_value_estimate_size(value)
-    };
+    const ptrdiff_t sizes[] = { dutl_zstring_size(path),
+                                dicey_selector_size(selector),
+                                dtf_value_estimate_size(value) };
 
     const ptrdiff_t *end = sizes + sizeof sizes / sizeof *sizes;
 
@@ -461,7 +462,7 @@ struct dtf_result dtf_payload_load(union dtf_payload *const payload, struct dice
     if (trailer_size < 0) {
         return (struct dtf_result) { .result = trailer_size };
     }
-    
+
     if (!payload_kind_is_valid(head.kind)) {
         res.result = DICEY_EINVAL;
 
@@ -492,7 +493,7 @@ struct dtf_result dtf_payload_load(union dtf_payload *const payload, struct dice
 
     struct dicey_view remainder = *src;
     read_res = dicey_view_read(&remainder, dest);
-    assert(read_res >=0);
+    assert(read_res >= 0);
 
     // success: return the payload and advance the pointer
     *src = remainder;

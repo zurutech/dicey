@@ -1,3 +1,5 @@
+// Copyright (c) 2014-2024 Zuru Tech HK Limited, All rights reserved.
+
 #if !defined(DBOPXPWMUD_VIEWS_H)
 #define DBOPXPWMUD_VIEWS_H
 

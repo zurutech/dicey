@@ -1,3 +1,5 @@
+// Copyright (c) 2014-2024 Zuru Tech HK Limited, All rights reserved.
+
 #include <assert.h>
 #include <stdbool.h>
 #include <stddef.h>
@@ -22,12 +24,12 @@ enum item_policy {
 };
 
 static ptrdiff_t item_write(struct dtf_bytes_writer *dest, const struct dicey_arg *item, enum item_policy policy);
-    
+
 static ptrdiff_t items_write(
     struct dtf_bytes_writer *const dest,
-    const struct dicey_arg *const items,
-    const size_t nitems,
-    const enum item_policy policy
+    const struct dicey_arg *const  items,
+    const size_t                   nitems,
+    const enum item_policy         policy
 ) {
     const struct dicey_arg *const end = items + nitems;
 
@@ -72,15 +74,15 @@ static ptrdiff_t len_write(struct dtf_bytes_writer *const dest, const ptrdiff_t 
 
 static ptrdiff_t list_write(
     struct dtf_bytes_writer *const dest,
-    const struct dicey_view header,
-    const struct dicey_arg *elems,
-    const dtf_nmemb nitems,
-    const enum item_policy policy
-){
+    const struct dicey_view        header,
+    const struct dicey_arg        *elems,
+    const dtf_nmemb                nitems,
+    const enum item_policy         policy
+) {
     // snapshot the writer. We will use the clone to write the byte size of the array. The byte size of the array
     // is guaranteed to be the first field of the array header, so we can write it from the clone safely.
-    struct dtf_bytes_writer clone_at_nbytes = {0};
-    const ptrdiff_t snapshot_res = dtf_bytes_writer_snapshot(dest, &clone_at_nbytes);
+    struct dtf_bytes_writer clone_at_nbytes = { 0 };
+    const ptrdiff_t         snapshot_res = dtf_bytes_writer_snapshot(dest, &clone_at_nbytes);
     if (snapshot_res < 0) {
         return snapshot_res;
     }
@@ -119,7 +121,7 @@ static ptrdiff_t array_write(struct dtf_bytes_writer *const dest, const struct d
 
     return list_write(
         dest,
-        (struct dicey_view) { .data = &header, .len = sizeof header }, 
+        (struct dicey_view) { .data = &header, .len = sizeof header },
         array.elems,
         array.nitems,
         ITEM_POLICY_EXACT
@@ -154,7 +156,7 @@ static ptrdiff_t bytes_write(struct dtf_bytes_writer *const dest, const struct d
 
     return written_bytes;
 }
-    
+
 static ptrdiff_t error_write(struct dtf_bytes_writer *const dest, const struct dicey_error_arg error) {
     const struct dtf_error_header header = { .code = error.code };
 
@@ -180,23 +182,24 @@ static ptrdiff_t float_write(struct dtf_bytes_writer *const dest, const dtf_floa
     return blob_write(dest, &value, sizeof value);
 }
 
-#define int_write(DEST, VALUE) blob_write(DEST, &(VALUE), sizeof (VALUE))
+#define int_write(DEST, VALUE) blob_write(DEST, &(VALUE), sizeof(VALUE))
 
 static ptrdiff_t pair_write(struct dtf_bytes_writer *const dest, const struct dicey_pair_arg pair) {
     const struct dicey_arg items[] = { *pair.first, *pair.second };
 
     return list_write(
         dest,
-        (struct dicey_view) { .data = &(struct dtf_pair_header) { 0 }, .len = sizeof (struct dtf_pair_header) },
+        (struct dicey_view) { .data = &(struct dtf_pair_header) { 0 }, .len = sizeof(struct dtf_pair_header) },
         items,
         2,
-        ITEM_POLICY_VARIANT);
+        ITEM_POLICY_VARIANT
+    );
 }
 
 static ptrdiff_t tuple_write(struct dtf_bytes_writer *const dest, const struct dicey_tuple_arg tuple) {
     const struct dicey_view header = {
         .data = &(struct dtf_tuple_header) { .nitems = tuple.nitems },
-        .len = sizeof (struct dtf_tuple_header),
+        .len = sizeof(struct dtf_tuple_header),
     };
 
     return list_write(dest, header, tuple.elems, tuple.nitems, ITEM_POLICY_VARIANT);
@@ -215,11 +218,11 @@ static ptrdiff_t value_header_write(struct dtf_bytes_writer *const dest, const s
 
 static ptrdiff_t item_write(
     struct dtf_bytes_writer *const dest,
-    const struct dicey_arg *const item,
-    const enum item_policy policy
+    const struct dicey_arg *const  item,
+    const enum item_policy         policy
 ) {
     assert(dtf_bytes_writer_is_valid(dest) && item);
-    
+
     if (!dicey_type_is_valid(item->type)) {
         return DICEY_EINVAL;
     }
@@ -304,7 +307,7 @@ static ptrdiff_t item_write(
     case DICEY_TYPE_SELECTOR:
         content_bytes = dtf_bytes_writer_write_selector(dest, item->selector);
         break;
-    
+
     case DICEY_TYPE_ERROR:
         content_bytes = error_write(dest, item->error);
         break;
@@ -358,8 +361,8 @@ ptrdiff_t dtf_selector_write(struct dicey_selector sel, struct dicey_view_mut *c
     }
 
     struct dicey_view chunks[] = {
-        (struct dicey_view) { .data = (void*) sel.trait, .len = (size_t) trait_len },
-        (struct dicey_view) { .data = (void*) sel.elem, .len = (size_t) elem_len },
+        (struct dicey_view) {.data = (void *) sel.trait, .len = (size_t) trait_len},
+        (struct dicey_view) { .data = (void *) sel.elem, .len = (size_t) elem_len },
     };
 
     return dicey_view_mut_write_chunks(dest, chunks, sizeof chunks / sizeof *chunks);
@@ -397,7 +400,7 @@ struct dtf_valueres dtf_value_write(struct dicey_view_mut dest, const struct dic
 
         return (struct dtf_valueres) { .result = write_res, .size = (size_t) size };
     }
-    
+
     // return the size of the value into result, too. This will be 0 if no allocation was needed, or size otherwise
     return (struct dtf_valueres) { .result = alloc_res, .size = (size_t) size, .value = dval };
 }

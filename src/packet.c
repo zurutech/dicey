@@ -1,3 +1,5 @@
+// Copyright (c) 2014-2024 Zuru Tech HK Limited, All rights reserved.
+
 #include <assert.h>
 #include <limits.h>
 #include <stdbool.h>
@@ -7,8 +9,8 @@
 
 #include <dicey/errors.h>
 #include <dicey/packet.h>
-#include <dicey/views.h>
 #include <dicey/type.h>
+#include <dicey/views.h>
 
 #include <dicey/internal/data-info.h>
 
@@ -100,7 +102,7 @@ static enum dicey_error validate_value_list(const struct dicey_list *const list)
 
     struct dicey_iterator iter = dicey_list_iter(list);
 
-    struct dicey_value value = {0};
+    struct dicey_value value = { 0 };
 
     while (dicey_iterator_has_next(iter)) {
         const enum dicey_error next_err = dicey_iterator_next(&iter, &value);
@@ -125,10 +127,10 @@ static enum dicey_error validate_value(const struct dicey_value *const value) {
     switch (type) {
     default:
         assert(false);
-    
+
     case DICEY_TYPE_INVALID:
         return DICEY_EINVAL;
-    
+
     case DICEY_TYPE_BOOL:
     case DICEY_TYPE_BYTE:
     case DICEY_TYPE_FLOAT:
@@ -140,42 +142,44 @@ static enum dicey_error validate_value(const struct dicey_value *const value) {
     case DICEY_TYPE_UINT64:
         return DICEY_OK;
 
-    case DICEY_TYPE_BYTES: {
-        struct dtf_probed_bytes bytes = value->_data.bytes;
+    case DICEY_TYPE_BYTES:
+        {
+            struct dtf_probed_bytes bytes = value->_data.bytes;
 
-        if ((bytes.data && bytes.len) || (!bytes.data && !bytes.len)) {
-            return DICEY_OK;
-        } else {
-            return DICEY_EINVAL;
-        }
-    }
-
-    case DICEY_TYPE_ARRAY: 
-    case DICEY_TYPE_TUPLE: {
-        struct dicey_list list = {0};
-
-        const enum dicey_error as_list_err = type == DICEY_TYPE_ARRAY 
-            ? dicey_value_get_array(value, &list)
-            : dicey_value_get_tuple(value, &list);
-
-        return as_list_err ? as_list_err : validate_value_list(&list);
-    }
-
-    case DICEY_TYPE_PAIR: {
-        struct dicey_pair pair = {0};
-
-        const enum dicey_error as_pair_err = dicey_value_get_pair(value, &pair);
-        if (as_pair_err) {
-            return as_pair_err;
+            if ((bytes.data && bytes.len) || (!bytes.data && !bytes.len)) {
+                return DICEY_OK;
+            } else {
+                return DICEY_EINVAL;
+            }
         }
 
-        const enum dicey_error validate_first_err = validate_value(&pair.first);
-        if (validate_first_err) {
-            return validate_first_err;
+    case DICEY_TYPE_ARRAY:
+    case DICEY_TYPE_TUPLE:
+        {
+            struct dicey_list list = { 0 };
+
+            const enum dicey_error as_list_err =
+                type == DICEY_TYPE_ARRAY ? dicey_value_get_array(value, &list) : dicey_value_get_tuple(value, &list);
+
+            return as_list_err ? as_list_err : validate_value_list(&list);
         }
 
-        return validate_value(&pair.second);
-    }
+    case DICEY_TYPE_PAIR:
+        {
+            struct dicey_pair pair = { 0 };
+
+            const enum dicey_error as_pair_err = dicey_value_get_pair(value, &pair);
+            if (as_pair_err) {
+                return as_pair_err;
+            }
+
+            const enum dicey_error validate_first_err = validate_value(&pair.first);
+            if (validate_first_err) {
+                return validate_first_err;
+            }
+
+            return validate_value(&pair.second);
+        }
 
     case DICEY_TYPE_STR:
         return DICEY_OK; // the null string is valid and a zero-length string
@@ -189,13 +193,12 @@ static enum dicey_error validate_value(const struct dicey_value *const value) {
     case DICEY_TYPE_ERROR:
         return dicey_errmsg_is_valid(value->_data.error) ? DICEY_OK : DICEY_EINVAL;
     }
-
 }
 
 static enum dicey_error validate_message(const struct dicey_packet *const packet) {
     assert(packet);
 
-    struct dicey_message message = {0};
+    struct dicey_message   message = { 0 };
     const enum dicey_error as_message_err = dicey_packet_as_message(*packet, &message);
     if (as_message_err) {
         return as_message_err;
@@ -215,12 +218,12 @@ static uint32_t version_to_dtf(const struct dicey_version version) {
     return (uint32_t) (version.major << (sizeof(uint16_t) * CHAR_BIT)) | version.revision;
 }
 
-const char* dicey_bye_reason_to_string(const enum dicey_bye_reason reason) {
+const char *dicey_bye_reason_to_string(const enum dicey_bye_reason reason) {
     switch (reason) {
     default:
     case DICEY_BYE_REASON_INVALID:
         return ">>invalid<<";
-    
+
     case DICEY_BYE_REASON_SHUTDOWN:
         return "SHUTDOWN";
 
@@ -229,12 +232,26 @@ const char* dicey_bye_reason_to_string(const enum dicey_bye_reason reason) {
     }
 }
 
-const char* dicey_message_type_to_string(const enum dicey_op type) {
+bool dicey_op_is_valid(const enum dicey_op type) {
+    switch (type) {
+    default:
+        return false;
+
+    case DICEY_OP_GET:
+    case DICEY_OP_SET:
+    case DICEY_OP_EXEC:
+    case DICEY_OP_EVENT:
+    case DICEY_OP_RESPONSE:
+        return true;
+    }
+}
+
+const char *dicey_op_to_string(const enum dicey_op type) {
     switch (type) {
     default:
     case DICEY_OP_INVALID:
         return ">>invalid<<";
-    
+
     case DICEY_OP_GET:
         return "GET";
 
@@ -255,7 +272,7 @@ const char* dicey_message_type_to_string(const enum dicey_op type) {
 enum dicey_error dicey_packet_as_bye(const struct dicey_packet packet, struct dicey_bye *const bye) {
     assert(dicey_packet_is_valid(packet) && bye);
 
-    const union dtf_payload payload = {.header = packet.payload};
+    const union dtf_payload payload = { .header = packet.payload };
 
     if (dtf_payload_get_kind(payload) != DTF_PAYLOAD_BYE) {
         return DICEY_EINVAL;
@@ -277,7 +294,7 @@ enum dicey_error dicey_packet_as_bye(const struct dicey_packet packet, struct di
 enum dicey_error dicey_packet_as_hello(const struct dicey_packet packet, struct dicey_hello *const hello) {
     assert(dicey_packet_is_valid(packet) && hello);
 
-    const union dtf_payload payload = {.header = packet.payload};
+    const union dtf_payload payload = { .header = packet.payload };
 
     if (dtf_payload_get_kind(payload) != DTF_PAYLOAD_HELLO) {
         return DICEY_EINVAL;
@@ -296,7 +313,7 @@ enum dicey_error dicey_packet_as_message(const struct dicey_packet packet, struc
     const union dtf_payload payload = { .header = packet.payload };
 
     const enum dtf_payload_kind pl_kind = dtf_payload_get_kind(payload);
-    
+
     if (!dtf_payload_kind_is_message(pl_kind)) {
         return DICEY_EINVAL;
     }
@@ -308,7 +325,7 @@ enum dicey_error dicey_packet_as_message(const struct dicey_packet packet, struc
 
     const struct dtf_message *const msg = payload.msg;
 
-    struct dtf_message_content content = {0};
+    struct dtf_message_content content = { 0 };
 
     const ptrdiff_t content_res = dtf_message_get_content(msg, packet.nbytes, &content);
     if (content_res < 0) {
@@ -322,8 +339,8 @@ enum dicey_error dicey_packet_as_message(const struct dicey_packet packet, struc
     };
 
     if (content.value) {
-        struct dtf_probed_value value = {0};
-        struct dicey_view value_view = { .data = content.value, .len = content.value_len };
+        struct dtf_probed_value value = { 0 };
+        struct dicey_view       value_view = { .data = content.value, .len = content.value_len };
 
         const ptrdiff_t probed_bytes = dtf_value_probe(&value_view, &value);
         if (probed_bytes < 0) {
@@ -344,8 +361,8 @@ enum dicey_error dicey_packet_as_message(const struct dicey_packet packet, struc
 }
 
 enum dicey_error dicey_packet_bye(
-    struct dicey_packet *const dest,
-    const uint32_t seq,
+    struct dicey_packet *const  dest,
+    const uint32_t              seq,
     const enum dicey_bye_reason reason
 ) {
     assert(dest && bye_reason_is_valid(reason));
@@ -354,7 +371,7 @@ enum dicey_error dicey_packet_bye(
     if (!bye) {
         return DICEY_ENOMEM;
     }
-    
+
     const struct dtf_result write_res = dtf_bye_write(
         (struct dicey_view_mut) {
             .data = bye,
@@ -381,16 +398,16 @@ enum dicey_error dicey_packet_bye(
 void dicey_packet_deinit(struct dicey_packet *const packet) {
     if (packet) {
         // not UB: the payload is always allocated with {c,m}alloc so it's originally void*
-        free((void*) packet->payload);
+        free((void *) packet->payload);
 
-        *packet = (struct dicey_packet) {0};
+        *packet = (struct dicey_packet) { 0 };
     }
 }
 
 enum dicey_error dicey_packet_dump(const struct dicey_packet packet, void **const data, size_t *const nbytes) {
     assert(dicey_packet_is_valid(packet) && data && *data && nbytes);
 
-    struct dicey_view src = { .data = packet.payload, .len = packet.nbytes };
+    struct dicey_view     src = { .data = packet.payload, .len = packet.nbytes };
     struct dicey_view_mut dest = { .data = *data, .len = *nbytes };
 
     const ptrdiff_t dump_err = dicey_view_mut_write(&dest, src);
@@ -432,7 +449,7 @@ enum dicey_error dicey_packet_get_seq(const struct dicey_packet packet, uint32_t
 
 enum dicey_error dicey_packet_hello(
     struct dicey_packet *const dest,
-    const uint32_t seq,
+    const uint32_t             seq,
     const struct dicey_version version
 ) {
     assert(dest);
@@ -490,7 +507,7 @@ enum dicey_error dicey_packet_load(struct dicey_packet *const packet, const void
         .len = *nbytes,
     };
 
-    union dtf_payload payload = {0};
+    union dtf_payload       payload = { 0 };
     const struct dtf_result load_res = dtf_payload_load(&payload, &src);
     if (load_res.result < 0) {
         return load_res.result;
@@ -525,7 +542,7 @@ enum dicey_error dicey_packet_load(struct dicey_packet *const packet, const void
 
 fail:
     free(load_res.data);
-    *packet = (struct dicey_packet) {0};
+    *packet = (struct dicey_packet) { 0 };
 
     return err;
 }
