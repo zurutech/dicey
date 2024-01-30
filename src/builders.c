@@ -64,7 +64,7 @@ static bool msgbuilder_is_complete(const
         && dicey_selector_is_valid(builder->_selector)
         && builder->_type != DICEY_OP_INVALID
         // get messages must not have a root, everything else does
-        && (builder->_type == DICEY_OP_GET) ^ (bool) { builder->_root }; 
+        && (builder->_type == DICEY_OP_GET) != (bool) { builder->_root }; 
 }
 
 static ptrdiff_t msgkind_to_dtf(const enum dicey_op kind) {
