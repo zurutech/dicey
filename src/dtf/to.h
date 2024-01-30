@@ -127,7 +127,6 @@ struct dtf_hello {
     DTF_PAYLOAD_HEAD
 
     uint32_t version;
-    uint32_t id;
 };
 
 struct dtf_bye {

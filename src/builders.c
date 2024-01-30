@@ -374,6 +374,8 @@ enum dicey_error dicey_value_builder_next(
 
     struct dicey_arg *const elem_item = &list->elems[list->nitems++];
 
+    *elem_item = (struct dicey_arg) {0};
+
     if (list_state == BUILDER_STATE_ARRAY) {
         elem_item->type = list->type;
     }

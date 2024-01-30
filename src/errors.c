@@ -5,7 +5,7 @@
 
 // the errors conventionally use the first byte as an incremental index
 #define INDEX_OF(E) ((ptrdiff_t) (-(E) & 0xFF))
-#define ERROR_INFO_FOR(E, NAME, MSG) [INDEX_OF(E)] = { .name = NAME, .message = MSG }
+#define ERROR_INFO_FOR(E, NAME, MSG) [INDEX_OF(E)] = { .errnum = (E), .name = NAME, .message = MSG }
 
 static const struct dicey_error_def error_info[] = {
     ERROR_INFO_FOR(DICEY_OK, "OK", "success"),
