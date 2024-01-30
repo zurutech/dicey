@@ -4,10 +4,7 @@ project(dicey VERSION 0.0.1 LANGUAGES C)
 
 include(GenerateExportHeader)
 
-include (TestBigEndian)
-TEST_BIG_ENDIAN(IS_BIG_ENDIAN)
-
-if (IS_BIG_ENDIAN)
+if (NOT CMAKE_C_BYTE_ORDER STREQUAL "LITTLE_ENDIAN")
     message(FATAL_ERROR "Big endian is not supported")
 endif()
 
