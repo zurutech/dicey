@@ -49,7 +49,7 @@ DICEY_EXPORT enum dicey_error dicey_message_builder_init(struct dicey_message_bu
  * @param builder Message builder (must be initialised and idle).
  * @param type The type of the message to construct.
  * @return Error code. Possible errors are:
- *         - OK
+ *         - OK: The operation was successful
  *         - EINVAL: when the builder is not idle
  */
 DICEY_EXPORT enum dicey_error dicey_message_builder_begin(struct dicey_message_builder *builder, enum dicey_op type);
@@ -60,7 +60,7 @@ DICEY_EXPORT enum dicey_error dicey_message_builder_begin(struct dicey_message_b
  * @param builder Message builder (must be initialised and fully constructed).
  * @param packet The packet to build the message into. Must point to valid memory, which will be overwritten.
  * @return Error code. Possible errors are:
- *         - OK
+ *         - OK: The operation was successful
  *         - EAGAIN: when the builder is not fully constructed yet
  *         - EINVAL: when the builder is not in the correct state or contains garbage
  */
@@ -89,7 +89,7 @@ DICEY_EXPORT void dicey_message_builder_discard(struct dicey_message_builder *bu
  * @param builder Message builder. Must be initialised and in the correct state.
  * @param path The path to set. Must be a valid null-terminated string, with a lifetime at least as long as the builder.
  * @return Error code. Possible errors are:
- *         - OK
+ *         - OK: The operation was successful
  *         - EINVAL: when the builder is not in the correct state
  */
 DICEY_EXPORT enum dicey_error dicey_message_builder_set_path(struct dicey_message_builder *builder, const char *path);
@@ -100,7 +100,7 @@ DICEY_EXPORT enum dicey_error dicey_message_builder_set_path(struct dicey_messag
  * @param builder Message builder. Must be initialised and in the correct state.
  * @param selector The selector to set. Must be a valid selector, with a lifetime at least as long as the builder.
  * @return Error code. Possible errors are:
- *         - OK
+ *         - OK: The operation was successful
  *         - EINVAL: when the builder is not in the correct state
  */
 DICEY_EXPORT enum dicey_error dicey_message_builder_set_selector(
@@ -113,7 +113,7 @@ DICEY_EXPORT enum dicey_error dicey_message_builder_set_selector(
  * @param builder Message builder. Must be initialised and in the correct state.
  * @param seq The sequence number to set.
  * @return Error code. Possible errors are:
- *         - OK
+ *         - OK: The operation was successful
  *         - EINVAL: when the builder is not in the correct state
  */
 DICEY_EXPORT enum dicey_error dicey_message_builder_set_seq(struct dicey_message_builder *builder, uint32_t seq);
@@ -184,7 +184,7 @@ struct dicey_arg {
  * @param builder Message builder. Must be initialised and in the correct state.
  * @param value The value to set. Must be a valid argument.
  * @return Error code. Possible errors are:
- *         - OK
+ *         - OK: The operation was successful
  *         - EBUILDER_TYPE_MISMATCH: when an argument does not match an array type
  *         - EINVAL: when the builder is not in the correct state (or contains garbage) or the argument is invalid
  *         - ENOMEM: when the builder is unable to allocate memory for the argument
@@ -226,7 +226,7 @@ struct dicey_value_builder {
  * @param builder Message builder to target. Must be initialised and in the correct state.
  * @param value The value builder, whose contents will be overwritten. Can be in any state.
  * @return Error code. Possible errors are:
- *         - OK
+ *         - OK: The operation was successful
  *         - EINVAL: when the builder is not in the correct state
  *         - ENOMEM: when the builder is unable to allocate memory for the value
  */
@@ -243,7 +243,7 @@ DICEY_EXPORT enum dicey_error dicey_message_builder_value_start(
  * @param builder Message builder. Must be initialised and in a locked state.
  * @param value The value builder. Must be the same may be zeroed)
  * @return Error code. Possible errors are:
- *         - OK
+ *         - OK: The operation was successful
  *         - EINVAL: when the builder or the value builder are not in the correct state
  */
 DICEY_EXPORT enum dicey_error dicey_message_builder_value_end(
@@ -257,7 +257,7 @@ DICEY_EXPORT enum dicey_error dicey_message_builder_value_end(
  * @param builder The value builder. Must be ready for writing and empty.
  * @param type The type all array elements will have.
  * @return Error code. Possible errors are:
- *         - OK
+ *         - OK: The operation was successful
  *         - EINVAL: when the builder is not in the correct state
  */
 DICEY_EXPORT enum dicey_error dicey_value_builder_array_start(
@@ -272,7 +272,7 @@ DICEY_EXPORT enum dicey_error dicey_value_builder_array_start(
  *        unlock the message builder. Call value_end to unlock it.
  * @param builder The value builder. Must be in an "array" state.
  * @return Error code. Possible errors are:
- *         - OK
+ *         - OK: The operation was successful
  *         - EINVAL: when the builder is not in the array state
  */
 DICEY_EXPORT enum dicey_error dicey_value_builder_array_end(struct dicey_value_builder *builder);
@@ -283,7 +283,7 @@ DICEY_EXPORT enum dicey_error dicey_value_builder_array_end(struct dicey_value_b
  * @param elem An empty value builder for the next element. If the list is an array, it will be pre-filled with the
  *             array type.
  * @return Error code. Possible errors are:
- *         - OK
+ *         - OK: The operation was successful
  *         - EINVAL: when `list` is not in a "list" state
  */
 DICEY_EXPORT enum dicey_error dicey_value_builder_next(
@@ -299,7 +299,7 @@ DICEY_EXPORT enum dicey_error dicey_value_builder_next(
  * @param builder The value builder. Must be ready for writing and empty.
  * @param value The value to set. Must be a valid argument. Any previously set value will be discarded.
  * @return Error code. Possible errors are:
- *         - OK
+ *         - OK: The operation was successful
  *         - EBUILDER_TYPE_MISMATCH: when an argument does not match the pre-set type of this builder (if any)
  *         - EINVAL: when the builder is not in the correct state
  *         - ENOMEM: when the builder is unable to allocate memory for the argument
@@ -311,7 +311,7 @@ DICEY_EXPORT enum dicey_error dicey_value_builder_set(struct dicey_value_builder
  * @note This function locks the value builder, which enters in a "tuple" state until tuple_end is called.
  * @param builder The value builder. Must be ready for writing and empty.
  * @return Error code. Possible errors are:
- *         - OK
+ *         - OK: The operation was successful
  *         - EINVAL: when the builder is not in the correct state
  */
 DICEY_EXPORT enum dicey_error dicey_value_builder_tuple_start(struct dicey_value_builder *builder);
@@ -323,7 +323,7 @@ DICEY_EXPORT enum dicey_error dicey_value_builder_tuple_start(struct dicey_value
  *       unlock the message builder. Call value_end to unlock it.
  * @param builder The value builder. Must be in a "tuple" state.
  * @return Error code. Possible errors are:
- *         - OK
+ *         - OK: The operation was successful
  *         - EINVAL: when the builder is not in the tuple state
  */
 DICEY_EXPORT enum dicey_error dicey_value_builder_tuple_end(struct dicey_value_builder *builder);
