@@ -4,6 +4,13 @@ project(dicey VERSION 0.0.1 LANGUAGES C)
 
 include(GenerateExportHeader)
 
+include (TestBigEndian)
+TEST_BIG_ENDIAN(IS_BIG_ENDIAN)
+
+if (IS_BIG_ENDIAN)
+    message(FATAL_ERROR "Big endian is not supported")
+endif()
+
 if (MSVC)
     add_compile_options(/W4 /WX)
 else()

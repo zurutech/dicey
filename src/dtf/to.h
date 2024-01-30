@@ -7,7 +7,6 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#include <dicey/asserts.h>
 #include <dicey/value.h>
 
 #if defined(_MSC_VER)
