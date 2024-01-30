@@ -199,7 +199,7 @@ const char *dicey_type_name(const enum dicey_type type) {
 }
 
 enum dicey_type dicey_value_get_type(const struct dicey_value *const value) {
-    return value->_type;
+    return value ? value->_type : DICEY_TYPE_INVALID;
 }
 
 #define DICEY_VALUE_GET_IMPL_TRIVIAL(NAME, TYPE, DICEY_TYPE, FIELD)                                                    \
@@ -213,6 +213,10 @@ enum dicey_type dicey_value_get_type(const struct dicey_value *const value) {
     }
 
 enum dicey_error dicey_value_get_array(const struct dicey_value *const value, struct dicey_list *const dest) {
+    if (dicey_value_get_type(value) != DICEY_TYPE_ARRAY) {
+        return DICEY_EVALUE_TYPE_MISMATCH;
+    }
+
     return value_get_list(value, dest);
 }
 
