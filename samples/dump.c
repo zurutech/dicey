@@ -274,6 +274,7 @@ int main(const int argc, const char *const argv[]) {
         util_dumper_dump_hex(&dumper, dumped_bytes, nbytes);
     }
 
+    free(dumped_bytes);
     dicey_packet_deinit(&pkt);
 
     return EXIT_SUCCESS;
