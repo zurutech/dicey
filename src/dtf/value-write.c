@@ -157,6 +157,10 @@ static ptrdiff_t bytes_write(struct dtf_bytes_writer *const dest, const struct d
     return written_bytes;
 }
 
+static ptrdiff_t str_write(struct dtf_bytes_writer *const dest, const char *const str) {
+    return dtf_bytes_writer_write_zstring(dest, str ? str : "");
+}
+
 static ptrdiff_t error_write(struct dtf_bytes_writer *const dest, const struct dicey_error_arg error) {
     const struct dtf_error_header header = { .code = error.code };
 
@@ -165,7 +169,7 @@ static ptrdiff_t error_write(struct dtf_bytes_writer *const dest, const struct d
         return header_nbytes;
     }
 
-    const ptrdiff_t content_nbytes = dtf_bytes_writer_write_zstring(dest, error.message);
+    const ptrdiff_t content_nbytes = str_write(dest, error.message);
     if (content_nbytes < 0) {
         return content_nbytes;
     }
@@ -300,6 +304,10 @@ static ptrdiff_t item_write(
         break;
 
     case DICEY_TYPE_STR:
+        content_bytes = str_write(dest, item->str);
+        break;
+
+    // paths do not allow NULL, so we can't safely use str_write here
     case DICEY_TYPE_PATH:
         content_bytes = dtf_bytes_writer_write_zstring(dest, item->str);
         break;
