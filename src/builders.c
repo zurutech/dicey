@@ -401,7 +401,7 @@ enum dicey_error dicey_value_builder_set(struct dicey_value_builder *const build
     const struct dicey_arg *const root = builder->_root;
 
     if (dicey_type_is_valid(root->type) && root->type != value.type) {
-        return DICEY_EBUILDER_TYPE_MISMATCH;
+        return DICEY_EVALUE_TYPE_MISMATCH;
     }
 
     // free any previously set value

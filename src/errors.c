@@ -20,7 +20,6 @@ static const struct dicey_error_def error_info[] = {
     ERROR_INFO_FOR(DICEY_EPATH_TOO_LONG, "PathTooLong", "path too long"),
     ERROR_INFO_FOR(DICEY_ETUPLE_TOO_LONG, "TupleTooLong", "tuple too long"),
     ERROR_INFO_FOR(DICEY_EARRAY_TOO_LONG, "ArrayTooLong", "array too long"),
-    ERROR_INFO_FOR(DICEY_EBUILDER_TYPE_MISMATCH, "BuilderTypeMismatch", "builder type mismatch"),
     ERROR_INFO_FOR(DICEY_EVALUE_TYPE_MISMATCH, "ValueTypeMismatch", "value type mismatch"),
     ERROR_INFO_FOR(DICEY_ENOT_SUPPORTED, "NotSupported", "unsupported operation"),
 };
