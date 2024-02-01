@@ -382,6 +382,7 @@ enum dicey_error dicey_packet_bye(
     );
 
     if (write_res.result < 0) {
+        assert(write_res.result != DICEY_EOVERFLOW);
         free(bye);
 
         return write_res.result;
@@ -469,6 +470,7 @@ enum dicey_error dicey_packet_hello(
     );
 
     if (write_res.result < 0) {
+        assert(write_res.result != DICEY_EOVERFLOW);
         free(hello);
 
         return write_res.result;
@@ -537,6 +539,9 @@ enum dicey_error dicey_packet_load(struct dicey_packet *const packet, const void
         }
     }
 #endif
+
+    *data = src.data;
+    *nbytes = src.len;
 
     return err;
 
