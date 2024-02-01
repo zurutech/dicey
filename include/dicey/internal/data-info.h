@@ -6,6 +6,7 @@
 #include "../type.h"
 #include "../views.h"
 
+// union used internally by dicey_value to represent a parsed value. Not intended for external use.
 union _dicey_data_info {
     dicey_bool boolean;
     dicey_byte byte;
@@ -24,7 +25,7 @@ union _dicey_data_info {
         uint16_t          inner_type;
         uint16_t          nitems;
         struct dicey_view data;
-    } list;
+    } list; // for array, pair, tuple
 
     struct dtf_probed_bytes {
         uint32_t       len;

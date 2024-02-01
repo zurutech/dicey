@@ -10,14 +10,20 @@
 extern "C" {
 #endif
 
+/**
+ * @brief Represents an immutable view of data.
+ */
 struct dicey_view {
-    size_t      len;
-    const void *data;
+    size_t      len;  /**< The length of the view. */
+    const void *data; /**< A pointer to the data. */
 };
 
+/**
+ * @brief Represents a mutable view of data.
+ */
 struct dicey_view_mut {
-    size_t len;
-    void  *data;
+    size_t len;  /**< The length of the view. */
+    void  *data; /**< A pointer to the data. */
 };
 
 #if defined(__cplusplus)

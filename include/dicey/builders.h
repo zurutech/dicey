@@ -30,7 +30,7 @@ struct dicey_message_builder {
 
     // While constructing the value, _root is the root of the value, and _borrowed_to is the value builder that is
     // holding the lock over this message builder.
-    const struct dicey_value_builder *_borrowed_to; /**< Value builder that the message is borrowed to. */
+    const struct dicey_value_builder *_borrowed_to;
 };
 
 /**
@@ -39,7 +39,8 @@ struct dicey_message_builder {
  *       being freed, so make sure to discard or finalise a message builder before re-initializing it.
  *       Message builders are designed to be reused, so you should not init and destroy them for each message.
  * @param builder Message builder to initialize.
- * @return Error code. Possible errors are: OK. (Never fails)
+ * @return Error code. Possible errors are:
+ *         - OK: (Never fails)
  */
 DICEY_EXPORT enum dicey_error dicey_message_builder_init(struct dicey_message_builder *builder);
 
@@ -73,7 +74,8 @@ DICEY_EXPORT enum dicey_error dicey_message_builder_build(
 /**
  * @brief Destroys a message builder, discarding any current state.
  * @param builder Message builder to destroy.
- * @return Error code. Possible errors are: OK. (Never fails)
+ * @return Error code. Possible errors are:
+ *          - OK: (Never fails)
  */
 DICEY_EXPORT enum dicey_error dicey_message_builder_destroy(struct dicey_message_builder *builder);
 
