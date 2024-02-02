@@ -17,7 +17,7 @@ foreach(sample IN LISTS samples_SRC)
 endforeach()
 
 # if the compiler is Clang, build fuzz/fuzz.c with -fsanitize=fuzzer
-if(BUILD_FUZZER AND CMAKE_C_COMPILER_ID STREQUAL "Clang" AND CMAKE_BUILD_TYPE STREQUAL "Debug")
+if(BUILD_FUZZER AND CMAKE_C_COMPILER_ID STREQUAL "Clang")
     add_executable(fuzz fuzz/fuzz.c)
     target_link_libraries(fuzz PRIVATE "${PROJECT_NAME}" samples_util)
     target_compile_options(fuzz PRIVATE -fsanitize=fuzzer,undefined,address)
