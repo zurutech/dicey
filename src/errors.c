@@ -24,21 +24,39 @@ static const struct dicey_error_def error_info[] = {
     ERROR_INFO_FOR(DICEY_ENOT_SUPPORTED, "NotSupported", "unsupported operation"),
 };
 
-DICEY_EXPORT const struct dicey_error_def *dicey_error_info(const enum dicey_error errnum) {
-    const ptrdiff_t index = INDEX_OF(errnum);
-    const ptrdiff_t count = sizeof error_info / sizeof *error_info;
-
-    return index >= 0 && index < count ? &error_info[index] : NULL;
+const struct dicey_error_def *dicey_error_info(const enum dicey_error errnum) {
+    return dicey_error_is_valid(errnum) ? &error_info[INDEX_OF(errnum)] : NULL;
 }
 
-DICEY_EXPORT void dicey_error_infos(const struct dicey_error_def **const defs, size_t *const count) {
+void dicey_error_infos(const struct dicey_error_def **const defs, size_t *const count) {
     assert(defs && count);
 
     *defs = error_info;
     *count = sizeof error_info / sizeof *error_info;
 }
 
-DICEY_EXPORT const char *dicey_error_name(const enum dicey_error errnum) {
+bool dicey_error_is_valid(enum dicey_error errnum) {
+    switch (errnum) {
+    case DICEY_OK:
+    case DICEY_EAGAIN:
+    case DICEY_ENOMEM:
+    case DICEY_EINVAL:
+    case DICEY_ENODATA:
+    case DICEY_EBADMSG:
+    case DICEY_EOVERFLOW:
+    case DICEY_EPATH_TOO_LONG:
+    case DICEY_ETUPLE_TOO_LONG:
+    case DICEY_EARRAY_TOO_LONG:
+    case DICEY_EVALUE_TYPE_MISMATCH:
+    case DICEY_ENOT_SUPPORTED:
+        return true;
+
+    default:
+        return false;
+    }
+}
+
+const char *dicey_error_name(const enum dicey_error errnum) {
     const struct dicey_error_def *const def = dicey_error_info(errnum);
 
     return def ? def->name : "UnknownError";

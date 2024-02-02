@@ -345,6 +345,10 @@ ptrdiff_t dtf_value_probe(struct dicey_view *const src, struct dtf_probed_value 
     union _dicey_data_info data = { 0 };
     const ptrdiff_t        content_read_res = dtf_value_probe_as(header.type, src, &data);
 
+    if (content_read_res < 0) {
+        return content_read_res;
+    }
+
     ptrdiff_t read_bytes = 0;
     if (!dutl_checked_add(&read_bytes, header_read_res, content_read_res)) {
         return DICEY_EOVERFLOW;

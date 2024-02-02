@@ -58,7 +58,7 @@ static bool is_message(const enum dtf_payload_kind kind) {
 static ptrdiff_t message_fixed_size(const enum dtf_payload_kind kind) {
     switch (kind) {
     default:
-        return DICEY_EINVAL;
+        return DICEY_EBADMSG;
 
     case DTF_PAYLOAD_HELLO:
         return sizeof(struct dtf_hello);
@@ -250,7 +250,7 @@ ptrdiff_t dtf_message_get_content(
     *dest = (struct dtf_message_content) {
         .path = dest->path,
         .selector = dest->selector,
-        .value = cursor.data,
+        .value = cursor.len ? cursor.data : NULL,
         .value_len = cursor.len,
     };
 
@@ -339,7 +339,7 @@ ptrdiff_t dtf_message_estimate_size(
 
     // the value should always be present, except for GET messages
     if ((kind != DTF_PAYLOAD_GET) != (bool) { value }) {
-        return DICEY_EINVAL;
+        return DICEY_EBADMSG;
     }
 
     uint32_t total_size = (uint32_t) message_fixed_size(kind);
@@ -381,7 +381,7 @@ struct dtf_result dtf_payload_load(union dtf_payload *const payload, struct dice
     struct dtf_result res = { 0 };
 
     // ensure we have at least the message kind
-    if (!src->data || src->len < sizeof(uint32_t)) {
+    if (!src->data || src->len < sizeof(struct dtf_payload_head)) {
         return (struct dtf_result) { .result = DICEY_EAGAIN };
     }
 
@@ -397,7 +397,7 @@ struct dtf_result dtf_payload_load(union dtf_payload *const payload, struct dice
     // get the base size of the message (fixed part)
     ptrdiff_t needed_len = message_fixed_size(head.kind);
     if (needed_len < 0) {
-        return (struct dtf_result) { .result = DICEY_EINVAL };
+        return (struct dtf_result) { .result = DICEY_EBADMSG };
     }
 
     if ((size_t) needed_len > src->len) {
@@ -412,7 +412,7 @@ struct dtf_result dtf_payload_load(union dtf_payload *const payload, struct dice
     }
 
     if (!payload_kind_is_valid(head.kind)) {
-        res.result = DICEY_EINVAL;
+        res.result = DICEY_EBADMSG;
 
         return res;
     }

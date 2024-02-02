@@ -66,7 +66,7 @@ static void dump_hello(struct util_dumper *const dumper, const struct dicey_pack
     (void) err; // silence unused warning
 
     util_dumper_printlnf(
-        dumper, "hello { version = " PRIu16 "r" PRIu16 " }", hello.version.major, hello.version.revision
+        dumper, "hello { version = %" PRIu16 "r%" PRIu16 " }", hello.version.major, hello.version.revision
     );
 }
 

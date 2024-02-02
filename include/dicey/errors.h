@@ -3,6 +3,7 @@
 #if !defined(HHQPUVHYDW_ERRORS_H)
 #define HHQPUVHYDW_ERRORS_H
 
+#include <stdbool.h>
 #include <stddef.h>
 
 #include "dicey_export.h"
@@ -58,6 +59,13 @@ DICEY_EXPORT const struct dicey_error_def *dicey_error_info(enum dicey_error err
  * @param defs Pointer to an array of dicey_error_def structures.
  * @param count Pointer to a variable to store the number of error definitions.
  */
+
+/**
+ * @brief Check if a specific error code is valid.
+ * @param errnum The error code.
+ * @return true if the error code is valid, false otherwise.
+ */
+DICEY_EXPORT bool dicey_error_is_valid(enum dicey_error errnum);
 DICEY_EXPORT void dicey_error_infos(const struct dicey_error_def **defs, size_t *count);
 
 /**

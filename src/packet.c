@@ -18,20 +18,6 @@
 
 #include "view-ops.h"
 
-static bool bye_reason_is_valid(const enum dicey_bye_reason reason) {
-    switch (reason) {
-    default:
-        assert(false);
-
-    case DICEY_BYE_REASON_INVALID:
-        return false;
-
-    case DICEY_BYE_REASON_SHUTDOWN:
-    case DICEY_BYE_REASON_ERROR:
-        return true;
-    }
-}
-
 static enum dicey_op msgkind_from_dtf(const ptrdiff_t kind) {
     switch (kind) {
     default:
@@ -126,9 +112,6 @@ static enum dicey_error validate_value(const struct dicey_value *const value) {
 
     switch (type) {
     default:
-        assert(false);
-
-    case DICEY_TYPE_INVALID:
         return DICEY_EINVAL;
 
     case DICEY_TYPE_BOOL:
@@ -218,6 +201,18 @@ static uint32_t version_to_dtf(const struct dicey_version version) {
     return (uint32_t) (version.major << (sizeof(uint16_t) * CHAR_BIT)) | version.revision;
 }
 
+bool dicey_bye_reason_is_valid(const enum dicey_bye_reason reason) {
+    switch (reason) {
+    default:
+    case DICEY_BYE_REASON_INVALID:
+        return false;
+
+    case DICEY_BYE_REASON_SHUTDOWN:
+    case DICEY_BYE_REASON_ERROR:
+        return true;
+    }
+}
+
 const char *dicey_bye_reason_to_string(const enum dicey_bye_reason reason) {
     switch (reason) {
     default:
@@ -280,7 +275,7 @@ enum dicey_error dicey_packet_as_bye(const struct dicey_packet packet, struct di
 
     const uint32_t reason = payload.bye->reason;
 
-    if (!bye_reason_is_valid(reason)) {
+    if (!dicey_bye_reason_is_valid(reason)) {
         return DICEY_EINVAL;
     }
 
@@ -339,6 +334,10 @@ enum dicey_error dicey_packet_as_message(const struct dicey_packet packet, struc
     };
 
     if (content.value) {
+        if (!msgkind_requires_payload(type)) {
+            return DICEY_EBADMSG;
+        }
+
         struct dtf_probed_value value = { 0 };
         struct dicey_view       value_view = { .data = content.value, .len = content.value_len };
 
@@ -365,7 +364,7 @@ enum dicey_error dicey_packet_bye(
     const uint32_t              seq,
     const enum dicey_bye_reason reason
 ) {
-    assert(dest && bye_reason_is_valid(reason));
+    assert(dest && dicey_bye_reason_is_valid(reason));
 
     struct dtf_bye *const bye = calloc(sizeof *bye, 1U);
     if (!bye) {
@@ -501,8 +500,27 @@ bool dicey_packet_kind_is_valid(const enum dicey_packet_kind kind) {
     }
 }
 
+DICEY_EXPORT const char *dicey_packet_kind_to_string(enum dicey_packet_kind kind) {
+    switch (kind) {
+    default:
+    case DICEY_PACKET_KIND_INVALID:
+        return ">>invalid<<";
+
+    case DICEY_PACKET_KIND_HELLO:
+        return "HELLO";
+
+    case DICEY_PACKET_KIND_BYE:
+        return "BYE";
+
+    case DICEY_PACKET_KIND_MESSAGE:
+        return "MESSAGE";
+    }
+}
+
 enum dicey_error dicey_packet_load(struct dicey_packet *const packet, const void **const data, size_t *const nbytes) {
-    assert(packet && data && *data && nbytes);
+    if (!(packet && data && *data && nbytes)) {
+        return DICEY_EINVAL;
+    }
 
     struct dicey_view src = {
         .data = *data,
@@ -521,7 +539,7 @@ enum dicey_error dicey_packet_load(struct dicey_packet *const packet, const void
 
     const enum dicey_packet_kind kind = pktkind_from_dtf(dtf_payload_get_kind(payload));
     if (!dicey_packet_kind_is_valid(kind)) {
-        err = DICEY_EINVAL;
+        err = DICEY_EBADMSG;
         goto fail;
     }
 

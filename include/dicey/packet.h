@@ -25,6 +25,13 @@ enum dicey_bye_reason {
 };
 
 /**
+ * @brief Checks if the given bye reason is valid.
+ * @param reason The bye reason to be validated.
+ * @return true if the bye reason is valid, false otherwise.
+ */
+DICEY_EXPORT bool dicey_bye_reason_is_valid(enum dicey_bye_reason reason);
+
+/**
  * @brief Converts a bye reason to a fixed string representation.
  * @param reason A bye reason.
  * @return The string representation of the given bye reason.
@@ -102,6 +109,13 @@ enum dicey_packet_kind {
 DICEY_EXPORT bool dicey_packet_kind_is_valid(enum dicey_packet_kind kind);
 
 /**
+ * @brief Converts a packet kind to a fixed string representation.
+ * @param kind A packet kind.
+ * @return The string representation of the given packet kind.
+ */
+DICEY_EXPORT const char *dicey_packet_kind_to_string(enum dicey_packet_kind kind);
+
+/**
  * @brief Structure representing the version information in a "hello" packet.
  */
 struct dicey_version {
@@ -154,7 +168,8 @@ struct dicey_packet {
  *         Possible errors are:
  *         - OK: the packet was successfully loaded
  *         - EAGAIN: the buffer does not contain enough data to load a packet
- *         - EINVAL: the packet contains invalid data
+ *         - EBADMSG: the packet is not valid, malformed or contains invalid data
+ *         - EINVAL: the arguments are not valid (i.e. something is NULL, ...)
  *         - ENOMEM: the packet could not be loaded because of insufficient memory
  *         - EOVERFLOW: the packet is too large to be loaded or some of its fields are too large
  */

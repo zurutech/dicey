@@ -169,8 +169,23 @@ const char *dicey_type_name(const enum dicey_type type) {
     case DICEY_TYPE_FLOAT:
         return "float";
 
+    case DICEY_TYPE_INT16:
+        return "i16";
+
     case DICEY_TYPE_INT32:
-        return "int";
+        return "i32";
+
+    case DICEY_TYPE_INT64:
+        return "i64";
+
+    case DICEY_TYPE_UINT16:
+        return "u16";
+
+    case DICEY_TYPE_UINT32:
+        return "u32";
+
+    case DICEY_TYPE_UINT64:
+        return "u64";
 
     case DICEY_TYPE_ARRAY:
         return "array";
@@ -269,7 +284,10 @@ enum dicey_error dicey_value_get_pair(const struct dicey_value *const value, str
 
     for (struct dicey_value *const *item = items; *item; ++item) {
         const enum dicey_error err = dicey_iterator_next(&iter, *item);
-        assert(!err);
+        if (!err) {
+            // this is not acceptable, the tuple should have exactly 2 items
+            return DICEY_EBADMSG;
+        }
 
         DICEY_UNUSED(err); // silence unused warning, damn you MSVC
     }
