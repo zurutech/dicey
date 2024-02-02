@@ -2,34 +2,32 @@ cmake_minimum_required(VERSION 3.23.0)
 
 project(dicey VERSION 0.0.1 LANGUAGES C)
 
-
-include(GenerateExportHeader)
-
 if (NOT CMAKE_C_BYTE_ORDER STREQUAL "LITTLE_ENDIAN")
-message(FATAL_ERROR "Big endian is not supported")
-endif()
-
-option(BUILD_DOC "Build documentation" OFF)
-
-if (MSVC)
-add_compile_options(/W4 /WX)
-else()
-add_compile_options(-Wall -Wextra -pedantic -Werror)
+    message(FATAL_ERROR "Big endian is not supported")
 endif()
 
 set(DICEY_ROOT ${CMAKE_CURRENT_LIST_DIR})
 
+include(GenerateExportHeader)
+
+option(BUILD_DOC "Build documentation" OFF)
+
+if (CMAKE_CROSSCOMPILING AND NOT CMAKE_SYSROOT)
+    set(RAW_CROSS ON)
+    message(STATUS "Cross compiling without a sysroot - switching to internal libraries")
+endif()
+
 file(GLOB public_HEADERS
-"include/dicey/*.h"
-"include/dicey/internal/*.h"
-$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>/*.h
+    "include/dicey/*.h"
+    "include/dicey/internal/*.h"
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>/*.h
 )
 
 file(GLOB common_SRC
-"src/*.c"
-"src/*.h"
-"src/dtf/*.c"
-"src/dtf/*.h"
+    "src/*.c"
+    "src/*.h"
+    "src/dtf/*.c"
+    "src/dtf/*.h"
 )
 
 set(CMAKE_C_STANDARD 17)
@@ -39,6 +37,46 @@ set(CMAKE_C_STANDARD_REQUIRED ON)
 option(BUILD_SHARED_LIBS "Build using shared libraries" ON)
 
 add_library(${PROJECT_NAME})
+
+if (DEFINED UV_INCLUDE_DIRS AND DEFINED UV_LIBS)
+    target_include_directories(${PROJECT_NAME} PUBLIC ${UV_INCLUDE_DIRS})
+    target_link_libraries(${PROJECT_NAME} PUBLIC ${UV_LIBS})
+    set(LibUV_FOUND TRUE)
+elseif (NOT DEFINED RAW_CROSS)
+    find_package(PkgConfig QUIET)
+
+    if (PkgConfig_FOUND)
+        pkg_check_modules(LibUV QUIET IMPORTED_TARGET libuv)
+
+        if (LibUV_FOUND)
+            target_link_libraries(${PROJECT_NAME} PUBLIC PkgConfig::LibUV)
+        endif()
+    endif()
+else()
+endif()
+
+if (NOT LibUV_FOUND)
+    include(FetchContent)
+
+    option(LIBUV_BUILD_TESTS OFF)    
+
+    FetchContent_Declare(
+        libuv
+        GIT_REPOSITORY https://github.com/libuv/libuv.git
+        GIT_TAG        v1.47.0
+    )
+
+    FetchContent_MakeAvailable(libuv)
+
+    target_link_libraries(${PROJECT_NAME} PUBLIC uv)
+endif()
+
+if (MSVC)
+    add_compile_options(/W4 /WX)
+else()
+    add_compile_options(-Wall -Wextra -pedantic -Werror)
+endif()
+
 generate_export_header(${PROJECT_NAME})
 
 target_sources(
