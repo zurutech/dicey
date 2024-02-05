@@ -6,6 +6,7 @@
 
 #include <dicey/errors.h>
 
+#include "trace.h"
 #include "util.h"
 
 #if defined(_MSC_VER)
@@ -39,7 +40,7 @@ ptrdiff_t dutl_zstring_size(const char *const str) {
     const size_t len = strlen(str);
 
     if (len > UINT32_MAX) {
-        return DICEY_EOVERFLOW;
+        return TRACE(DICEY_EOVERFLOW);
     }
 
     return (ptrdiff_t) len + 1U;

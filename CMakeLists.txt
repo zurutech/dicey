@@ -71,6 +71,11 @@ if (NOT LibUV_FOUND)
     target_link_libraries(${PROJECT_NAME} PUBLIC uv)
 endif()
 
+if (WIN32 AND CMAKE_BUILD_TYPE STREQUAL "Debug")
+    target_link_libraries(${PROJECT_NAME} PUBLIC dbghelp)
+endif()
+
+
 if (MSVC)
     add_compile_options(/W4 /WX)
 else()

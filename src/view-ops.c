@@ -10,6 +10,7 @@
 #include <dicey/errors.h>
 #include <dicey/views.h>
 
+#include "trace.h"
 #include "unsafe.h"
 #include "util.h"
 
@@ -17,11 +18,11 @@
 
 ptrdiff_t dicey_view_advance(struct dicey_view *const view, const ptrdiff_t offset) {
     if (!view || !view->data || offset < 0) {
-        return DICEY_EINVAL;
+        return TRACE(DICEY_EINVAL);
     }
 
     if ((size_t) offset > view->len) {
-        return DICEY_EOVERFLOW;
+        return TRACE(DICEY_EOVERFLOW);
     }
 
     *view = (struct dicey_view) {
@@ -34,20 +35,20 @@ ptrdiff_t dicey_view_advance(struct dicey_view *const view, const ptrdiff_t offs
 
 ptrdiff_t dicey_view_as_zstring(struct dicey_view *const view, const char **const str) {
     if (!view || !view->data || !str) {
-        return DICEY_EINVAL;
+        return TRACE(DICEY_EINVAL);
     }
 
     size_t size = strnlen(view->data, view->len);
     if (!dutl_checked_add(&size, size, 1)) {
-        return DICEY_EOVERFLOW;
+        return TRACE(DICEY_EOVERFLOW);
     }
 
     if (size == view->len) {
-        return DICEY_EINVAL;
+        return TRACE(DICEY_EINVAL);
     }
 
     if (size > PTRDIFF_MAX) {
-        return DICEY_EOVERFLOW;
+        return TRACE(DICEY_EOVERFLOW);
     }
 
     *str = view->data;
@@ -57,15 +58,15 @@ ptrdiff_t dicey_view_as_zstring(struct dicey_view *const view, const char **cons
 
 ptrdiff_t dicey_view_read(struct dicey_view *const view, const struct dicey_view_mut dest) {
     if (!view || !view->data || !dest.data) {
-        return DICEY_EINVAL;
+        return TRACE(DICEY_EINVAL);
     }
 
     if (dest.len > view->len) {
-        return DICEY_EAGAIN;
+        return TRACE(DICEY_EAGAIN);
     }
 
     if (dest.len > PTRDIFF_MAX) {
-        return DICEY_EOVERFLOW;
+        return TRACE(DICEY_EOVERFLOW);
     }
 
     dunsafe_read_bytes(dest, &(const void *) { view->data });
@@ -75,11 +76,11 @@ ptrdiff_t dicey_view_read(struct dicey_view *const view, const struct dicey_view
 
 ptrdiff_t dicey_view_take(struct dicey_view *const view, const ptrdiff_t nbytes, struct dicey_view *const slice) {
     if (!view || !view->data || !slice || nbytes < 0) {
-        return DICEY_EINVAL;
+        return TRACE(DICEY_EINVAL);
     }
 
     if ((size_t) nbytes > view->len) {
-        return DICEY_EAGAIN;
+        return TRACE(DICEY_EAGAIN);
     }
 
     *slice = (struct dicey_view) {
@@ -92,11 +93,11 @@ ptrdiff_t dicey_view_take(struct dicey_view *const view, const ptrdiff_t nbytes,
 
 ptrdiff_t dicey_view_mut_advance(struct dicey_view_mut *const view, const ptrdiff_t offset) {
     if (!view || !view->data || offset < 0) {
-        return DICEY_EINVAL;
+        return TRACE(DICEY_EINVAL);
     }
 
     if ((size_t) offset > view->len) {
-        return DICEY_EOVERFLOW;
+        return TRACE(DICEY_EOVERFLOW);
     }
 
     *view = (struct dicey_view_mut) {
@@ -110,17 +111,17 @@ ptrdiff_t dicey_view_mut_advance(struct dicey_view_mut *const view, const ptrdif
 ptrdiff_t dicey_view_mut_ensure_cap(struct dicey_view_mut *const dest, const size_t required) {
     if (dest->len < required) {
         if (dest->data) {
-            return DICEY_EAGAIN;
+            return TRACE(DICEY_EAGAIN);
         }
 
         if (required > PTRDIFF_MAX) {
-            return DICEY_EOVERFLOW;
+            return TRACE(DICEY_EOVERFLOW);
         }
 
         // if, and only if, the buffer is NULL, we allocate a new one
         void *new_alloc = calloc(required, 1U);
         if (!new_alloc) {
-            return DICEY_ENOMEM;
+            return TRACE(DICEY_ENOMEM);
         }
 
         *dest = (struct dicey_view_mut) {
@@ -136,11 +137,11 @@ ptrdiff_t dicey_view_mut_ensure_cap(struct dicey_view_mut *const dest, const siz
 
 ptrdiff_t dicey_view_mut_write(struct dicey_view_mut *const dest, const struct dicey_view view) {
     if (!dest || !dest->data || !view.data) {
-        return DICEY_EINVAL;
+        return TRACE(DICEY_EINVAL);
     }
 
     if (dest->len < view.len) {
-        return DICEY_EOVERFLOW;
+        return TRACE(DICEY_EOVERFLOW);
     }
 
     dunsafe_write_bytes(&(void *) { dest->data }, view);
@@ -154,7 +155,7 @@ ptrdiff_t dicey_view_mut_write_chunks(
     const size_t                   nchunks
 ) {
     if (!dest || !dest->data || !chunks) {
-        return DICEY_EINVAL;
+        return TRACE(DICEY_EINVAL);
     }
 
     const struct dicey_view *const end = chunks + nchunks;

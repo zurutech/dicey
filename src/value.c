@@ -13,6 +13,7 @@
 
 #include "dtf/dtf.h"
 
+#include "trace.h"
 #include "util.h"
 
 static enum dicey_error value_get_list(const struct dicey_value *const value, struct dicey_list *const dest) {
@@ -34,7 +35,7 @@ enum dicey_error dicey_iterator_next(struct dicey_iterator *const iter, struct d
     assert(iter && dest);
 
     if (!dicey_iterator_has_next(*iter)) {
-        return DICEY_ENODATA;
+        return TRACE(DICEY_ENODATA);
     }
 
     struct dicey_view       view = iter->_data;
@@ -96,7 +97,7 @@ ptrdiff_t dicey_selector_size(const struct dicey_selector selector) {
 
     ptrdiff_t result = 0;
     if (!dutl_checked_add(&result, trait_len, elem_len)) {
-        return DICEY_EOVERFLOW;
+        return TRACE(DICEY_EOVERFLOW);
     }
 
     return trait_len + elem_len;
@@ -221,7 +222,7 @@ enum dicey_type dicey_value_get_type(const struct dicey_value *const value) {
     enum dicey_error dicey_value_get_##NAME(const struct dicey_value *const value, TYPE *const dest) {                 \
         assert(value &&dest);                                                                                          \
         if (dicey_value_get_type(value) != DICEY_TYPE) {                                                               \
-            return DICEY_EVALUE_TYPE_MISMATCH;                                                                         \
+            return TRACE(DICEY_EVALUE_TYPE_MISMATCH);                                                                  \
         }                                                                                                              \
         *dest = value->_data.FIELD;                                                                                    \
         return DICEY_OK;                                                                                               \
@@ -229,7 +230,7 @@ enum dicey_type dicey_value_get_type(const struct dicey_value *const value) {
 
 enum dicey_error dicey_value_get_array(const struct dicey_value *const value, struct dicey_list *const dest) {
     if (dicey_value_get_type(value) != DICEY_TYPE_ARRAY) {
-        return DICEY_EVALUE_TYPE_MISMATCH;
+        return TRACE(DICEY_EVALUE_TYPE_MISMATCH);
     }
 
     return value_get_list(value, dest);
@@ -246,7 +247,7 @@ enum dicey_error dicey_value_get_bytes(
     assert(value && dest && nbytes);
 
     if (dicey_value_get_type(value) != DICEY_TYPE_BYTES) {
-        return DICEY_EVALUE_TYPE_MISMATCH;
+        return TRACE(DICEY_EVALUE_TYPE_MISMATCH);
     }
 
     *dest = value->_data.bytes.data;
@@ -268,7 +269,7 @@ enum dicey_error dicey_value_get_pair(const struct dicey_value *const value, str
     assert(value && dest);
 
     if (dicey_value_get_type(value) != DICEY_TYPE_PAIR) {
-        return DICEY_EVALUE_TYPE_MISMATCH;
+        return TRACE(DICEY_EVALUE_TYPE_MISMATCH);
     }
 
     // hack: craft a tuple and use it to get the pair, given that in memory is identical to (vv) after the header
@@ -286,7 +287,7 @@ enum dicey_error dicey_value_get_pair(const struct dicey_value *const value, str
         const enum dicey_error err = dicey_iterator_next(&iter, *item);
         if (!err) {
             // this is not acceptable, the tuple should have exactly 2 items
-            return DICEY_EBADMSG;
+            return TRACE(DICEY_EBADMSG);
         }
 
         DICEY_UNUSED(err); // silence unused warning, damn you MSVC
@@ -302,7 +303,7 @@ enum dicey_error dicey_value_get_tuple(const struct dicey_value *const value, st
     assert(value && dest);
 
     if (dicey_value_get_type(value) != DICEY_TYPE_TUPLE) {
-        return DICEY_EVALUE_TYPE_MISMATCH;
+        return TRACE(DICEY_EVALUE_TYPE_MISMATCH);
     }
 
     return value_get_list(value, dest);

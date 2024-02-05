@@ -16,6 +16,7 @@
 #include "dtf/dtf.h"
 
 #include "packet-args.h"
+#include "trace.h"
 #include "view-ops.h"
 
 #define DEFAULT_VAL_CAP 16U
@@ -35,7 +36,7 @@ static enum dicey_error arglist_grow(struct _dicey_value_builder_list *const lis
 
     struct dicey_arg *const new_elems = realloc(list->elems, sizeof *new_elems * new_cap);
     if (!new_elems) {
-        return DICEY_ENOMEM;
+        return TRACE(DICEY_ENOMEM);
     }
 
     list->elems = new_elems;
@@ -78,7 +79,7 @@ static ptrdiff_t msgkind_to_dtf(const enum dicey_op kind) {
         assert(false);
 
     case DICEY_OP_INVALID:
-        return DICEY_EINVAL;
+        return TRACE(DICEY_EINVAL);
 
     case DICEY_OP_SET:
         return DTF_PAYLOAD_SET;
@@ -117,7 +118,7 @@ enum dicey_error dicey_message_builder_begin(struct dicey_message_builder *const
     assert(builder);
 
     if (builder_state_get(builder) != BUILDER_STATE_IDLE) {
-        return DICEY_EINVAL;
+        return TRACE(DICEY_EINVAL);
     }
 
     *builder = (struct dicey_message_builder) {
@@ -135,11 +136,11 @@ enum dicey_error dicey_message_builder_build(
     assert(builder && packet);
 
     if (builder_state_get(builder) != BUILDER_STATE_PENDING) {
-        return DICEY_EINVAL;
+        return TRACE(DICEY_EINVAL);
     }
 
     if (!msgbuilder_is_complete(builder)) {
-        return DICEY_EAGAIN;
+        return TRACE(DICEY_EAGAIN);
     }
 
     const ptrdiff_t payload_kind = msgkind_to_dtf(builder->_type);
@@ -194,7 +195,7 @@ enum dicey_error dicey_message_builder_set_path(struct dicey_message_builder *co
     assert(builder && path);
 
     if (builder_state_get(builder) != BUILDER_STATE_PENDING) {
-        return DICEY_EINVAL;
+        return TRACE(DICEY_EINVAL);
     }
 
     builder->_path = path;
@@ -209,7 +210,7 @@ enum dicey_error dicey_message_builder_set_selector(
     assert(builder && dicey_selector_is_valid(selector));
 
     if (builder_state_get(builder) != BUILDER_STATE_PENDING) {
-        return DICEY_EINVAL;
+        return TRACE(DICEY_EINVAL);
     }
 
     builder->_selector = selector;
@@ -221,7 +222,7 @@ enum dicey_error dicey_message_builder_set_seq(struct dicey_message_builder *con
     assert(builder);
 
     if (builder_state_get(builder) != BUILDER_STATE_PENDING) {
-        return DICEY_EINVAL;
+        return TRACE(DICEY_EINVAL);
     }
 
     builder->_seq = seq;
@@ -236,7 +237,7 @@ enum dicey_error dicey_message_builder_set_value(
     assert(builder);
 
     if (builder_state_get(builder) != BUILDER_STATE_PENDING) {
-        return DICEY_EINVAL;
+        return TRACE(DICEY_EINVAL);
     }
 
     struct dicey_value_builder value_builder = { 0 };
@@ -259,14 +260,14 @@ enum dicey_error dicey_message_builder_value_start(
     struct dicey_value_builder *const   value
 ) {
     if (builder_state_get(builder) != BUILDER_STATE_PENDING) {
-        return DICEY_EINVAL;
+        return TRACE(DICEY_EINVAL);
     }
 
     builder_state_set(builder, BUILDER_STATE_VALUE);
 
     struct dicey_arg *const root = calloc(sizeof(struct dicey_arg), 1U);
     if (!root) {
-        return DICEY_ENOMEM;
+        return TRACE(DICEY_ENOMEM);
     }
 
     dicey_arg_free(builder->_root);
@@ -289,11 +290,11 @@ enum dicey_error dicey_message_builder_value_end(
     assert(builder && value);
 
     if (builder_state_get(builder) != BUILDER_STATE_VALUE) {
-        return DICEY_EINVAL;
+        return TRACE(DICEY_EINVAL);
     }
 
     if (value != builder->_borrowed_to) {
-        return DICEY_EINVAL;
+        return TRACE(DICEY_EINVAL);
     }
 
     *value = (struct dicey_value_builder) { 0 };
@@ -309,7 +310,7 @@ enum dicey_error dicey_value_builder_array_start(
     assert(valbuilder_is_valid(builder) && dicey_type_is_valid(type));
 
     if (builder_state_get(builder) != BUILDER_STATE_PENDING) {
-        return DICEY_EINVAL;
+        return TRACE(DICEY_EINVAL);
     }
 
     builder->_list = (struct _dicey_value_builder_list) {
@@ -325,7 +326,7 @@ enum dicey_error dicey_value_builder_array_end(struct dicey_value_builder *const
     assert(valbuilder_is_valid(builder));
 
     if (builder_state_get(builder) != BUILDER_STATE_ARRAY) {
-        return DICEY_EINVAL;
+        return TRACE(DICEY_EINVAL);
     }
 
     const struct _dicey_value_builder_list *const list = &builder->_list;
@@ -360,7 +361,7 @@ enum dicey_error dicey_value_builder_next(
         break;
 
     default:
-        return DICEY_EINVAL;
+        return TRACE(DICEY_EINVAL);
     }
 
     struct _dicey_value_builder_list *const list = &builder->_list;
@@ -391,24 +392,24 @@ enum dicey_error dicey_value_builder_set(struct dicey_value_builder *const build
     assert(valbuilder_is_valid(builder));
 
     if (builder_state_get(builder) != BUILDER_STATE_PENDING) {
-        return DICEY_EINVAL;
+        return TRACE(DICEY_EINVAL);
     }
 
     if (!dicey_type_is_valid(value.type)) {
-        return DICEY_EINVAL;
+        return TRACE(DICEY_EINVAL);
     }
 
     const struct dicey_arg *const root = builder->_root;
 
     if (dicey_type_is_valid(root->type) && root->type != value.type) {
-        return DICEY_EVALUE_TYPE_MISMATCH;
+        return TRACE(DICEY_EVALUE_TYPE_MISMATCH);
     }
 
     // free any previously set value
     dicey_arg_free_contents(root);
 
     if (!dicey_arg_dup(builder->_root, &value)) {
-        return DICEY_ENOMEM;
+        return TRACE(DICEY_ENOMEM);
     }
 
     return DICEY_OK;
@@ -418,7 +419,7 @@ enum dicey_error dicey_value_builder_tuple_start(struct dicey_value_builder *con
     assert(valbuilder_is_valid(builder));
 
     if (builder_state_get(builder) != BUILDER_STATE_PENDING) {
-        return DICEY_EINVAL;
+        return TRACE(DICEY_EINVAL);
     }
 
     builder->_list = (struct _dicey_value_builder_list) { 0 };
@@ -432,7 +433,7 @@ enum dicey_error dicey_value_builder_tuple_end(struct dicey_value_builder *const
     assert(valbuilder_is_valid(builder));
 
     if (builder_state_get(builder) != BUILDER_STATE_TUPLE) {
-        return DICEY_EINVAL;
+        return TRACE(DICEY_EINVAL);
     }
 
     const struct _dicey_value_builder_list *const list = &builder->_list;
