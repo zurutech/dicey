@@ -10,13 +10,15 @@
 #include "util/dumper.h"
 #include "util/packet-dump.h"
 
-int main(void) {
+int main(const int argc, const char *const *const argv) {
+    FILE *const in = argc > 1 ? fopen(argv[1], "rb") : stdin;
+
     uint8_t *dumped_bytes = NULL;
     size_t   nbytes = 0, bcap = 0;
 
-    while (!feof(stdin)) {
+    while (!feof(in)) {
         uint8_t      buf[4096];
-        const size_t n = fread(buf, 1, sizeof buf, stdin);
+        const size_t n = fread(buf, 1, sizeof buf, in);
         if (!n) {
             break;
         }
@@ -51,6 +53,7 @@ int main(void) {
 quit:
     dicey_packet_deinit(&pkt);
     free(dumped_bytes);
+    fclose(in);
 
     if (err) {
         fprintf(stderr, "error: %s\n", dicey_error_msg(err));
