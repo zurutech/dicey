@@ -285,7 +285,7 @@ enum dicey_error dicey_value_get_pair(const struct dicey_value *const value, str
 
     for (struct dicey_value *const *item = items; *item; ++item) {
         const enum dicey_error err = dicey_iterator_next(&iter, *item);
-        if (!err) {
+        if (err) {
             // this is not acceptable, the tuple should have exactly 2 items
             return TRACE(DICEY_EBADMSG);
         }
