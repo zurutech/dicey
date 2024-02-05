@@ -174,7 +174,7 @@ static void print_trace(const enum dicey_error errnum) {
     const int nptrs = backtrace(buffer, sizeof buffer / sizeof *buffer);
 
     fprintf(stderr, ">>DICEY_TRACE<< error: %s\n", dicey_error_msg(errnum));
-    backtrace_symbols_fd(buffer + 2, nptrs - 2U, STDERR_FILENO);
+    backtrace_symbols_fd(buffer + 3, nptrs - 3U, STDERR_FILENO);
 }
 
 #else
