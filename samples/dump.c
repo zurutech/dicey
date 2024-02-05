@@ -12,9 +12,9 @@
 
 #if defined(__unix__) || defined(__APPLE__)
 #include <unistd.h>
-#define IS_PIPED() (!isatty(fileno(stdout)))
+#define STDOUT_IS_PIPED() (!isatty(fileno(stdout)))
 #else
-#define IS_PIPED() false
+#define STDOUT_IS_PIPED() false
 #endif
 
 struct pupil {
@@ -119,23 +119,88 @@ static enum dicey_error classes_dump(
     return dicey_value_builder_array_end(array);
 }
 
-int main(const int argc, const char *const argv[]) {
-    bool dump_binary = IS_PIPED();
+static void print_help(const char *const progname) {
+    fprintf(stderr, "usage: %s [-bt] [DESTFILE]\n", progname);
+}
 
-    switch (argc) {
-    case 1:
-        break;
+enum output_fmt_choice {
+    OUTPUT_FMT_UNDEF,
+    OUTPUT_FMT_BINARY,
+    OUTPUT_FMT_TEXT,
+};
 
-    case 2:
-        if (!strcmp(argv[1], "-t") || !strcmp(argv[1], "-b")) {
-            dump_binary = argv[1][1] == 'b';
-            break;
+struct output_fmt_out {
+    FILE *f;
+    bool  is_binary;
+};
+
+static bool output_fmt_pick(struct output_fmt_out *const out, const enum output_fmt_choice choice, const char *fout) {
+    bool is_binary = choice == OUTPUT_FMT_BINARY;
+
+    // `-` conventionally means stdout
+    if (fout && !strcmp(fout, "-")) {
+        fout = NULL;
+    }
+
+    if (choice == OUTPUT_FMT_UNDEF) {
+        // if a file is specified, pick binary if text is not explictlly requested
+        // if no file is specified, check if stdout is a pipe and not a TTY - if that's the case, pick binary
+        // NOTE: on Windows, we can't check if stdout is a pipe, so we always pick text
+        is_binary = fout || STDOUT_IS_PIPED();
+    }
+
+    FILE *f = stdout;
+    if (fout) {
+        f = fopen(fout, is_binary ? "wb" : "w");
+        if (!f) {
+            return false;
+        }
+    }
+
+    *out = (struct output_fmt_out) { .f = f, .is_binary = is_binary };
+
+    return true;
+}
+
+int main(const int argc, const char *argv[]) {
+    (void) argc; // unused
+
+    const char *const      progname = argv[0];
+    const char            *fout = NULL;
+    enum output_fmt_choice fmt = OUTPUT_FMT_UNDEF;
+
+    while (*++argv) {
+        if (!strcmp(*argv, "-h")) {
+            print_help(progname);
+            return EXIT_SUCCESS;
         }
 
-        // fallthrough
-    default:
-        fprintf(stderr, "usage: %s [-bt]\n", argv[0]);
+        if (!strcmp(*argv, "-b") || !strcmp(*argv, "-t")) {
+            if (fmt != OUTPUT_FMT_UNDEF) {
+                fprintf(stderr, "error: multiple output format options specified\n");
+                return EXIT_FAILURE;
+            }
 
+            fmt = OUTPUT_FMT_TEXT;
+            continue;
+        }
+
+        if (**argv == '-') {
+            fprintf(stderr, "error: unknown option '%s'\n", *argv);
+            return EXIT_FAILURE;
+        }
+
+        if (fout) {
+            fprintf(stderr, "error: multiple output files specified\n");
+            return EXIT_FAILURE;
+        }
+
+        fout = *argv;
+    }
+
+    struct output_fmt_out out = { 0 };
+    if (!output_fmt_pick(&out, fmt, fout)) {
+        fprintf(stderr, "error: failed to open file '%s' for writing\n", fout);
         return EXIT_FAILURE;
     }
 
@@ -257,11 +322,11 @@ int main(const int argc, const char *const argv[]) {
         goto fail;
     }
 
-    if (dump_binary) {
+    if (out.is_binary) {
         size_t written = 0;
 
         while (written < nbytes) {
-            const size_t n = fwrite((char *) dumped_bytes + written, 1, nbytes - written, stdout);
+            const size_t n = fwrite((char *) dumped_bytes + written, 1, nbytes - written, out.f);
             if (!n) {
                 break;
             }
@@ -269,17 +334,19 @@ int main(const int argc, const char *const argv[]) {
             written += n;
         }
     } else {
-        struct util_dumper dumper = util_dumper_for(stdout);
+        struct util_dumper dumper = util_dumper_for(out.f);
 
         util_dumper_dump_hex(&dumper, dumped_bytes, nbytes);
     }
 
+    fclose(out.f);
     free(dumped_bytes);
     dicey_packet_deinit(&pkt);
 
     return EXIT_SUCCESS;
 
 fail:
+    fclose(out.f);
     free(dumped_bytes);
     dicey_message_builder_destroy(&msgbuild);
 
