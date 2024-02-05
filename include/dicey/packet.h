@@ -9,6 +9,7 @@
 #include "dicey_export.h"
 #include "errors.h"
 #include "value.h"
+#include "version.h"
 
 #if defined(__cplusplus)
 extern "C" {
@@ -114,14 +115,6 @@ DICEY_EXPORT bool dicey_packet_kind_is_valid(enum dicey_packet_kind kind);
  * @return The string representation of the given packet kind.
  */
 DICEY_EXPORT const char *dicey_packet_kind_to_string(enum dicey_packet_kind kind);
-
-/**
- * @brief Structure representing the version information in a "hello" packet.
- */
-struct dicey_version {
-    uint16_t major;    /**< Major version number */
-    uint16_t revision; /**< Revision number */
-};
 
 /**
  * @brief Structure representing the reason in a "bye" packet.
