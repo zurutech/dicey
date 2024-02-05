@@ -14,6 +14,7 @@
 #include "util.h"
 
 #include "to.h"
+#include "trace.h"
 #include "value.h"
 #include "view-ops.h"
 
@@ -58,7 +59,7 @@ static bool is_message(const enum dtf_payload_kind kind) {
 static ptrdiff_t message_fixed_size(const enum dtf_payload_kind kind) {
     switch (kind) {
     default:
-        return DICEY_EBADMSG;
+        return TRACE(DICEY_EBADMSG);
 
     case DTF_PAYLOAD_HELLO:
         return sizeof(struct dtf_hello);
@@ -77,7 +78,7 @@ static ptrdiff_t message_fixed_size(const enum dtf_payload_kind kind) {
 
 static ptrdiff_t message_get_trailer_size(const struct dtf_message *const msg) {
     if (!msg) {
-        return DICEY_EINVAL;
+        return TRACE(DICEY_EINVAL);
     }
 
     return (ptrdiff_t) msg->head.data_len;
@@ -85,7 +86,7 @@ static ptrdiff_t message_get_trailer_size(const struct dtf_message *const msg) {
 
 static ptrdiff_t message_header_read(struct dtf_message_head *const head, struct dicey_view *const src) {
     if (!head) {
-        return DICEY_EINVAL;
+        return TRACE(DICEY_EINVAL);
     }
 
     return dicey_view_read(src, (struct dicey_view_mut) { .data = head, .len = sizeof *head });
@@ -112,7 +113,7 @@ static ptrdiff_t message_header_write(
 
 static ptrdiff_t payload_header_read(struct dtf_payload_head *const head, struct dicey_view *const src) {
     if (!head) {
-        return DICEY_EINVAL;
+        return TRACE(DICEY_EINVAL);
     }
 
     return dicey_view_read(src, (struct dicey_view_mut) { .data = head, .len = sizeof *head });
@@ -210,11 +211,11 @@ ptrdiff_t dtf_message_get_content(
     struct dtf_message_content *dest
 ) {
     if (!msg || !dest) {
-        return DICEY_EINVAL;
+        return TRACE(DICEY_EINVAL);
     }
 
     if (alloc_size <= offsetof(struct dtf_message, data)) {
-        return DICEY_EOVERFLOW;
+        return TRACE(DICEY_EOVERFLOW);
     }
 
     const ptrdiff_t trailer_size = message_get_trailer_size(msg);
@@ -223,7 +224,7 @@ ptrdiff_t dtf_message_get_content(
     }
 
     if (alloc_size < (size_t) trailer_size) {
-        return DICEY_EOVERFLOW;
+        return TRACE(DICEY_EOVERFLOW);
     }
 
     const ptrdiff_t path_len =
@@ -254,7 +255,7 @@ ptrdiff_t dtf_message_get_content(
         .value_len = cursor.len,
     };
 
-    return DICEY_OK;
+    return TRACE(DICEY_OK);
 }
 
 struct dtf_result dtf_message_write(
@@ -334,12 +335,12 @@ ptrdiff_t dtf_message_estimate_size(
     const struct dicey_arg *const value
 ) {
     if (!is_message(kind) || !path || !selector.trait || !selector.elem) {
-        return DICEY_EINVAL;
+        return TRACE(DICEY_EINVAL);
     }
 
     // the value should always be present, except for GET messages
     if ((kind != DTF_PAYLOAD_GET) != (bool) { value }) {
-        return DICEY_EBADMSG;
+        return TRACE(DICEY_EBADMSG);
     }
 
     uint32_t total_size = (uint32_t) message_fixed_size(kind);
@@ -352,7 +353,7 @@ ptrdiff_t dtf_message_estimate_size(
 
     for (const ptrdiff_t *size = sizes; size != end; ++size) {
         if (*size < 0 || !dutl_checked_add(&total_size, total_size, (uint32_t) *size)) {
-            return DICEY_EOVERFLOW;
+            return TRACE(DICEY_EOVERFLOW);
         }
     }
 
@@ -369,7 +370,7 @@ enum dtf_payload_kind dtf_payload_get_kind(const union dtf_payload payload) {
 
 ptrdiff_t dtf_payload_get_seq(const union dtf_payload payload) {
     if (!payload.header) {
-        return DICEY_EINVAL;
+        return TRACE(DICEY_EINVAL);
     }
 
     return payload.header->seq;

@@ -13,6 +13,7 @@
 #include "util.h"
 
 #include "to.h"
+#include "trace.h"
 #include "view-ops.h"
 #include "writer.h"
 
@@ -42,7 +43,7 @@ static ptrdiff_t items_write(
         }
 
         if (!dutl_checked_add(&written_bytes, written_bytes, write_res)) {
-            return DICEY_EOVERFLOW;
+            return TRACE(DICEY_EOVERFLOW);
         }
     }
 
@@ -60,11 +61,11 @@ static ptrdiff_t blob_write(struct dtf_bytes_writer *const dest, const void *con
 
 static ptrdiff_t len_write(struct dtf_bytes_writer *const dest, const ptrdiff_t slen) {
     if (slen < 0) {
-        return DICEY_EINVAL;
+        return TRACE(DICEY_EINVAL);
     }
 
     if ((dtf_size) slen > DTF_SIZE_MAX) {
-        return DICEY_EOVERFLOW;
+        return TRACE(DICEY_EOVERFLOW);
     }
 
     const dtf_size len = (dtf_size) slen;
@@ -106,7 +107,7 @@ static ptrdiff_t list_write(
 
     ptrdiff_t written_bytes = header_nbytes;
     if (!dutl_checked_add(&written_bytes, written_bytes, content_nbytes)) {
-        return DICEY_EOVERFLOW;
+        return TRACE(DICEY_EOVERFLOW);
     }
 
     return written_bytes;
@@ -114,7 +115,7 @@ static ptrdiff_t list_write(
 
 static ptrdiff_t array_write(struct dtf_bytes_writer *const dest, const struct dicey_array_arg array) {
     if (!dicey_type_is_valid(array.type)) {
-        return DICEY_EINVAL;
+        return TRACE(DICEY_EINVAL);
     }
 
     const struct dtf_array_header header = { .nitems = array.nitems, .type = array.type };
@@ -151,7 +152,7 @@ static ptrdiff_t bytes_write(struct dtf_bytes_writer *const dest, const struct d
 
     ptrdiff_t written_bytes = header_nbytes;
     if (!dutl_checked_add(&written_bytes, written_bytes, content_nbytes)) {
-        return DICEY_EOVERFLOW;
+        return TRACE(DICEY_EOVERFLOW);
     }
 
     return written_bytes;
@@ -176,7 +177,7 @@ static ptrdiff_t error_write(struct dtf_bytes_writer *const dest, const struct d
 
     ptrdiff_t written_bytes = 0;
     if (!dutl_checked_add(&written_bytes, header_nbytes, content_nbytes)) {
-        return DICEY_EOVERFLOW;
+        return TRACE(DICEY_EOVERFLOW);
     }
 
     return written_bytes;
@@ -228,7 +229,7 @@ static ptrdiff_t item_write(
     assert(dtf_bytes_writer_is_valid(dest) && item);
 
     if (!dicey_type_is_valid(item->type)) {
-        return DICEY_EINVAL;
+        return TRACE(DICEY_EINVAL);
     }
 
     ptrdiff_t written_bytes = 0;
@@ -326,7 +327,7 @@ static ptrdiff_t item_write(
     }
 
     if (!dutl_checked_add(&written_bytes, written_bytes, content_bytes)) {
-        return DICEY_EOVERFLOW;
+        return TRACE(DICEY_EOVERFLOW);
     }
 
     return written_bytes;
@@ -347,7 +348,7 @@ ptrdiff_t dtf_selector_from(struct dicey_selector *const sel, struct dicey_view 
 
     ptrdiff_t read_bytes = 0;
     if (!dutl_checked_add(&read_bytes, trait_len, elem_len)) {
-        return DICEY_EOVERFLOW;
+        return TRACE(DICEY_EOVERFLOW);
     }
 
     return read_bytes;
@@ -355,7 +356,7 @@ ptrdiff_t dtf_selector_from(struct dicey_selector *const sel, struct dicey_view 
 
 ptrdiff_t dtf_selector_write(struct dicey_selector sel, struct dicey_view_mut *const dest) {
     if (!dest || !dest->data || !sel.trait || !sel.elem) {
-        return DICEY_EINVAL;
+        return TRACE(DICEY_EINVAL);
     }
 
     const ptrdiff_t trait_len = dutl_zstring_size(sel.trait);

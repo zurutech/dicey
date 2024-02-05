@@ -9,6 +9,7 @@
 
 #include <dicey/internal/data-info.h>
 
+#include "trace.h"
 #include "util.h"
 #include "view-ops.h"
 
@@ -31,7 +32,7 @@ static ptrdiff_t array_header_read(struct dicey_view *const src, struct dtf_arra
         dicey_view_read(src, (struct dicey_view_mut) { .data = header, .len = sizeof *header });
 
     if (read_bytes >= 0 && !dicey_type_is_valid(header->type)) {
-        return DICEY_EBADMSG;
+        return TRACE(DICEY_EBADMSG);
     }
 
     return read_bytes;
@@ -55,7 +56,7 @@ static ptrdiff_t array_probe(struct dicey_view *const src, union _dicey_data_inf
 
     ptrdiff_t read_bytes = 0;
     if (!dutl_checked_add(&read_bytes, header_read_res, content_read_res)) {
-        return DICEY_EOVERFLOW;
+        return TRACE(DICEY_EOVERFLOW);
     }
 
     *data = (union _dicey_data_info) {
@@ -86,7 +87,7 @@ static ptrdiff_t bytes_probe(struct dicey_view *const src, struct dtf_probed_byt
     }
 
     if (header.len > src->len) {
-        return DICEY_EBADMSG;
+        return TRACE(DICEY_EBADMSG);
     }
 
     *dest = (struct dtf_probed_bytes) {
@@ -101,7 +102,7 @@ static ptrdiff_t bytes_probe(struct dicey_view *const src, struct dtf_probed_byt
 
     ptrdiff_t read_bytes = 0;
     if (!dutl_checked_add(&read_bytes, header_read_res, content_read_res)) {
-        return DICEY_EOVERFLOW;
+        return TRACE(DICEY_EOVERFLOW);
     }
 
     return read_bytes;
@@ -136,7 +137,7 @@ static ptrdiff_t error_probe(struct dicey_view *const src, struct dicey_errmsg *
 
     ptrdiff_t read_bytes = 0;
     if (!dutl_checked_add(&read_bytes, header_read_res, content_read_res)) {
-        return DICEY_EOVERFLOW;
+        return TRACE(DICEY_EOVERFLOW);
     }
 
     return read_bytes;
@@ -166,7 +167,7 @@ static ptrdiff_t pair_probe(struct dicey_view *const src, union _dicey_data_info
 
     ptrdiff_t read_bytes = 0;
     if (!dutl_checked_add(&read_bytes, header_read_res, content_read_res)) {
-        return DICEY_EOVERFLOW;
+        return TRACE(DICEY_EOVERFLOW);
     }
 
     *data = (union _dicey_data_info) {
@@ -204,7 +205,7 @@ static ptrdiff_t tuple_probe(struct dicey_view *const src, union _dicey_data_inf
 
     ptrdiff_t read_bytes = 0;
     if (!dutl_checked_add(&read_bytes, header_read_res, content_read_res)) {
-        return DICEY_EOVERFLOW;
+        return TRACE(DICEY_EOVERFLOW);
     }
 
     *data = (union _dicey_data_info) {
@@ -224,7 +225,7 @@ ptrdiff_t type_size(const enum dicey_type type) {
         assert(false);
 
     case DICEY_TYPE_INVALID:
-        return DICEY_EINVAL;
+        return TRACE(DICEY_EINVAL);
 
     case DICEY_TYPE_UNIT:
         return 0;
@@ -277,7 +278,7 @@ static ptrdiff_t value_header_read(struct dicey_view *const src, struct dtf_valu
     }
 
     if (!dicey_type_is_valid(header->type)) {
-        return DICEY_EBADMSG;
+        return TRACE(DICEY_EBADMSG);
     }
 
     return result;
@@ -291,7 +292,7 @@ static ptrdiff_t value_probe_container(
     switch (type) {
     default:
         assert(false);
-        return DICEY_EINVAL;
+        return TRACE(DICEY_EINVAL);
 
     case DICEY_TYPE_ARRAY:
         return array_probe(src, data);
@@ -312,7 +313,7 @@ static ptrdiff_t value_probe_dynamic(
     switch (type) {
     default:
         assert(false);
-        return DICEY_EINVAL;
+        return TRACE(DICEY_EINVAL);
 
     case DICEY_TYPE_ARRAY:
     case DICEY_TYPE_TUPLE:
@@ -351,7 +352,7 @@ ptrdiff_t dtf_value_probe(struct dicey_view *const src, struct dtf_probed_value 
 
     ptrdiff_t read_bytes = 0;
     if (!dutl_checked_add(&read_bytes, header_read_res, content_read_res)) {
-        return DICEY_EOVERFLOW;
+        return TRACE(DICEY_EOVERFLOW);
     }
 
     *info = (struct dtf_probed_value) {
@@ -370,7 +371,7 @@ ptrdiff_t dtf_value_probe_as(
     assert(src && info);
 
     if (!dicey_type_is_valid(type)) {
-        return DICEY_EINVAL;
+        return TRACE(DICEY_EINVAL);
     }
 
     const ptrdiff_t size = type_size(type);

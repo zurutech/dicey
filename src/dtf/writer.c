@@ -6,6 +6,7 @@
 #include <dicey/errors.h>
 #include <dicey/views.h>
 
+#include "trace.h"
 #include "util.h"
 #include "view-ops.h"
 
@@ -17,10 +18,10 @@ static ptrdiff_t buffer_write(struct dicey_view_mut *const dest, const struct di
 
 static ptrdiff_t sizer_write(ptrdiff_t *const size, const struct dicey_view data) {
     if (!dutl_checked_add(size, *size, data.len)) {
-        return DICEY_EOVERFLOW;
+        return TRACE(DICEY_EOVERFLOW);
     }
 
-    return DICEY_OK;
+    return TRACE(DICEY_OK);
 }
 
 enum dtf_bytes_writer_kind dtf_bytes_writer_get_kind(const struct dtf_bytes_writer *const writer) {
@@ -66,7 +67,7 @@ ptrdiff_t dtf_bytes_writer_snapshot(const struct dtf_bytes_writer *const writer,
     // all writers support snapshotting for now
     *clone = *writer;
 
-    return DICEY_OK;
+    return TRACE(DICEY_OK);
 }
 
 ptrdiff_t dtf_bytes_writer_write(struct dtf_bytes_writer *const writer, const struct dicey_view data) {
@@ -78,7 +79,7 @@ ptrdiff_t dtf_bytes_writer_write(struct dtf_bytes_writer *const writer, const st
         return sizer_write(&writer->state.size, data);
 
     default:
-        return DICEY_EINVAL;
+        return TRACE(DICEY_EINVAL);
     }
 }
 
@@ -88,7 +89,7 @@ ptrdiff_t dtf_bytes_writer_write_chunks(
     const size_t                   nchunks
 ) {
     if (!dtf_bytes_writer_is_valid(writer) || !chunks) {
-        return DICEY_EINVAL;
+        return TRACE(DICEY_EINVAL);
     }
 
     const struct dicey_view *const end = chunks + nchunks;
@@ -102,7 +103,7 @@ ptrdiff_t dtf_bytes_writer_write_chunks(
         }
 
         if (!dutl_checked_add(&written_bytes, written_bytes, res)) {
-            return DICEY_EOVERFLOW;
+            return TRACE(DICEY_EOVERFLOW);
         }
     }
 
@@ -111,7 +112,7 @@ ptrdiff_t dtf_bytes_writer_write_chunks(
 
 ptrdiff_t dtf_bytes_writer_write_selector(struct dtf_bytes_writer *const writer, const struct dicey_selector sel) {
     if (!dtf_bytes_writer_is_valid(writer) || !sel.trait || !sel.elem) {
-        return DICEY_EINVAL;
+        return TRACE(DICEY_EINVAL);
     }
 
     const ptrdiff_t trait_len = dutl_zstring_size(sel.trait);
