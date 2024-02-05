@@ -1,5 +1,8 @@
 // Copyright (c) 2014-2024 Zuru Tech HK Limited, All rights reserved.
 
+// thank you MS, but just no
+#define _CRT_SECURE_NO_WARNINGS 1
+
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
