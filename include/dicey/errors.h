@@ -32,7 +32,7 @@ enum dicey_error {
 
     DICEY_EVALUE_TYPE_MISMATCH = -0x030A, /**< Value type mismatch. */
 
-    DICEY_ENOT_SUPPORTED = -0x040C, /**< Operation not supported. */
+    DICEY_ENOT_SUPPORTED = -0x040B, /**< Operation not supported. */
 };
 
 /**
