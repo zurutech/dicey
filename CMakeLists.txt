@@ -11,6 +11,7 @@ set(DICEY_ROOT ${CMAKE_CURRENT_LIST_DIR})
 include(GenerateExportHeader)
 
 option(BUILD_DOC "Build documentation" OFF)
+option(BUILD_SAMPLES "Build samples" ON)
 
 if (CMAKE_CROSSCOMPILING AND NOT CMAKE_SYSROOT)
     set(RAW_CROSS ON)
@@ -52,7 +53,6 @@ elseif (NOT DEFINED RAW_CROSS)
             target_link_libraries(${PROJECT_NAME} PUBLIC PkgConfig::LibUV)
         endif()
     endif()
-else()
 endif()
 
 if (NOT LibUV_FOUND)
@@ -69,6 +69,30 @@ if (NOT LibUV_FOUND)
     FetchContent_MakeAvailable(libuv)
 
     target_link_libraries(${PROJECT_NAME} PUBLIC uv)
+endif()
+
+find_package(LibXml2 QUIET)
+if (LibXml2_FOUND)
+    target_link_libraries(${PROJECT_NAME} PUBLIC LibXml2::LibXml2)
+else()
+    include(FetchContent)
+
+    set(LIBXML2_WITH_ICONV OFF)
+    set(LIBXML2_WITH_ICU OFF)
+    set(LIBXML2_WITH_LZMA OFF)
+    set(LIBXML2_WITH_PYTHON OFF)
+    set(LIBXML2_WITH_TESTS OFF)
+    set(LIBXML2_WITH_ZLIB OFF)
+
+    FetchContent_Declare(
+        libxml2
+        GIT_REPOSITORY https://gitlab.gnome.org/GNOME/libxml2.git
+        GIT_TAG        v2.11.7
+    )
+
+    FetchContent_MakeAvailable(libxml2)
+
+    target_link_libraries(${PROJECT_NAME} PUBLIC LibXml2::LibXml2)
 endif()
 
 if (WIN32 AND CMAKE_BUILD_TYPE STREQUAL "Debug")
@@ -106,8 +130,10 @@ target_include_directories(${PROJECT_NAME}
 set_target_properties(${PROJECT_NAME} PROPERTIES POSITION_INDEPENDENT_CODE ${BUILD_SHARED_LIBS})
     
 install(TARGETS dicey FILE_SET headers)
-    
-add_subdirectory(samples)
+
+if (BUILD_SAMPLES)
+    add_subdirectory(samples)
+endif()
     
 if (BUILD_DOC)
     find_package(Doxygen)
