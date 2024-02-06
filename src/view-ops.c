@@ -39,12 +39,12 @@ ptrdiff_t dicey_view_as_zstring(struct dicey_view *const view, const char **cons
     }
 
     size_t size = strnlen(view->data, view->len);
-    if (!dutl_checked_add(&size, size, 1)) {
-        return TRACE(DICEY_EOVERFLOW);
+    if (size == view->len && ((const char *) view->data)[size] != '\0') {
+        return TRACE(DICEY_EINVAL);
     }
 
-    if (size == view->len) {
-        return TRACE(DICEY_EINVAL);
+    if (!dutl_checked_add(&size, size, 1)) {
+        return TRACE(DICEY_EOVERFLOW);
     }
 
     if (size > PTRDIFF_MAX) {

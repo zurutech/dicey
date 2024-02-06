@@ -48,12 +48,12 @@ DICEY_EXPORT enum dicey_error dicey_message_builder_init(struct dicey_message_bu
  * @brief Begins building a message.
  * @note This function must be called only on an initialised builder, and will fail if the builder is already in use.
  * @param builder Message builder (must be initialised and idle).
- * @param type The type of the message to construct.
+ * @param op The operation represented by the message under construction.
  * @return Error code. Possible errors are:
  *         - OK: The operation was successful
  *         - EINVAL: The builder is not idle
  */
-DICEY_EXPORT enum dicey_error dicey_message_builder_begin(struct dicey_message_builder *builder, enum dicey_op type);
+DICEY_EXPORT enum dicey_error dicey_message_builder_begin(struct dicey_message_builder *builder, enum dicey_op op);
 
 /**
  * @brief Builds a message into a packet.

@@ -46,19 +46,6 @@ static enum dicey_op msgkind_from_dtf(const ptrdiff_t kind) {
     }
 }
 
-static bool msgkind_requires_payload(const enum dicey_op kind) {
-    switch (kind) {
-    default:
-        return false;
-
-    case DICEY_OP_SET:
-    case DICEY_OP_EXEC:
-    case DICEY_OP_EVENT:
-    case DICEY_OP_RESPONSE:
-        return true;
-    }
-}
-
 static enum dicey_packet_kind pktkind_from_dtf(const enum dtf_payload_kind kind) {
     switch (kind) {
     default:
@@ -188,7 +175,7 @@ static enum dicey_error validate_message(const struct dicey_packet *const packet
         return as_message_err;
     }
 
-    return msgkind_requires_payload(message.type) ? validate_value(&message.value) : DICEY_OK;
+    return dicey_op_requires_payload(message.type) ? validate_value(&message.value) : DICEY_OK;
 }
 
 static struct dicey_version version_from_dtf(const uint32_t version) {
@@ -234,6 +221,19 @@ bool dicey_op_is_valid(const enum dicey_op type) {
         return false;
 
     case DICEY_OP_GET:
+    case DICEY_OP_SET:
+    case DICEY_OP_EXEC:
+    case DICEY_OP_EVENT:
+    case DICEY_OP_RESPONSE:
+        return true;
+    }
+}
+
+bool dicey_op_requires_payload(const enum dicey_op kind) {
+    switch (kind) {
+    default:
+        return false;
+
     case DICEY_OP_SET:
     case DICEY_OP_EXEC:
     case DICEY_OP_EVENT:
@@ -335,7 +335,7 @@ enum dicey_error dicey_packet_as_message(const struct dicey_packet packet, struc
     };
 
     if (content.value) {
-        if (!msgkind_requires_payload(type)) {
+        if (!dicey_op_requires_payload(type)) {
             return TRACE(DICEY_EBADMSG);
         }
 

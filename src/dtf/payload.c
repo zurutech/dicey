@@ -303,15 +303,17 @@ struct dtf_result dtf_message_write(
 
     const struct dicey_view dval = dicey_view_from_mut(dest);
 
-    const struct dtf_valueres value_res = dtf_value_write(dest, value);
-    if (value_res.result < 0) {
-        result = value_res.result;
+    if (value) {
+        const struct dtf_valueres value_res = dtf_value_write(dest, value);
+        if (value_res.result < 0) {
+            result = value_res.result;
 
-        goto fail;
+            goto fail;
+        }
+
+        assert(value_res.result == DICEY_OK); // no allocation should happen
+        assert((char *) value_res.value == (char *) dval.data);
     }
-
-    assert(value_res.result == DICEY_OK); // no allocation should happen
-    assert((char *) value_res.value == (char *) dval.data);
 
     DICEY_UNUSED(dval); // suppress unused warning
 
@@ -347,7 +349,7 @@ ptrdiff_t dtf_message_estimate_size(
 
     const ptrdiff_t sizes[] = { dutl_zstring_size(path),
                                 dicey_selector_size(selector),
-                                dtf_value_estimate_size(value) };
+                                value ? dtf_value_estimate_size(value) : 0 };
 
     const ptrdiff_t *end = sizes + sizeof sizes / sizeof *sizes;
 

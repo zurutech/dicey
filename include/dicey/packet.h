@@ -79,6 +79,13 @@ enum dicey_op {
 DICEY_EXPORT bool dicey_op_is_valid(enum dicey_op type);
 
 /**
+ * @brief Checks if a given operation requires a payload.
+ * @param kind The operation type.
+ * @return True if the operation requires a payload, false otherwise.
+ */
+DICEY_EXPORT bool dicey_op_requires_payload(enum dicey_op kind);
+
+/**
  * @brief Converts an operation to a fixed string representation.
  * @param type An operation type.
  * @return A static string representation of the operation.

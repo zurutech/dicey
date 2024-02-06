@@ -114,7 +114,7 @@ enum dicey_error dicey_message_builder_init(struct dicey_message_builder *const 
     return DICEY_OK;
 }
 
-enum dicey_error dicey_message_builder_begin(struct dicey_message_builder *const builder, const enum dicey_op type) {
+enum dicey_error dicey_message_builder_begin(struct dicey_message_builder *const builder, const enum dicey_op op) {
     assert(builder);
 
     if (builder_state_get(builder) != BUILDER_STATE_IDLE) {
@@ -123,7 +123,7 @@ enum dicey_error dicey_message_builder_begin(struct dicey_message_builder *const
 
     *builder = (struct dicey_message_builder) {
         ._state = BUILDER_STATE_PENDING,
-        ._type = type,
+        ._type = op,
     };
 
     return DICEY_OK;
