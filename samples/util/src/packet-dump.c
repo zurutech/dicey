@@ -1,5 +1,6 @@
 // Copyright (c) 2014-2024 Zuru Tech HK Limited, All rights reserved.
 
+#include "dicey/packet.h"
 #include <assert.h>
 #include <inttypes.h>
 
@@ -160,6 +161,10 @@ static void dump_value(struct util_dumper *const dumper, const struct dicey_valu
     default:
         assert(false);
         return;
+
+    case DICEY_TYPE_UNIT:
+        util_dumper_printf(dumper, "()");
+        break;
 
     case DICEY_TYPE_BOOL:
         {
@@ -353,9 +358,11 @@ static void dump_message(struct util_dumper *const dumper, const struct dicey_pa
     dump_selector(dumper, message.selector);
     util_dumper_newline(dumper);
 
-    util_dumper_printf(dumper, "value = ");
-    dump_value(dumper, &message.value);
-    util_dumper_newline(dumper);
+    if (dicey_op_requires_payload(message.type)) {
+        util_dumper_printf(dumper, "value = ");
+        dump_value(dumper, &message.value);
+        util_dumper_newline(dumper);
+    }
 
     util_dumper_unpad(dumper);
     util_dumper_printlnf(dumper, "}");

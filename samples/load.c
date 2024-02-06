@@ -3,6 +3,8 @@
 // thank you MS, but just no
 #define _CRT_SECURE_NO_WARNINGS 1
 
+#include <ctype.h>
+#include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -12,9 +14,92 @@
 
 #include "util/dumper.h"
 #include "util/packet-dump.h"
+#include "util/packet-json.h"
 
-int main(const int argc, const char *const *const argv) {
-    FILE *const in = argc > 1 ? fopen(argv[1], "rb") : stdin;
+enum file_probe_result {
+    FILE_PROBE_FAIL,
+
+    FILE_PROBE_BINARY,
+    FILE_PROBE_PROBABLY_TEXT,
+};
+
+static enum file_probe_result file_probe(const char *const path) {
+    char buf[4096];
+
+    FILE *const file = fopen(path, "rb");
+    if (!file) {
+        return FILE_PROBE_FAIL;
+    }
+
+    const size_t n = fread(buf, 1, sizeof buf, file);
+    fclose(file);
+
+    if (!n) {
+        return FILE_PROBE_FAIL;
+    }
+
+    const char *const end = buf + n;
+    for (const char *p = buf; p < end; ++p) {
+        if (!isprint(*p) && !isspace(*p)) {
+            return FILE_PROBE_BINARY;
+        }
+    }
+
+    return FILE_PROBE_PROBABLY_TEXT;
+}
+
+static void print_help(const char *const progname) {
+    fprintf(stderr, "usage: %s [-bj] [FILE]\n", progname);
+}
+
+int main(const int argc, const char *const *argv) {
+    (void) argc;
+
+    const char *const progname = argv[0];
+    bool              text_mode = false;
+    const char       *fin = NULL;
+
+    while (*++argv) {
+        if (!strcmp(*argv, "-h")) {
+            print_help(progname);
+            return EXIT_SUCCESS;
+        }
+
+        if (!strcmp(*argv, "-b") || !strcmp(*argv, "-j")) {
+            text_mode = (*argv)[1] == 'j';
+            continue;
+        }
+
+        if (**argv == '-') {
+            fprintf(stderr, "error: unknown option '%s'\n", *argv);
+            return EXIT_FAILURE;
+        }
+
+        if (fin) {
+            fprintf(stderr, "error: multiple output files specified\n");
+            return EXIT_FAILURE;
+        }
+
+        fin = *argv;
+    }
+
+    FILE *in = stdin;
+
+    if (fin) {
+        const enum file_probe_result mode = file_probe(fin);
+        if (mode == FILE_PROBE_FAIL) {
+            perror("fopen");
+            return EXIT_FAILURE;
+        }
+
+        in = fopen(fin, mode == FILE_PROBE_BINARY ? "rb" : "r");
+        if (!in) {
+            perror("fopen");
+            return EXIT_FAILURE;
+        }
+
+        text_mode = mode == FILE_PROBE_PROBABLY_TEXT;
+    }
 
     uint8_t *dumped_bytes = NULL;
     size_t   nbytes = 0, bcap = 0;
@@ -45,7 +130,9 @@ int main(const int argc, const char *const *const argv) {
     }
 
     struct dicey_packet    pkt = { 0 };
-    const enum dicey_error err = dicey_packet_load(&pkt, &(const void *) { dumped_bytes }, &(size_t) { nbytes });
+    const enum dicey_error err = text_mode
+                                     ? util_json_to_dicey(&pkt, dumped_bytes, nbytes)
+                                     : dicey_packet_load(&pkt, &(const void *) { dumped_bytes }, &(size_t) { nbytes });
     if (err) {
         goto quit;
     }
