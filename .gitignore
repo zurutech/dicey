@@ -100,3 +100,7 @@ _deps
 
 .cache
 build*/
+
+# Note: I love to keep random .c test files in the root directory.
+/*.h
+/*.c
