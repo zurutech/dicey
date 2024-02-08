@@ -157,10 +157,10 @@ static enum dicey_error validate_value(const struct dicey_value *const value) {
         return DICEY_OK; // the null string is valid and a zero-length string
 
     case DICEY_TYPE_PATH:
-        return value->_data.str ? DICEY_OK : DICEY_EINVAL;
+        return TRACE(value->_data.str ? DICEY_OK : DICEY_EINVAL);
 
     case DICEY_TYPE_SELECTOR:
-        return dicey_selector_is_valid(value->_data.selector) ? DICEY_OK : DICEY_EINVAL;
+        return TRACE(dicey_selector_is_valid(value->_data.selector) ? DICEY_OK : DICEY_EINVAL);
 
     case DICEY_TYPE_ERROR:
         return dicey_errmsg_is_valid(value->_data.error) ? DICEY_OK : DICEY_EINVAL;
@@ -541,7 +541,7 @@ enum dicey_error dicey_packet_load(struct dicey_packet *const packet, const void
 
     const enum dicey_packet_kind kind = pktkind_from_dtf(dtf_payload_get_kind(payload));
     if (!dicey_packet_kind_is_valid(kind)) {
-        err = DICEY_EBADMSG;
+        err = TRACE(DICEY_EBADMSG);
         goto fail;
     }
 
