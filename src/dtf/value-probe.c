@@ -130,9 +130,11 @@ static ptrdiff_t error_probe(struct dicey_view *const src, struct dicey_errmsg *
         return content_read_res;
     }
 
+    assert(content_read_res); // even the empty string should be terminated by a null byte
+
     *dest = (struct dicey_errmsg) {
         .code = header.code,
-        .message = msg,
+        .message = content_read_res > 1 ? msg : NULL,
     };
 
     ptrdiff_t read_bytes = 0;
