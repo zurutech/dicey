@@ -71,34 +71,34 @@ static void dump_hello(struct util_dumper *const dumper, const struct dicey_pack
     );
 }
 
-static void dump_hex_short(struct util_dumper *const dumper, const void *const data, const size_t nbytes) {
+static void dump_hex_short(struct util_dumper *const dumper, const void *const data, const size_t n) {
     assert(dumper);
 
-    if (!data || !nbytes) {
+    if (!data || !n) {
         util_dumper_printf(dumper, "null");
     } else {
         util_dumper_printf(dumper, "[ ");
 
         // if the view is 4 bytes or less, print the hex as separate bytes
         // otherwise, print b0 b1 .. bN-1 bN
-        const size_t   n = nbytes;
         const uint8_t *bytes = data, *const end = bytes + n;
 
-        if (n <= 4U) {
+        if (n <= 16U) {
             while (bytes < end) {
-                util_dumper_printf(dumper, "%02 " PRIx8, *bytes++);
+                util_dumper_printf(dumper, "%02" PRIx8 " ", *bytes++);
             }
         } else {
             util_dumper_printf(
                 dumper,
-                "%02 " PRIx8 " %02 " PRIx8 " .. %02 " PRIx8 " %02 " PRIx8 " (%zu bytes)",
+                "%02" PRIx8 " %02" PRIx8 " .. %02" PRIx8 " %02 " PRIx8,
                 bytes[0],
                 bytes[1],
                 bytes[n - 2],
-                bytes[n - 1],
-                n
+                bytes[n - 1]
             );
         }
+
+        util_dumper_printf(dumper, "] (%zu bytes)", n);
     }
 }
 
@@ -333,7 +333,12 @@ static void dump_value(struct util_dumper *const dumper, const struct dicey_valu
             assert(!err);
             (void) err; // silence unused warning
 
-            util_dumper_printf(dumper, "( code = %" PRIu16 ", message = \"%s\" )", dest.code, dest.message);
+            if (dest.message) {
+                util_dumper_printf(dumper, "( code = %" PRIu16 ", message = \"%s\" )", dest.code, dest.message);
+            } else {
+                util_dumper_printf(dumper, "( code = %" PRIu16 " )", dest.code);
+            }
+
             break;
         }
     }
