@@ -33,8 +33,15 @@ static bool arglist_copy(
     return true;
 }
 
-struct dicey_arg *dicey_arg_dup(struct dicey_arg *const dest, const struct dicey_arg *src) {
-    assert(dest && src);
+struct dicey_arg *dicey_arg_dup(struct dicey_arg *dest, const struct dicey_arg *src) {
+    assert(src);
+
+    if (!dest) {
+        dest = calloc(sizeof *dest, 1U);
+        if (!dest) {
+            return NULL;
+        }
+    }
 
     *dest = *src;
 
@@ -58,13 +65,11 @@ struct dicey_arg *dicey_arg_dup(struct dicey_arg *const dest, const struct dicey
 
     case DICEY_TYPE_PAIR:
         {
-            struct dicey_arg *const first = calloc(sizeof *first, 1U), *const second = calloc(sizeof *second, 1U);
+            struct dicey_arg *const first = dicey_arg_dup(NULL, src->pair.first), *const second = dicey_arg_dup(
+                                                                                      NULL, src->pair.second
+                                                                                  );
 
             if (!first || !second) {
-                return NULL;
-            }
-
-            if (!dicey_arg_dup(first, src->pair.first) || !dicey_arg_dup(second, src->pair.second)) {
                 dicey_arg_free(first);
                 dicey_arg_free(second);
 
@@ -135,4 +140,20 @@ void dicey_arg_get_list(
         *end = *list + arg->tuple.nitems;
         break;
     }
+}
+
+struct dicey_arg *dicey_arg_move(struct dicey_arg *dest, struct dicey_arg *src) {
+    assert(src);
+
+    if (!dest) {
+        dest = calloc(sizeof *dest, 1U);
+        if (!dest) {
+            return NULL;
+        }
+    }
+
+    *dest = *src;
+    *src = (struct dicey_arg) { 0 };
+
+    return dest;
 }
