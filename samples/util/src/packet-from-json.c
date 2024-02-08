@@ -1,9 +1,5 @@
 // Copyright (c) 2014-2024 Zuru Tech HK Limited, All rights reserved.
 
-#include "dicey/builders.h"
-#include "dicey/errors.h"
-#include "dicey/packet.h"
-#include "dicey/type.h"
 #include <errno.h>
 #include <stdbool.h>
 #include <stdint.h>
@@ -208,6 +204,7 @@ static enum dicey_error json_to_value(struct dicey_value_builder *const dest, co
 
     case DICEY_TYPE_BOOL:
         arg.boolean = (bool) cJSON_IsTrue(value);
+        break;
 
     case DICEY_TYPE_STR:
         arg.str = cJSON_GetStringValue(value);
