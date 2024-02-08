@@ -1,0 +1,38 @@
+<?xml-model href="packet.xsd" type="application/xml" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<packet seq="0">
+    <message op="SET">
+        <path>/foo/bar</path>
+        <selector>some.trait.named.Bob:Bobbable</selector>
+        <value>
+            <tuple>
+                <array type="bool">
+                    <bool>true</bool>
+                    <bool>false</bool>
+                </array>
+                <bool>true</bool>
+                <array type="float">
+                    <float>3.14</float>
+                    <float>2.718</float>
+                </array>
+                <error code="10" />
+                <error code="20">Oh no!</error>
+                <byte>88</byte>
+                <unit />
+                <pair>
+                    <string>key</string>
+                    <array type="tuple">
+                        <tuple>
+                            <i32>1</i32>
+                            <i32>-2</i32>
+                        </tuple>
+                        <tuple>
+                            <string>foo</string>
+                            <string>bar</string>
+                            <bytes>YmFzZTY0</bytes>
+                        </tuple>
+                    </array>
+                </pair>
+            </tuple>
+        </value>
+    </message>
+</packet>

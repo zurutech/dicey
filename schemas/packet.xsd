@@ -1,0 +1,184 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    The packet schema defines an XML representation for Dicey packets.
+    Dicey packets are structured chunks of binary data exchanged between Dicey clients and servers. This schema may be
+    used to simplify the generation, inspection and validation of fixed payloads.
+-->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+    <xs:group name="value-opts">
+        <xs:choice>
+            <xs:element name="unit" fixed="" />
+
+            <xs:element name="bool" type="xs:boolean" />
+            <xs:element name="byte" type="xs:unsignedByte" />
+
+            <xs:element name="float" type="xs:double" />
+
+            <xs:element name="i16" type="xs:short" />
+            <xs:element name="i32" type="xs:int" />
+            <xs:element name="i64" type="xs:long" />
+            <xs:element name="u16" type="xs:unsignedShort" />
+            <xs:element name="u32" type="xs:unsignedInt" />
+            <xs:element name="u64" type="xs:unsignedLong" />
+
+            <xs:element name="array" type="array" />
+            <xs:element name="tuple" type="tuple" />
+            <xs:element name="pair" type="pair" />
+
+            <xs:element name="bytes" type="xs:base64Binary" />
+            <xs:element name="string" type="xs:string" />
+
+            <xs:element name="path" type="path" />
+            <xs:element name="selector" type="selector" />
+
+            <xs:element name="error" type="error" />
+        </xs:choice>
+    </xs:group>
+
+    <xs:simpleType name="bye-reason">
+        <xs:restriction base="xs:string">
+            <xs:enumeration value="shutdown" />
+            <xs:enumeration value="error" />
+        </xs:restriction>
+    </xs:simpleType>
+
+    <xs:simpleType name="op">
+        <xs:restriction base="xs:string">
+            <xs:enumeration value="GET" />
+            <xs:enumeration value="SET" />
+            <xs:enumeration value="EXEC" />
+            <xs:enumeration value="EVENT" />
+            <xs:enumeration value="RESPONSE" />
+        </xs:restriction>
+    </xs:simpleType>
+
+    <xs:simpleType name="path">
+        <xs:restriction base="xs:string">
+            <xs:pattern value="(/[a-zA-Z][a-zA-Z0-9_]*)+" />
+        </xs:restriction>
+    </xs:simpleType>
+
+    <xs:simpleType name="selector">
+        <xs:restriction base="xs:string">
+            <xs:pattern value="[a-zA-Z][a-zA-Z0-9_]*(\.[a-zA-Z][a-zA-Z0-9_]*)*:[a-zA-Z][a-zA-Z0-9_]*" />
+        </xs:restriction>
+    </xs:simpleType>
+
+    <xs:simpleType name="type">
+        <xs:restriction base="xs:string">
+            <xs:enumeration value="unit" />
+
+            <xs:enumeration value="bool" />
+            <xs:enumeration value="byte" />
+
+            <xs:enumeration value="float" />
+
+            <xs:enumeration value="i16" />
+            <xs:enumeration value="i32" />
+            <xs:enumeration value="i64" />
+            <xs:enumeration value="u16" />
+            <xs:enumeration value="u32" />
+            <xs:enumeration value="u64" />
+
+            <xs:enumeration value="array" />
+            <xs:enumeration value="tuple" />
+            <xs:enumeration value="pair" />
+
+            <xs:enumeration value="bytes" />
+            <xs:enumeration value="string" />
+            
+            <xs:enumeration value="path" />
+            <xs:enumeration value="selector" />
+            <xs:enumeration value="error" />
+        </xs:restriction>
+    </xs:simpleType>
+
+    <xs:simpleType name="version">
+        <xs:restriction base="xs:string">
+            <xs:pattern value="[0-9]+r[1-9][0-9]*" />
+        </xs:restriction>
+    </xs:simpleType>
+
+    <xs:complexType name="array">
+        <!--
+            ugly copypaste: nobody supports XSD 1.1, so we are basically forced to do this to allow for unbounded
+            occurrences of _the same_ type in an array. This is a limitation of the XSD 1.0 standard AFAIK.
+        -->   
+        <xs:choice>
+            <xs:element name="unit" fixed="" minOccurs="0" maxOccurs="unbounded" />
+
+            <xs:element name="bool" type="xs:boolean" minOccurs="0" maxOccurs="unbounded" />
+            <xs:element name="byte" type="xs:unsignedByte" minOccurs="0" maxOccurs="unbounded" />
+
+            <xs:element name="float" type="xs:double" minOccurs="0" maxOccurs="unbounded" />
+
+            <xs:element name="i16" type="xs:short" minOccurs="0" maxOccurs="unbounded" />
+            <xs:element name="i32" type="xs:int" minOccurs="0" maxOccurs="unbounded" />
+            <xs:element name="i64" type="xs:long" minOccurs="0" maxOccurs="unbounded" />
+            <xs:element name="u16" type="xs:unsignedShort" minOccurs="0" maxOccurs="unbounded" />
+            <xs:element name="u32" type="xs:unsignedInt" minOccurs="0" maxOccurs="unbounded" />
+            <xs:element name="u64" type="xs:unsignedLong" minOccurs="0" maxOccurs="unbounded" />
+
+            <xs:element name="array" type="array" minOccurs="0" maxOccurs="unbounded" />
+            <xs:element name="tuple" type="tuple" minOccurs="0" maxOccurs="unbounded" />
+            <xs:element name="pair" type="pair" minOccurs="0" maxOccurs="unbounded" />
+
+            <xs:element name="bytes" type="xs:base64Binary" minOccurs="0" maxOccurs="unbounded" />
+            <xs:element name="string" type="xs:string" minOccurs="0" maxOccurs="unbounded" />
+
+            <xs:element name="path" type="path" minOccurs="0" maxOccurs="unbounded" />
+            <xs:element name="selector" type="selector" minOccurs="0" maxOccurs="unbounded" />
+
+            <xs:element name="error" type="error" minOccurs="0" maxOccurs="unbounded" />
+        </xs:choice>
+        <xs:attribute name="type" type="type" use="required" />
+    </xs:complexType>
+
+    <xs:complexType name="bye">
+        <xs:attribute name="reason" type="bye-reason" />
+    </xs:complexType>
+
+    <xs:complexType name="error">
+        <xs:simpleContent>
+            <xs:extension base="xs:string">
+                <xs:attribute name="code" type="xs:unsignedShort" />
+            </xs:extension>
+        </xs:simpleContent>
+    </xs:complexType>
+
+    <xs:complexType name="hello">
+        <xs:attribute name="version" type="version" />
+    </xs:complexType>
+
+    <xs:complexType name="message">
+        <xs:sequence>
+            <xs:element name="path" type="path" />
+            <xs:element name="selector" type="selector" />
+            <xs:element name="value" type="value" minOccurs="0" />
+        </xs:sequence>
+        <xs:attribute name="op" type="op" use="required"/>
+    </xs:complexType>
+
+    <xs:complexType name="packet">
+        <xs:choice>
+            <xs:element name="bye" type="bye" />
+            <xs:element name="hello" type="hello" />
+            <xs:element name="message" type="message" />
+        </xs:choice>
+        <xs:attribute name="seq" type="xs:unsignedInt" default="0" />
+    </xs:complexType>
+
+    <xs:complexType name="pair">
+        <xs:group ref="value-opts" minOccurs="2" maxOccurs="2" />
+    </xs:complexType>
+
+    <xs:complexType name="tuple">
+        <xs:group ref="value-opts" minOccurs="0" maxOccurs="unbounded" />
+    </xs:complexType>
+    
+    <xs:complexType name="value">
+        <xs:group ref="value-opts" />
+    </xs:complexType>
+
+    <xs:element name="packet" type="packet" />
+</xs:schema>
