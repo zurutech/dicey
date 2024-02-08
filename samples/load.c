@@ -13,92 +13,155 @@
 #include <dicey/dicey.h>
 
 #include "util/dumper.h"
+#include "util/getopt.h"
 #include "util/packet-dump.h"
 #include "util/packet-json.h"
+#include "util/packet-xml.h"
 
-enum file_probe_result {
-    FILE_PROBE_FAIL,
-
-    FILE_PROBE_BINARY,
-    FILE_PROBE_PROBABLY_TEXT,
+enum load_mode {
+    LOAD_MODE_PROBE,
+    LOAD_MODE_BINARY,
+    LOAD_MODE_JSON,
+    LOAD_MODE_XML,
 };
 
-static enum file_probe_result file_probe(const char *const path) {
-    char buf[4096];
+static enum load_mode file_probe(const char *const path) {
+    const char *const ext = strrchr(path, '.');
+    if (ext) {
+        if (!strcmp(ext, ".json")) {
+            return LOAD_MODE_JSON;
+        }
 
-    FILE *const file = fopen(path, "rb");
-    if (!file) {
-        return FILE_PROBE_FAIL;
-    }
-
-    const size_t n = fread(buf, 1, sizeof buf, file);
-    fclose(file);
-
-    if (!n) {
-        return FILE_PROBE_FAIL;
-    }
-
-    const char *const end = buf + n;
-    for (const char *p = buf; p < end; ++p) {
-        if (!isprint(*p) && !isspace(*p)) {
-            return FILE_PROBE_BINARY;
+        if (!strcmp(ext, ".xml")) {
+            return LOAD_MODE_XML;
         }
     }
 
-    return FILE_PROBE_PROBABLY_TEXT;
+    return LOAD_MODE_BINARY;
 }
 
-static void print_help(const char *const progname) {
-    fprintf(stderr, "usage: %s [-bj] [FILE]\n", progname);
+static void print_xml_errors(const struct util_xml_errors *const errs) {
+    if (!errs->errors) {
+        return;
+    }
+
+    const struct util_xml_error *const end = *errs->errors + errs->nerrs;
+    for (const struct util_xml_error *err = *errs->errors; err < end; ++err) {
+        fputs("error in XML input:", stderr);
+
+        if (err->line) {
+            fprintf(stderr, "line %d: ", err->line);
+
+            if (err->col) {
+                fprintf(stderr, ", col %d: ", err->col);
+            }
+        } else {
+            fputc(' ', stderr);
+        }
+
+        fprintf(stderr, "%s\n", err->message);
+    }
 }
 
-int main(const int argc, const char *const *argv) {
+#define HELP_MSG                                                                                                       \
+    "Usage: %s [options...] [FILE]\n"                                                                                  \
+    "  -b  load FILE or stdin as a binary packet\n"                                                                    \
+    "  -j  load FILE or stdin as a JSON-encoded packet\n"                                                              \
+    "  -h  print this help message and exit\n"                                                                         \
+    "  -o  dump binary output to FILE (requires -j or -x, implies -q)\n"                                               \
+    "  -q  suppress output\n"                                                                                          \
+    "  -x  load FILE or stdin as an XML-encoded packet\n"                                                              \
+    "\nIf not specified, FILE defaults to stdin. The extension is used to probe the contents of the file.\n"           \
+    "If -q is not specified, a custom representation of the packet is printed to stdout.\n"
+
+static void print_help(const char *const progname, FILE *const out) {
+    fprintf(out, HELP_MSG, progname);
+}
+
+int main(const int argc, char *const *argv) {
     (void) argc;
 
     const char *const progname = argv[0];
-    bool              text_mode = false;
-    const char       *fin = NULL;
+    const char       *fin = NULL, *fout = NULL;
+    enum load_mode    mode = LOAD_MODE_PROBE;
+    bool              quiet = false;
 
-    while (*++argv) {
-        if (!strcmp(*argv, "-h")) {
-            print_help(progname);
+    int opt = 0;
+
+    while ((opt = getopt(argc, argv, "bjho:qx")) != -1) {
+        switch (opt) {
+        case 'b':
+            mode = LOAD_MODE_BINARY;
+            break;
+
+        case 'j':
+            mode = LOAD_MODE_JSON;
+            break;
+
+        case 'h':
+            print_help(progname, stdout);
             return EXIT_SUCCESS;
+
+        case 'o':
+            fout = optarg;
+            quiet = true;
+            break;
+
+        case 'q':
+            quiet = true;
+            break;
+
+        case 'x':
+            mode = LOAD_MODE_XML;
+            break;
+
+        case '?':
+            if (optopt == 'o') {
+                fputs("error: -o requires an argument\n", stderr);
+            } else {
+                fprintf(stderr, "error: unknown option -%c\n", optopt);
+            }
+
+            print_help(progname, stderr);
+            return EXIT_FAILURE;
+
+        default:
+            abort();
+        }
+    }
+
+    if (optind < argc) {
+        fin = argv[optind];
+
+        if (mode == LOAD_MODE_PROBE) {
+            mode = file_probe(fin);
         }
 
-        if (!strcmp(*argv, "-b") || !strcmp(*argv, "-j")) {
-            text_mode = (*argv)[1] == 'j';
-            continue;
-        }
+        if (optind + 1 < argc) {
+            fputs("error: too many arguments\n", stderr);
 
-        if (**argv == '-') {
-            fprintf(stderr, "error: unknown option '%s'\n", *argv);
+            print_help(progname, stderr);
             return EXIT_FAILURE;
         }
+    }
 
-        if (fin) {
-            fprintf(stderr, "error: multiple output files specified\n");
-            return EXIT_FAILURE;
-        }
+    if (mode == LOAD_MODE_BINARY && fout) {
+        fputs("error: -o requires -j or -x\n", stderr);
 
-        fin = *argv;
+        print_help(progname, stderr);
+        return EXIT_FAILURE;
     }
 
     FILE *in = stdin;
-
     if (fin) {
-        const enum file_probe_result mode = file_probe(fin);
-        if (mode == FILE_PROBE_FAIL) {
-            perror("fopen");
-            return EXIT_FAILURE;
-        }
+        in = fopen(fin, mode == LOAD_MODE_BINARY ? "rb" : "r");
 
-        in = fopen(fin, mode == FILE_PROBE_BINARY ? "rb" : "r");
         if (!in) {
             perror("fopen");
             return EXIT_FAILURE;
         }
-
-        text_mode = mode == FILE_PROBE_PROBABLY_TEXT;
+    } else if (mode == LOAD_MODE_PROBE) {
+        mode = LOAD_MODE_BINARY; // default to binary on stdin
     }
 
     uint8_t *dumped_bytes = NULL;
@@ -129,16 +192,59 @@ int main(const int argc, const char *const *argv) {
         return EXIT_FAILURE;
     }
 
-    struct dicey_packet    pkt = { 0 };
-    const enum dicey_error err = text_mode
-                                     ? util_json_to_dicey(&pkt, dumped_bytes, nbytes)
-                                     : dicey_packet_load(&pkt, &(const void *) { dumped_bytes }, &(size_t) { nbytes });
+    struct dicey_packet pkt = { 0 };
+
+    enum dicey_error err = DICEY_OK;
+
+    switch (mode) {
+    case LOAD_MODE_BINARY:
+        err = dicey_packet_load(&pkt, &(const void *) { dumped_bytes }, &(size_t) { nbytes });
+        break;
+
+    case LOAD_MODE_JSON:
+        err = util_json_to_dicey(&pkt, dumped_bytes, nbytes);
+        break;
+
+    case LOAD_MODE_XML:
+        {
+            struct util_xml_errors errs = util_xml_to_dicey(&pkt, dumped_bytes, nbytes);
+            if (errs.nerrs) {
+                print_xml_errors(&errs);
+                util_xml_errors_deinit(&errs);
+
+                err = DICEY_EINVAL; // kinda sucks?
+            }
+            break;
+        }
+
+    default:
+        abort();
+    }
+
     if (err) {
         goto quit;
     }
 
-    struct util_dumper dumper = util_dumper_for(stdout);
-    util_dumper_dump_packet(&dumper, pkt);
+    if (fout) {
+        FILE *out = fopen(fout, "wb");
+        if (!out) {
+            perror("fopen");
+            err = DICEY_EAGAIN; // TODO: replace with an IO-related error as soon as I add one
+            goto quit;
+        }
+
+        const size_t written = fwrite(pkt.payload, 1, pkt.nbytes, out);
+        fclose(out);
+
+        if (written < pkt.nbytes) {
+            perror("fwrite");
+            err = DICEY_EAGAIN; // TODO: replace with an IO-related error as soon as I add one
+            goto quit;
+        }
+    } else if (!quiet) {
+        struct util_dumper dumper = util_dumper_for(stdout);
+        util_dumper_dump_packet(&dumper, pkt);
+    }
 
 quit:
     dicey_packet_deinit(&pkt);
