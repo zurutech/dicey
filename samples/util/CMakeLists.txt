@@ -4,6 +4,30 @@ file(GLOB utils_SRC
     "src/*.h"
 )
 
+function(embed_resources target)
+    set(script_path "${CMAKE_CURRENT_BINARY_DIR}/anything_to_c.cmake")
+
+    file(WRITE  "${script_path}" "file(READ \${CMAKE_ARGV3} buf HEX)\n")
+    file(APPEND "${script_path}" "string(REGEX REPLACE \"([0-9a-f][0-9a-f])\" \"0x\\\\1, \" buf \${buf})\n")
+    file(APPEND "${script_path}" "file(WRITE \${CMAKE_ARGV4} \"const unsigned char \${CMAKE_ARGV5}[] = { \${buf}0x00 };\\n\")\n")
+    file(APPEND "${script_path}" "file(APPEND \${CMAKE_ARGV4} \"const unsigned long long \${CMAKE_ARGV6} = sizeof(\${CMAKE_ARGV5}) - 1;\\n\")\n")
+
+    foreach(res_path ${ARGN})
+        file(RELATIVE_PATH res_rel ${DICEY_ROOT} ${res_path})
+        string(MAKE_C_IDENTIFIER ${res_rel} identifier)
+
+        set(src_path "${res_path}")
+        set(dst_path "${CMAKE_CURRENT_BINARY_DIR}/${identifier}.c")
+
+        set(anything_to_c ${CMAKE_COMMAND} -P ${script_path} ${src_path} ${dst_path} ${identifier} ${identifier}_size)
+
+        add_custom_command(OUTPUT ${dst_path} COMMAND ${anything_to_c} DEPENDS ${src_path} VERBATIM)
+
+        target_sources(${target} PRIVATE ${src_path} ${dst_path} )
+    endforeach()
+
+endfunction()
+
 set(CMAKE_C_STANDARD 17)
 
 set(CMAKE_C_STANDARD_REQUIRED ON)
@@ -54,6 +78,10 @@ if (NOT cJSON_FOUND)
 endif()
 
 target_sources(samples_util PRIVATE ${utils_SRC})
+
+embed_resources(samples_util
+    "${DICEY_ROOT}/schemas/packet.xsd"
+)
 
 target_include_directories(samples_util
     PRIVATE
