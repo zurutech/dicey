@@ -102,6 +102,7 @@ static enum dicey_error validate_value(const struct dicey_value *const value) {
     default:
         return TRACE(DICEY_EINVAL);
 
+    case DICEY_TYPE_UNIT:
     case DICEY_TYPE_BOOL:
     case DICEY_TYPE_BYTE:
     case DICEY_TYPE_FLOAT:
