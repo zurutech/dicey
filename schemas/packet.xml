@@ -1,4 +1,5 @@
 <?xml-model href="packet.xsd" type="application/xml" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<!-- Dumb sample of a serialized Dicey packet -->
 <packet seq="0">
     <message op="SET">
         <path>/foo/bar</path>
