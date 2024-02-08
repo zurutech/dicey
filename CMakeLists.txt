@@ -81,7 +81,9 @@ else()
     set(LIBXML2_WITH_ICU OFF)
     set(LIBXML2_WITH_LZMA OFF)
     set(LIBXML2_WITH_PYTHON OFF)
+    set(LIBXML2_WITH_SCHEMAS ON)
     set(LIBXML2_WITH_TESTS OFF)
+    set(LIBXML2_WITH_THREADS ON)
     set(LIBXML2_WITH_ZLIB OFF)
 
     FetchContent_Declare(
