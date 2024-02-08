@@ -70,6 +70,7 @@ static void print_xml_errors(const struct util_xml_errors *const errs) {
     "  -h  print this help message and exit\n"                                                                         \
     "  -o  dump binary output to FILE (requires -j or -x, implies -q)\n"                                               \
     "  -q  suppress output\n"                                                                                          \
+    "  -v  enable extra-verbose output\n"                                                                              \
     "  -x  load FILE or stdin as an XML-encoded packet\n"                                                              \
     "\nIf not specified, FILE defaults to stdin. The extension is used to probe the contents of the file.\n"           \
     "If -q is not specified, a custom representation of the packet is printed to stdout.\n"
@@ -84,11 +85,11 @@ int main(const int argc, char *const *argv) {
     const char *const progname = argv[0];
     const char       *fin = NULL, *fout = NULL;
     enum load_mode    mode = LOAD_MODE_PROBE;
-    bool              quiet = false;
+    bool              quiet = false, verbose = false;
 
     int opt = 0;
 
-    while ((opt = getopt(argc, argv, "bjho:qx")) != -1) {
+    while ((opt = getopt(argc, argv, "bjho:qvx")) != -1) {
         switch (opt) {
         case 'b':
             mode = LOAD_MODE_BINARY;
@@ -111,6 +112,10 @@ int main(const int argc, char *const *argv) {
             quiet = true;
             break;
 
+        case 'v':
+            verbose = true;
+            break;
+
         case 'x':
             mode = LOAD_MODE_XML;
             break;
@@ -128,6 +133,13 @@ int main(const int argc, char *const *argv) {
         default:
             abort();
         }
+    }
+
+    if (verbose && quiet) {
+        fputs("error: -q and -v are mutually exclusive\n", stderr);
+
+        print_help(progname, stderr);
+        return EXIT_FAILURE;
     }
 
     if (optind < argc) {
@@ -243,6 +255,13 @@ int main(const int argc, char *const *argv) {
         }
     } else if (!quiet) {
         struct util_dumper dumper = util_dumper_for(stdout);
+
+        if (verbose) {
+            util_dumper_printlnf(&dumper, "packet loaded, size = %zu bytes", pkt.nbytes);
+            util_dumper_dump_hex(&dumper, pkt.payload, pkt.nbytes);
+            util_dumper_printlnf(&dumper, "");
+        }
+
         util_dumper_dump_packet(&dumper, pkt);
     }
 
