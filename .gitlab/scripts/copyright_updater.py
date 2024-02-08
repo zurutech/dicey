@@ -11,9 +11,9 @@ from pathlib import Path
 
 NEW_NOTICE = f"// Copyright (c) 2014-{date.today().year} Zuru Tech HK Limited, All rights reserved."
 SUPPORTED_EXTENSIONS = ["h", "hh", "hpp", "c", "cc", "cpp", "cxx", "cs"]
+SKIP_STRING = "// open source, not our code"
 
-
-def getArguments() -> argparse.Namespace:
+def get_arguments() -> argparse.Namespace:
     """CLI parser.
     Returns:
         The folder to use as root.
@@ -33,7 +33,7 @@ def getArguments() -> argparse.Namespace:
     return args
 
 
-def getFileList(args: list[str]) -> list[str]:
+def get_file_list(args: list[str]) -> list[str]:
     fileList = []
     if args.folder != "-":
         root = Path(args.folder)
@@ -48,11 +48,12 @@ def getFileList(args: list[str]) -> list[str]:
 
 
 def main() -> int:
-    args = getArguments()
-    fileList = getFileList(args)
+    args = get_arguments()
+    fileList = get_file_list(args)
     pattern = re.compile(r"(/\*.*?\*/)|(//[^\n]*\n)", re.S)
 
     empty_files = []
+    skipped_files = []
 
     for f in fileList:
         with open(f, "r+", encoding="utf-8") as fp:
@@ -61,9 +62,15 @@ def main() -> int:
             except UnicodeDecodeError as e:
                 print("UnicodeDecodeError ", e, "\nfile: ", f)
                 continue
+
             if not content:
                 empty_files.append(f)
                 continue
+
+            if content.startswith(SKIP_STRING):
+                skipped_files.append(f)
+                continue
+
             comments = pattern.findall(content)
             replaced = False
             if comments:
@@ -85,7 +92,13 @@ def main() -> int:
     if empty_files:
         print("Find the following empty files while working...")
         for idx, f in enumerate(empty_files, start=1):
-            print(idx, ") ", f)
+            print(idx, "> ", f)
+
+    if skipped_files:
+        print("The following files self-identified as open source and were thus skipped:")
+        for idx, f in enumerate(skipped_files, start=1):
+            print(idx, "> ", f)
+
     return 0
 
 
