@@ -63,7 +63,7 @@ if (NOT LibUV_FOUND)
     FetchContent_Declare(
         libuv
         GIT_REPOSITORY https://github.com/libuv/libuv.git
-        GIT_TAG        v1.47.0
+        GIT_TAG        v1.48.0
     )
 
     FetchContent_MakeAvailable(libuv)
