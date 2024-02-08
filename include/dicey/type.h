@@ -62,13 +62,6 @@ struct dicey_errmsg {
 };
 
 /**
- * @brief Checks if an error message is valid.
- * @param msg The error message to check.
- * @return true if the error message is valid, false otherwise.
- */
-DICEY_EXPORT bool dicey_errmsg_is_valid(struct dicey_errmsg msg);
-
-/**
  * @brief Represents a double precision floating-point value.
  */
 typedef double dicey_float;
@@ -122,6 +115,7 @@ enum dicey_type {
     DICEY_TYPE_ARRAY = '[', /**< Array type. */
     DICEY_TYPE_TUPLE = '(', /**< Tuple type. */
     DICEY_TYPE_PAIR = '{',  /**< Pair type. */
+
     DICEY_TYPE_BYTES = 'y', /**< Bytes type. */
     DICEY_TYPE_STR = 's',   /**< String type. */
 

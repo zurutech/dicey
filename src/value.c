@@ -78,10 +78,6 @@ int dicey_list_type(const struct dicey_list *const list) {
     return list->_type;
 }
 
-bool dicey_errmsg_is_valid(const struct dicey_errmsg msg) {
-    return msg.message;
-}
-
 bool dicey_selector_is_valid(const struct dicey_selector selector) {
     return selector.trait && selector.elem;
 }

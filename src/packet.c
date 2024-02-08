@@ -163,7 +163,8 @@ static enum dicey_error validate_value(const struct dicey_value *const value) {
         return TRACE(dicey_selector_is_valid(value->_data.selector) ? DICEY_OK : DICEY_EINVAL);
 
     case DICEY_TYPE_ERROR:
-        return dicey_errmsg_is_valid(value->_data.error) ? DICEY_OK : DICEY_EINVAL;
+        // errors are always valid, codes are arbitrary and strings may be omitted
+        return DICEY_OK;
     }
 }
 
