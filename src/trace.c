@@ -200,7 +200,7 @@ static void test_trace_enabled(void) {
 }
 
 static bool check_trace_enabled(void) {
-    uv_once(&trace_enabled_flag, test_trace_enabled);
+    uv_once(&trace_enabled_flag, &test_trace_enabled);
 
     return trace_enabled;
 }
