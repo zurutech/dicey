@@ -27,8 +27,9 @@ enum builder_state {
 
     BUILDER_STATE_VALUE,
 
-    BUILDER_STATE_TUPLE,
     BUILDER_STATE_ARRAY,
+    BUILDER_STATE_PAIR,
+    BUILDER_STATE_TUPLE,
 };
 
 static enum dicey_error arglist_grow(struct _dicey_value_builder_list *const list) {
@@ -105,6 +106,30 @@ static bool valbuilder_is_valid(const struct dicey_value_builder *const builder)
 }
 
 #endif
+
+enum dicey_error valbuilder_list_start(
+    struct dicey_value_builder *const builder,
+    const enum builder_state          list_kind,
+    const enum dicey_type             type
+) {
+    assert(valbuilder_is_valid(builder));
+
+    if (builder_state_get(builder) != BUILDER_STATE_PENDING) {
+        return TRACE(DICEY_EINVAL);
+    }
+
+    builder->_list = (struct _dicey_value_builder_list) { 0 };
+
+    if (list_kind == BUILDER_STATE_ARRAY) {
+        assert(dicey_type_is_valid(type));
+
+        builder->_list.type = type;
+    }
+
+    builder_state_set(builder, list_kind);
+
+    return DICEY_OK;
+}
 
 enum dicey_error dicey_message_builder_init(struct dicey_message_builder *const builder) {
     assert(builder);
@@ -307,19 +332,7 @@ enum dicey_error dicey_value_builder_array_start(
     struct dicey_value_builder *const builder,
     const enum dicey_type             type
 ) {
-    assert(valbuilder_is_valid(builder) && dicey_type_is_valid(type));
-
-    if (builder_state_get(builder) != BUILDER_STATE_PENDING) {
-        return TRACE(DICEY_EINVAL);
-    }
-
-    builder->_list = (struct _dicey_value_builder_list) {
-        .type = type,
-    };
-
-    builder_state_set(builder, BUILDER_STATE_ARRAY);
-
-    return DICEY_OK;
+    return valbuilder_list_start(builder, BUILDER_STATE_ARRAY, type);
 }
 
 enum dicey_error dicey_value_builder_array_end(struct dicey_value_builder *const builder) {
@@ -360,6 +373,13 @@ enum dicey_error dicey_value_builder_next(
     case BUILDER_STATE_TUPLE:
         break;
 
+    case BUILDER_STATE_PAIR:
+        if (builder->_list.nitems >= 2) {
+            return TRACE(DICEY_EOVERFLOW);
+        }
+
+        break;
+
     default:
         return TRACE(DICEY_EINVAL);
     }
@@ -384,6 +404,53 @@ enum dicey_error dicey_value_builder_next(
         ._state = BUILDER_STATE_PENDING,
         ._root = elem_item,
     };
+
+    return DICEY_OK;
+}
+
+enum dicey_error dicey_value_builder_pair_start(struct dicey_value_builder *const builder) {
+    return valbuilder_list_start(builder, BUILDER_STATE_PAIR, DICEY_TYPE_INVALID);
+}
+
+enum dicey_error dicey_value_builder_pair_end(struct dicey_value_builder *const builder) {
+    assert(valbuilder_is_valid(builder));
+
+    if (builder_state_get(builder) != BUILDER_STATE_PAIR) {
+        return TRACE(DICEY_EINVAL);
+    }
+
+    const struct _dicey_value_builder_list *const list = &builder->_list;
+
+    assert(list->nitems <= 2);
+
+    if (list->nitems != 2) {
+        return TRACE(DICEY_EAGAIN);
+    }
+
+    assert(list->elems);
+
+    struct dicey_arg *const first = dicey_arg_move(NULL, &list->elems[0]), *const second =
+                                                                               dicey_arg_move(NULL, &list->elems[1]);
+
+    // get rid of the support array
+    free(list->elems);
+
+    if (!first || !second) {
+        dicey_arg_free(first);
+        dicey_arg_free(second);
+
+        return TRACE(DICEY_ENOMEM);
+    }
+
+    *builder->_root = (struct dicey_arg) {
+        .type = DICEY_TYPE_PAIR,
+        .pair = {
+            .first = first,
+            .second = second,
+        },
+    };
+
+    *builder = (struct dicey_value_builder) { 0 };
 
     return DICEY_OK;
 }
@@ -416,17 +483,7 @@ enum dicey_error dicey_value_builder_set(struct dicey_value_builder *const build
 }
 
 enum dicey_error dicey_value_builder_tuple_start(struct dicey_value_builder *const builder) {
-    assert(valbuilder_is_valid(builder));
-
-    if (builder_state_get(builder) != BUILDER_STATE_PENDING) {
-        return TRACE(DICEY_EINVAL);
-    }
-
-    builder->_list = (struct _dicey_value_builder_list) { 0 };
-
-    builder_state_set(builder, BUILDER_STATE_TUPLE);
-
-    return DICEY_OK;
+    return valbuilder_list_start(builder, BUILDER_STATE_TUPLE, DICEY_TYPE_INVALID);
 }
 
 enum dicey_error dicey_value_builder_tuple_end(struct dicey_value_builder *const builder) {

@@ -288,11 +288,35 @@ DICEY_EXPORT enum dicey_error dicey_value_builder_array_end(struct dicey_value_b
  * @return Error code. Possible errors are:
  *         - OK: The operation was successful
  *         - EINVAL: when `list` is not in a "list" state
+ *         - EOVERFLOW: when trying to add a third element to a pair
  */
 DICEY_EXPORT enum dicey_error dicey_value_builder_next(
     struct dicey_value_builder *list,
     struct dicey_value_builder *elem
 );
+
+/**
+ * @brief Starts building a pair value.
+ * @note This function locks the value builder, which enters in a "pair" state until pair_end is called.
+ * @param builder The value builder. Must be ready for writing and empty.
+ * @return Error code. Possible errors are:
+ *         - OK: The operation was successful
+ *         - EINVAL: The builder is not in the correct state
+ */
+DICEY_EXPORT enum dicey_error dicey_value_builder_pair_start(struct dicey_value_builder *builder);
+
+/**
+ * @brief Ends building a pair value.
+ * @note This function "completes" the value builder. The value builder can then be reused to build another value, but
+ *       the pair cannot be modified anymore. If the constructed node is the root of a value, this function does not
+ *       unlock the message builder. Call value_end to unlock it.
+ * @param builder The value builder. Must be in a "pair" state.
+ * @return Error code. Possible errors are:
+ *         - OK: The operation was successful
+ *         - EAGAIN: The pair is not fully constructed yet
+ *         - EINVAL: The builder is not in the pair state
+ */
+DICEY_EXPORT enum dicey_error dicey_value_builder_pair_end(struct dicey_value_builder *builder);
 
 /**
  * @brief Sets the value of a value builder.
