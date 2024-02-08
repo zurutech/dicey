@@ -267,7 +267,7 @@ struct dtf_result dtf_message_write(
     const struct dicey_arg *const value
 ) {
     if (dutl_zstring_size(path) == DICEY_EOVERFLOW) {
-        return (struct dtf_result) { .result = DICEY_EPATH_TOO_LONG };
+        return (struct dtf_result) { .result = TRACE(DICEY_EPATH_TOO_LONG) };
     }
 
     const ptrdiff_t needed_len = dtf_message_estimate_size(kind, path, selector, value);
@@ -385,7 +385,7 @@ struct dtf_result dtf_payload_load(union dtf_payload *const payload, struct dice
 
     // ensure we have at least the message kind
     if (!src->data || src->len < sizeof(struct dtf_payload_head)) {
-        return (struct dtf_result) { .result = DICEY_EAGAIN };
+        return (struct dtf_result) { .result = TRACE(DICEY_EAGAIN) };
     }
 
     struct dtf_payload_head head = { 0 };
@@ -400,11 +400,11 @@ struct dtf_result dtf_payload_load(union dtf_payload *const payload, struct dice
     // get the base size of the message (fixed part)
     ptrdiff_t needed_len = message_fixed_size(head.kind);
     if (needed_len < 0) {
-        return (struct dtf_result) { .result = DICEY_EBADMSG };
+        return (struct dtf_result) { .result = TRACE(DICEY_EBADMSG) };
     }
 
     if ((size_t) needed_len > src->len) {
-        return (struct dtf_result) { .result = DICEY_EAGAIN };
+        return (struct dtf_result) { .result = TRACE(DICEY_EAGAIN) };
     }
 
     // get the trailer, if any. Given that the trailer size is part of the fixed part, we know already if it's
@@ -415,19 +415,19 @@ struct dtf_result dtf_payload_load(union dtf_payload *const payload, struct dice
     }
 
     if (!payload_kind_is_valid(head.kind)) {
-        res.result = DICEY_EBADMSG;
+        res.result = TRACE(DICEY_EBADMSG);
 
         return res;
     }
 
     if (!dutl_checked_add(&needed_len, needed_len, trailer_size)) {
-        res.result = DICEY_EOVERFLOW;
+        res.result = TRACE(DICEY_EOVERFLOW);
 
         return res;
     }
 
     if ((size_t) needed_len > src->len) {
-        res.result = DICEY_EAGAIN;
+        res.result = TRACE(DICEY_EAGAIN);
 
         return res;
     }
@@ -435,7 +435,7 @@ struct dtf_result dtf_payload_load(union dtf_payload *const payload, struct dice
     // allocate the payload and then load it
     void *const data = malloc((size_t) needed_len);
     if (!data) {
-        res.result = DICEY_ENOMEM;
+        res.result = TRACE(DICEY_ENOMEM);
 
         return res;
     }
