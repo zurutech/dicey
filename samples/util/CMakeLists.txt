@@ -1,7 +1,20 @@
-file(GLOB utils_SRC
-    "include/*.h"
-    "src/*.c"
-    "src/*.h"
+set(utils_INCLUDES
+    "include/util/base64.h"
+    "include/util/dumper.h"
+    "include/util/getopt.h"
+    "include/util/packet-dump.h"
+    "include/util/packet-json.h"
+    "include/util/packet-xml.h"
+    "include/util/strext.h"
+)
+
+set(utils_SRC
+    "src/base64.c"
+    "src/dumper.c"
+    "src/getopt.c"
+    "src/packet-dump.c"
+    "src/packet-from-json.c"
+    "src/packet-from-xml.c"
 )
 
 function(embed_resources target)
@@ -25,7 +38,6 @@ function(embed_resources target)
 
         target_sources(${target} PRIVATE ${src_path} ${dst_path} )
     endforeach()
-
 endfunction()
 
 set(CMAKE_C_STANDARD 17)
@@ -77,7 +89,14 @@ if (NOT cJSON_FOUND)
     target_link_libraries(samples_util PUBLIC cjson)
 endif()
 
-target_sources(samples_util PRIVATE ${utils_SRC})
+target_sources(samples_util
+    PRIVATE ${utils_SRC}
+    PUBLIC 
+    FILE_SET headers
+    TYPE HEADERS
+    BASE_DIRS include
+    FILES ${utils_HEADERS}
+)
 
 embed_resources(samples_util
     "${DICEY_ROOT}/schemas/packet.xsd"

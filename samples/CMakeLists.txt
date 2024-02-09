@@ -1,16 +1,14 @@
 add_subdirectory(util)
 
-file(GLOB samples_SRC
-    "*.c"
-)
+set(SAMPLE_FILES base64.c dump.c load.c)
 
 set(CMAKE_C_STANDARD 17)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 
-foreach(sample IN LISTS samples_SRC)
-    get_filename_component(target_name ${sample} NAME_WE)
+foreach(SAMPLE IN LISTS SAMPLE_FILES)
+    get_filename_component(target_name ${SAMPLE} NAME_WE)
     
-    add_executable("${target_name}" "${sample}")
+    add_executable("${target_name}" "${SAMPLE}")
     
     # add the include directory of the parent project
     target_link_libraries("${target_name}" PRIVATE "${PROJECT_NAME}" samples_util)

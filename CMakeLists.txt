@@ -18,18 +18,6 @@ if (CMAKE_CROSSCOMPILING AND NOT CMAKE_SYSROOT)
     message(STATUS "Cross compiling without a sysroot - switching to internal libraries")
 endif()
 
-set(PUBLIC_HEADERS
-    "include/dicey/builders.h"
-    "include/dicey/dicey.h"
-    "include/dicey/errors.h"
-    "include/dicey/packet.h"
-    "include/dicey/type.h"
-    "include/dicey/value.h"
-    "include/dicey/version.h"
-    "include/dicey/views.h"
-    "include/dicey/internal/data-info.h"
-)
-
 set(CMAKE_C_STANDARD 17)
 
 set(CMAKE_C_STANDARD_REQUIRED ON)
@@ -108,11 +96,24 @@ endif()
 
 generate_export_header(${PROJECT_NAME})
 
+set(PUBLIC_HEADERS
+    "include/dicey/builders.h"
+    "include/dicey/dicey.h"
+    "include/dicey/errors.h"
+    "include/dicey/packet.h"
+    "include/dicey/type.h"
+    "include/dicey/value.h"
+    "include/dicey/version.h"
+    "include/dicey/views.h"
+
+    # internal but public
+    "include/dicey/internal/data-info.h"
+)
+
 set(CORE_SOURCES
     # common
     src/errors.c
 
-    
     # wirefmt
     
     src/wirefmt/builders.c 
