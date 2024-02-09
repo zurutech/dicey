@@ -9,9 +9,9 @@
 
 #include <dicey/internal/data-info.h>
 
-#include "trace.h"
-#include "util.h"
-#include "view-ops.h"
+#include "sup/trace.h"
+#include "sup/util.h"
+#include "sup/view-ops.h"
 
 #include "value.h"
 

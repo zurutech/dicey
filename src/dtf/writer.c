@@ -6,9 +6,9 @@
 #include <dicey/errors.h>
 #include <dicey/views.h>
 
-#include "trace.h"
-#include "util.h"
-#include "view-ops.h"
+#include "sup/trace.h"
+#include "sup/util.h"
+#include "sup/view-ops.h"
 
 #include "writer.h"
 

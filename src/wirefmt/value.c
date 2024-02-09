@@ -15,8 +15,8 @@
 
 #include "dtf/dtf.h"
 
-#include "trace.h"
-#include "util.h"
+#include "sup/trace.h"
+#include "sup/util.h"
 
 static enum dicey_error value_get_list(const struct dicey_value *const value, struct dicey_list *const dest) {
     assert(value && dest);

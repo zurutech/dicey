@@ -18,17 +18,16 @@ if (CMAKE_CROSSCOMPILING AND NOT CMAKE_SYSROOT)
     message(STATUS "Cross compiling without a sysroot - switching to internal libraries")
 endif()
 
-file(GLOB public_HEADERS
-    "include/dicey/*.h"
-    "include/dicey/internal/*.h"
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>/*.h
-)
-
-file(GLOB common_SRC
-    "src/*.c"
-    "src/*.h"
-    "src/dtf/*.c"
-    "src/dtf/*.h"
+set(PUBLIC_HEADERS
+    "include/dicey/builders.h"
+    "include/dicey/dicey.h"
+    "include/dicey/errors.h"
+    "include/dicey/packet.h"
+    "include/dicey/type.h"
+    "include/dicey/value.h"
+    "include/dicey/version.h"
+    "include/dicey/views.h"
+    "include/dicey/internal/data-info.h"
 )
 
 set(CMAKE_C_STANDARD 17)
@@ -101,7 +100,6 @@ if (WIN32 AND CMAKE_BUILD_TYPE STREQUAL "Debug")
     target_link_libraries(${PROJECT_NAME} PUBLIC dbghelp)
 endif()
 
-
 if (MSVC)
     add_compile_options(/W4 /WX)
 else()
@@ -110,14 +108,53 @@ endif()
 
 generate_export_header(${PROJECT_NAME})
 
+set(CORE_SOURCES
+    # common
+    src/errors.c
+
+    # dtf
+
+    src/dtf/dtf.h
+    src/dtf/payload.c
+    src/dtf/payload.h
+    src/dtf/to.h
+    src/dtf/value-probe.c
+    src/dtf/value-write.c
+    src/dtf/value.h
+    src/dtf/writer.c
+    src/dtf/writer.h
+
+    # wirefmt
+
+    src/wirefmt/builders.c 
+    src/wirefmt/packet-args.c
+    src/wirefmt/packet-args.h
+    src/wirefmt/packet.c
+    src/wirefmt/typedescr.c
+    src/wirefmt/typedescr.h
+    src/wirefmt/value.c
+
+
+    # sup
+
+    src/sup/trace.c
+    src/sup/trace.h
+    src/sup/unsafe.c
+    src/sup/unsafe.h
+    src/sup/util.c
+    src/sup/util.h
+    src/sup/view-ops.c
+    src/sup/view-ops.h
+)
+
 target_sources(
     ${PROJECT_NAME}
-    PRIVATE ${common_SRC}
+    PRIVATE ${CORE_SOURCES}
     PUBLIC
     FILE_SET headers
     TYPE HEADERS
     BASE_DIRS include
-    FILES ${public_HEADERS}
+    FILES ${PUBLIC_HEADERS}
 )
     
 target_include_directories(${PROJECT_NAME}

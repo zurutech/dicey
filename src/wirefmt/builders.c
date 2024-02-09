@@ -15,9 +15,10 @@
 
 #include "dtf/dtf.h"
 
+#include "sup/trace.h"
+#include "sup/view-ops.h"
+
 #include "packet-args.h"
-#include "trace.h"
-#include "view-ops.h"
 
 #define DEFAULT_VAL_CAP 16U
 

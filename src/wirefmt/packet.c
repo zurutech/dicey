@@ -16,8 +16,8 @@
 
 #include "dtf/dtf.h"
 
-#include "trace.h"
-#include "view-ops.h"
+#include "sup/trace.h"
+#include "sup/view-ops.h"
 
 static enum dicey_op msgkind_from_dtf(const ptrdiff_t kind) {
     switch (kind) {

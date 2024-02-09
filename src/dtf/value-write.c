@@ -10,11 +10,11 @@
 #include <dicey/value.h>
 #include <dicey/views.h>
 
-#include "util.h"
+#include "sup/trace.h"
+#include "sup/util.h"
+#include "sup/view-ops.h"
 
 #include "to.h"
-#include "trace.h"
-#include "view-ops.h"
 #include "writer.h"
 
 #include "value.h"
