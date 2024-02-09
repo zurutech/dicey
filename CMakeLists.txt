@@ -112,20 +112,9 @@ set(CORE_SOURCES
     # common
     src/errors.c
 
-    # dtf
-
-    src/dtf/dtf.h
-    src/dtf/payload.c
-    src/dtf/payload.h
-    src/dtf/to.h
-    src/dtf/value-probe.c
-    src/dtf/value-write.c
-    src/dtf/value.h
-    src/dtf/writer.c
-    src/dtf/writer.h
-
+    
     # wirefmt
-
+    
     src/wirefmt/builders.c 
     src/wirefmt/packet-args.c
     src/wirefmt/packet-args.h
@@ -133,6 +122,15 @@ set(CORE_SOURCES
     src/wirefmt/typedescr.c
     src/wirefmt/typedescr.h
     src/wirefmt/value.c
+    src/wirefmt/dtf/dtf.h
+    src/wirefmt/dtf/payload.c
+    src/wirefmt/dtf/payload.h
+    src/wirefmt/dtf/to.h
+    src/wirefmt/dtf/value-probe.c
+    src/wirefmt/dtf/value-write.c
+    src/wirefmt/dtf/value.h
+    src/wirefmt/dtf/writer.c
+    src/wirefmt/dtf/writer.h
 
 
     # sup
