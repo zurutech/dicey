@@ -363,7 +363,7 @@ static struct util_xml_errors xml_validate_with_internal_schema(xmlDoc *const do
         const bool fail = xmlSchemaValidateDoc(ctxt, doc);
         xmlSchemaFreeValidCtxt(ctxt);
 
-        assert(fail == (bool) errors.errors);
+        assert(fail == (bool) { errors.errors });
         (void) fail; // suppress unused variable warning
     }
 
