@@ -1,5 +1,5 @@
 from libc.stddef cimport ptrdiff_t
-from libc.stdint cimport int8_t, int16_t, int32_t, uint8_t, uint16_t, uint32_t, uint64_t
+from libc.stdint cimport int8_t, int16_t, int32_t, int64_t, uint8_t, uint16_t, uint32_t, uint64_t
 
 cdef extern from "dicey/dicey.h":
     ctypedef uint8_t dicey_bool
@@ -26,25 +26,25 @@ cdef extern from "dicey/dicey.h":
     cdef ptrdiff_t dicey_selector_size(dicey_selector sel)
 
     ctypedef enum dicey_type:
-        DICEY_TYPE_INVALID = 0,
-        DICEY_TYPE_UNIT = ord('$'),
-        DICEY_TYPE_BOOL = ord('b'),
-        DICEY_TYPE_BYTE = ord('c'),
-        DICEY_TYPE_FLOAT = ord('f'),
-        DICEY_TYPE_INT16 = ord('n'),
-        DICEY_TYPE_INT32 = ord('i'),
-        DICEY_TYPE_INT64 = ord('x'),
-        DICEY_TYPE_UINT16 = ord('q'),
-        DICEY_TYPE_UINT32 = ord('u'),
-        DICEY_TYPE_UINT64 = ord('t'),
-        DICEY_TYPE_ARRAY = ord('['),
-        DICEY_TYPE_TUPLE = ord('('),
-        DICEY_TYPE_PAIR = ord('{'),
-        DICEY_TYPE_BYTES = ord('y'),
-        DICEY_TYPE_STR = ord('s'),
-        DICEY_TYPE_PATH = ord('@'),
-        DICEY_TYPE_SELECTOR = ord('%'),
-        DICEY_TYPE_ERROR = ord('e')
+        DICEY_TYPE_INVALID
+        DICEY_TYPE_UNIT
+        DICEY_TYPE_BOOL
+        DICEY_TYPE_BYTE
+        DICEY_TYPE_FLOAT
+        DICEY_TYPE_INT16
+        DICEY_TYPE_INT32
+        DICEY_TYPE_INT64
+        DICEY_TYPE_UINT16
+        DICEY_TYPE_UINT32
+        DICEY_TYPE_UINT64
+        DICEY_TYPE_ARRAY
+        DICEY_TYPE_TUPLE
+        DICEY_TYPE_PAIR
+        DICEY_TYPE_BYTES
+        DICEY_TYPE_STR
+        DICEY_TYPE_PATH
+        DICEY_TYPE_SELECTOR
+        DICEY_TYPE_ERROR
 
     cdef bint dicey_type_is_container(dicey_type type)
     cdef bint dicey_type_is_valid(dicey_type type)
