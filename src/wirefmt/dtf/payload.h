@@ -36,36 +36,36 @@ static inline bool dtf_payload_kind_is_message(enum dtf_payload_kind kind) {
 
 struct dtf_result {
     ptrdiff_t result;
-    size_t    size;
-    void     *data;
+    size_t size;
+    void *data;
 };
 
 struct dtf_result dtf_bye_write(struct dicey_view_mut dest, uint32_t seq, uint32_t reason);
 struct dtf_result dtf_hello_write(struct dicey_view_mut dest, uint32_t seq, uint32_t version);
 
 ptrdiff_t dtf_message_estimate_size(
-    enum dtf_payload_kind   kind,
-    const char             *path,
-    struct dicey_selector   selector,
+    enum dtf_payload_kind kind,
+    const char *path,
+    struct dicey_selector selector,
     const struct dicey_arg *value
 );
 
 struct dtf_message_content {
-    const char           *path;
+    const char *path;
     struct dicey_selector selector;
 
     const struct dtf_value *value;
-    size_t                  value_len;
+    size_t value_len;
 };
 
 ptrdiff_t dtf_message_get_content(const struct dtf_message *msg, size_t alloc_len, struct dtf_message_content *dest);
 
 struct dtf_result dtf_message_write(
-    struct dicey_view_mut   dest,
-    enum dtf_payload_kind   kind,
-    uint32_t                seq,
-    const char             *path,
-    struct dicey_selector   selector,
+    struct dicey_view_mut dest,
+    enum dtf_payload_kind kind,
+    uint32_t seq,
+    const char *path,
+    struct dicey_selector selector,
     const struct dicey_arg *value
 );
 
@@ -75,12 +75,12 @@ union dtf_payload {
     struct dtf_payload_head *header;
 
     struct dtf_message *msg;
-    struct dtf_hello   *hello;
-    struct dtf_bye     *bye;
+    struct dtf_hello *hello;
+    struct dtf_bye *bye;
 };
 
 enum dtf_payload_kind dtf_payload_get_kind(union dtf_payload msg);
-ptrdiff_t             dtf_payload_get_seq(union dtf_payload msg);
+ptrdiff_t dtf_payload_get_seq(union dtf_payload msg);
 
 struct dtf_result dtf_payload_load(union dtf_payload *dest, struct dicey_view *src);
 

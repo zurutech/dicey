@@ -40,7 +40,7 @@ enum dicey_error dicey_iterator_next(struct dicey_iterator *const iter, struct d
         return TRACE(DICEY_ENODATA);
     }
 
-    struct dicey_view       view = iter->_data;
+    struct dicey_view view = iter->_data;
     struct dtf_probed_value probed_value = { .type = iter->_type };
 
     const ptrdiff_t read_bytes = iter->_type == DICEY_VARIANT_ID
@@ -239,8 +239,8 @@ DICEY_VALUE_GET_IMPL_TRIVIAL(byte, uint8_t, DICEY_TYPE_BYTE, byte)
 
 enum dicey_error dicey_value_get_bytes(
     const struct dicey_value *const value,
-    const uint8_t **const           dest,
-    size_t *const                   nbytes
+    const uint8_t **const dest,
+    size_t *const nbytes
 ) {
     assert(value && dest && nbytes);
 

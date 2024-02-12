@@ -22,8 +22,8 @@ struct util_xml_error {
 };
 
 struct util_xml_errors {
-    uint32_t                      nerrs;
-    uint32_t                      cap;
+    uint32_t nerrs;
+    uint32_t cap;
     const struct util_xml_error **errors;
 };
 

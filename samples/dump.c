@@ -22,7 +22,7 @@
 
 struct pupil {
     const char *name;
-    uint8_t     age;
+    uint8_t age;
 };
 
 static enum dicey_error pupil_dump(const struct pupil *const pupil, struct dicey_value_builder *const tuple) {
@@ -39,11 +39,11 @@ struct classroom {
     const char *name;
 
     struct pupil *pupils;
-    size_t        npupils;
+    size_t npupils;
 };
 
 static enum dicey_error classroom_dump(
-    const struct classroom *const     classroom,
+    const struct classroom *const classroom,
     struct dicey_value_builder *const tuple
 ) {
     struct dicey_value_builder item = { 0 };
@@ -96,8 +96,8 @@ static enum dicey_error classroom_dump(
 }
 
 static enum dicey_error classes_dump(
-    const struct classroom *const     classes,
-    const size_t                      nclasses,
+    const struct classroom *const classes,
+    const size_t nclasses,
     struct dicey_value_builder *const array
 ) {
     enum dicey_error err = dicey_value_builder_array_start(array, DICEY_TYPE_TUPLE);
@@ -134,7 +134,7 @@ enum output_fmt_choice {
 
 struct output_fmt_out {
     FILE *f;
-    bool  is_binary;
+    bool is_binary;
 };
 
 static bool output_fmt_pick(struct output_fmt_out *const out, const enum output_fmt_choice choice, const char *fout) {
@@ -168,8 +168,8 @@ static bool output_fmt_pick(struct output_fmt_out *const out, const enum output_
 int main(const int argc, const char *argv[]) {
     (void) argc; // unused
 
-    const char *const      progname = argv[0];
-    const char            *fout = NULL;
+    const char *const progname = argv[0];
+    const char *fout = NULL;
     enum output_fmt_choice fmt = OUTPUT_FMT_UNDEF;
 
     while (*++argv) {

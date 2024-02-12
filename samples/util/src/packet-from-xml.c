@@ -25,10 +25,10 @@
 #include <util/strext.h>
 
 static uv_once_t libxml_init_once = UV_ONCE_INIT;
-xmlSchema       *schema = NULL;
+xmlSchema *schema = NULL;
 
 static struct xml_type_map {
-    const char     *name;
+    const char *name;
     enum dicey_type type;
 } mappings[] = {
     {"unit",      DICEY_TYPE_UNIT    },
@@ -52,7 +52,7 @@ static struct xml_type_map {
 };
 
 static void libxml_init(void) {
-    extern const unsigned char      schemas_packet_xsd[];
+    extern const unsigned char schemas_packet_xsd[];
     extern const unsigned long long schemas_packet_xsd_size;
 
     LIBXML_TEST_VERSION;
@@ -75,7 +75,7 @@ struct buffer_cache {
     struct buffer {
         void *data;
         void (*destructor)(void *);
-    }     *buffers;
+    } *buffers;
     size_t len;
     size_t cap;
 };
@@ -378,8 +378,8 @@ static void xml_validation_err_cb(void *const ctx, const xmlError *const err) {
 
 static struct util_xml_error *parse_selector(
     struct dicey_selector *const dest,
-    const char *const            selstr,
-    struct buffer_cache *const   cache
+    const char *const selstr,
+    struct buffer_cache *const cache
 ) {
     assert(dest && cache);
 
@@ -499,7 +499,7 @@ static struct util_xml_error *xml_get_attribute(const xmlNode *const node, const
 static struct util_xml_error *xml_get_bye_reason(const xmlNode *const item, enum dicey_bye_reason *const dest) {
     assert(item && dest);
 
-    char                        *value = NULL;
+    char *value = NULL;
     struct util_xml_error *const err = xml_get_attribute(item, "reason", &value);
     if (err) {
         return err;
@@ -530,8 +530,8 @@ static struct util_xml_error *xml_get_bye_reason(const xmlNode *const item, enum
 
 static struct util_xml_error *xml_to_bye(
     struct dicey_packet *const dest,
-    const uint32_t             seq,
-    const xmlNode *const       bye
+    const uint32_t seq,
+    const xmlNode *const bye
 ) {
     enum dicey_bye_reason reason = DICEY_BYE_REASON_INVALID;
 
@@ -546,7 +546,7 @@ static struct util_xml_error *xml_to_bye(
 }
 
 static struct util_xml_error *xml_get_errcode(uint16_t *const dest, const xmlNode *const errmsg) {
-    char                  *value = NULL;
+    char *value = NULL;
     struct util_xml_error *err = xml_get_attribute(errmsg, "code", &value);
     if (err) {
         return err;
@@ -564,8 +564,8 @@ static struct util_xml_error *xml_get_errcode(uint16_t *const dest, const xmlNod
 
 static struct util_xml_error *xml_get_error(
     struct dicey_error_arg *const dest,
-    const xmlNode *const          errmsg,
-    struct buffer_cache *const    cache
+    const xmlNode *const errmsg,
+    struct buffer_cache *const cache
 ) {
     assert(dest && errmsg && cache);
 
@@ -587,7 +587,7 @@ static struct util_xml_error *xml_get_error(
 static struct util_xml_error *xml_get_op(const xmlNode *const item, enum dicey_op *const dest) {
     assert(item && dest);
 
-    char                  *value = NULL;
+    char *value = NULL;
     struct util_xml_error *err = xml_get_attribute(item, "op", &value);
     if (err) {
         return err;
@@ -597,7 +597,7 @@ static struct util_xml_error *xml_get_op(const xmlNode *const item, enum dicey_o
         DICEY_OP_GET, DICEY_OP_SET, DICEY_OP_EXEC, DICEY_OP_EVENT, DICEY_OP_RESPONSE,
     };
 
-    enum dicey_op              found = DICEY_OP_INVALID;
+    enum dicey_op found = DICEY_OP_INVALID;
     const enum dicey_op *const end = values + sizeof values / sizeof *values;
 
     for (const enum dicey_op *op = values; op < end; ++op) {
@@ -619,8 +619,8 @@ static struct util_xml_error *xml_get_op(const xmlNode *const item, enum dicey_o
 }
 
 static struct util_xml_error *xml_get_path(
-    const char **const         dest,
-    const xmlNode *const       item,
+    const char **const dest,
+    const xmlNode *const item,
     struct buffer_cache *const cache
 ) {
     assert(item && dest && cache);
@@ -651,8 +651,8 @@ static struct util_xml_error *xml_get_path(
 
 static struct util_xml_error *xml_get_selector(
     struct dicey_selector *const dest,
-    const xmlNode *const         item,
-    struct buffer_cache *const   cache
+    const xmlNode *const item,
+    struct buffer_cache *const cache
 ) {
     assert(item && dest && cache);
 
@@ -675,7 +675,7 @@ static struct util_xml_error *xml_get_selector(
 static struct util_xml_error *xml_get_version(struct dicey_version *const dest, const xmlNode *const hello) {
     assert(dest && hello);
 
-    char                  *value = NULL;
+    char *value = NULL;
     struct util_xml_error *err = xml_get_attribute(hello, "version", &value);
     if (err) {
         return err;
@@ -683,7 +683,7 @@ static struct util_xml_error *xml_get_version(struct dicey_version *const dest, 
 
     errno = 0;
 
-    char               *end = NULL;
+    char *end = NULL;
     const unsigned long major = strtoul(value, &end, 10);
     if (end == value || *end != 'r' || errno == ERANGE || major > UINT16_MAX) {
         err = xml_error_on(hello, "invalid 'hello:version' attribute: '%s'", value);
@@ -709,18 +709,18 @@ exit:
 
 static struct util_xml_error *xml_to_value(
     struct dicey_value_builder *dest,
-    const xmlNode              *value,
-    struct buffer_cache        *cache
+    const xmlNode *value,
+    struct buffer_cache *cache
 );
 
 static struct util_xml_error *xml_to_list(
     struct dicey_value_builder *const list_builder,
-    const xmlNode                    *child,
-    struct buffer_cache *const        cache
+    const xmlNode *child,
+    struct buffer_cache *const cache
 ) {
     for (; child; child = xml_next(child->next)) {
         struct dicey_value_builder item_builder = { 0 };
-        const enum dicey_error     next_err = dicey_value_builder_next(list_builder, &item_builder);
+        const enum dicey_error next_err = dicey_value_builder_next(list_builder, &item_builder);
         if (next_err) {
             return xml_error_on(child, "failed to start building list item: %s", dicey_error_msg(next_err));
         }
@@ -736,8 +736,8 @@ static struct util_xml_error *xml_to_list(
 
 static struct util_xml_error *xml_to_array(
     struct dicey_value_builder *const array_builder,
-    const xmlNode *const              array,
-    struct buffer_cache *const        cache
+    const xmlNode *const array,
+    struct buffer_cache *const cache
 ) {
     char *typename = NULL;
     struct util_xml_error *err = xml_get_attribute(array, "type", &typename);
@@ -773,10 +773,10 @@ static struct util_xml_error *xml_to_array(
 
 static struct util_xml_error *xml_to_hello(
     struct dicey_packet *const dest,
-    const uint32_t             seq,
-    const xmlNode *const       hello
+    const uint32_t seq,
+    const xmlNode *const hello
 ) {
-    struct dicey_version         version = { 0 };
+    struct dicey_version version = { 0 };
     struct util_xml_error *const err = xml_get_version(&version, hello);
     if (err) {
         return err;
@@ -792,8 +792,8 @@ static struct util_xml_error *xml_to_hello(
 
 static struct util_xml_error *xml_to_pair(
     struct dicey_value_builder *const dest,
-    const xmlNode *const              pair,
-    struct buffer_cache *const        cache
+    const xmlNode *const pair,
+    struct buffer_cache *const cache
 ) {
     const enum dicey_error start_err = dicey_value_builder_pair_start(dest);
     if (start_err) {
@@ -815,8 +815,8 @@ static struct util_xml_error *xml_to_pair(
 
 static struct util_xml_error *xml_to_tuple(
     struct dicey_value_builder *const dest,
-    const xmlNode *const              tuple,
-    struct buffer_cache *const        cache
+    const xmlNode *const tuple,
+    struct buffer_cache *const cache
 ) {
     const enum dicey_error start_err = dicey_value_builder_tuple_start(dest);
     if (start_err) {
@@ -838,8 +838,8 @@ static struct util_xml_error *xml_to_tuple(
 
 static struct util_xml_error *xml_to_value(
     struct dicey_value_builder *const dest,
-    const xmlNode *const              value,
-    struct buffer_cache *const        cache
+    const xmlNode *const value,
+    struct buffer_cache *const cache
 ) {
     struct dicey_arg arg = { 0 }; // for simple types
 
@@ -848,7 +848,7 @@ static struct util_xml_error *xml_to_value(
         return err;
     }
 
-    xmlChar *const    xcontent = xmlNodeGetContent(value->children);
+    xmlChar *const xcontent = xmlNodeGetContent(value->children);
     const char *const content = (const char *) xcontent;
 
     size_t content_len = 0U;
@@ -943,7 +943,7 @@ static struct util_xml_error *xml_to_value(
 
     case DICEY_TYPE_BYTES:
         {
-            size_t         len = 0;
+            size_t len = 0;
             uint8_t *const data = util_base64_decode(content, content_len, &len);
 
             if (!data) {
@@ -1009,8 +1009,8 @@ static struct util_xml_error *xml_to_value(
 
 static struct util_xml_error *xml_to_message(
     struct dicey_packet *const dest,
-    const uint32_t             seq,
-    const xmlNode *const       message
+    const uint32_t seq,
+    const xmlNode *const message
 ) {
     struct dicey_message_builder msgbuild = { 0 };
 

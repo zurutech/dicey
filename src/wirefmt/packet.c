@@ -345,7 +345,7 @@ enum dicey_error dicey_packet_as_message(const struct dicey_packet packet, struc
         }
 
         struct dtf_probed_value value = { 0 };
-        struct dicey_view       value_view = { .data = content.value, .len = content.value_len };
+        struct dicey_view value_view = { .data = content.value, .len = content.value_len };
 
         const ptrdiff_t probed_bytes = dtf_value_probe(&value_view, &value);
         if (probed_bytes < 0) {
@@ -366,8 +366,8 @@ enum dicey_error dicey_packet_as_message(const struct dicey_packet packet, struc
 }
 
 enum dicey_error dicey_packet_bye(
-    struct dicey_packet *const  dest,
-    const uint32_t              seq,
+    struct dicey_packet *const dest,
+    const uint32_t seq,
     const enum dicey_bye_reason reason
 ) {
     assert(dest && dicey_bye_reason_is_valid(reason));
@@ -413,7 +413,7 @@ void dicey_packet_deinit(struct dicey_packet *const packet) {
 enum dicey_error dicey_packet_dump(const struct dicey_packet packet, void **const data, size_t *const nbytes) {
     assert(dicey_packet_is_valid(packet) && data && *data && nbytes);
 
-    struct dicey_view     src = { .data = packet.payload, .len = packet.nbytes };
+    struct dicey_view src = { .data = packet.payload, .len = packet.nbytes };
     struct dicey_view_mut dest = { .data = *data, .len = *nbytes };
 
     const ptrdiff_t dump_err = dicey_view_mut_write(&dest, src);
@@ -455,7 +455,7 @@ enum dicey_error dicey_packet_get_seq(const struct dicey_packet packet, uint32_t
 
 enum dicey_error dicey_packet_hello(
     struct dicey_packet *const dest,
-    const uint32_t             seq,
+    const uint32_t seq,
     const struct dicey_version version
 ) {
     assert(dest);
@@ -533,7 +533,7 @@ enum dicey_error dicey_packet_load(struct dicey_packet *const packet, const void
         .len = *nbytes,
     };
 
-    union dtf_payload       payload = { 0 };
+    union dtf_payload payload = { 0 };
     const struct dtf_result load_res = dtf_payload_load(&payload, &src);
     if (load_res.result < 0) {
         return load_res.result;

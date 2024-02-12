@@ -54,7 +54,7 @@ void util_dumper_dump_hex(struct util_dumper *const dumper, const void *const da
 
     while (next_chunk(&left, &chunk, HEX_LINE_BYTES)) {
         const uint8_t *const bytes = chunk.data;
-        const size_t         n = chunk.len;
+        const size_t n = chunk.len;
 
         for (size_t j = 0U; j < HEX_LINE_BYTES; ++j) {
             const bool line_start = j % HEX_LINE_BYTES == 0U;

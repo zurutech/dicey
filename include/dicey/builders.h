@@ -21,9 +21,9 @@ struct dicey_message_builder {
 
     int _state;
 
-    enum dicey_op         _type;
-    uint32_t              _seq;
-    const char           *_path;
+    enum dicey_op _type;
+    uint32_t _seq;
+    const char *_path;
     struct dicey_selector _selector;
 
     struct dicey_arg *_root; // Root argument of the message. Requires freeing by either discard or build
@@ -68,7 +68,7 @@ DICEY_EXPORT enum dicey_error dicey_message_builder_begin(struct dicey_message_b
  */
 DICEY_EXPORT enum dicey_error dicey_message_builder_build(
     struct dicey_message_builder *builder,
-    struct dicey_packet          *packet
+    struct dicey_packet *packet
 );
 
 /**
@@ -108,7 +108,7 @@ DICEY_EXPORT enum dicey_error dicey_message_builder_set_path(struct dicey_messag
  */
 DICEY_EXPORT enum dicey_error dicey_message_builder_set_selector(
     struct dicey_message_builder *builder,
-    struct dicey_selector         selector
+    struct dicey_selector selector
 );
 
 /**
@@ -131,26 +131,26 @@ struct dicey_arg {
     enum dicey_type type; /**< Type of the argument. Must match the active member of the union below. */
 
     union {
-        dicey_bool  boolean;  /**< Boolean value. */
-        dicey_byte  byte;     /**< Byte value. */
+        dicey_bool boolean;   /**< Boolean value. */
+        dicey_byte byte;      /**< Byte value. */
         dicey_float floating; /**< Floating-point value. */
-        dicey_i16   i16;      /**< 16-bit signed integer value. */
-        dicey_i32   i32;      /**< 32-bit signed integer value. */
-        dicey_i64   i64;      /**< 64-bit signed integer value. */
-        dicey_u16   u16;      /**< 16-bit unsigned integer value. */
-        dicey_u32   u32;      /**< 32-bit unsigned integer value. */
-        dicey_u64   u64;      /**< 64-bit unsigned integer value. */
+        dicey_i16 i16;        /**< 16-bit signed integer value. */
+        dicey_i32 i32;        /**< 32-bit signed integer value. */
+        dicey_i64 i64;        /**< 64-bit signed integer value. */
+        dicey_u16 u16;        /**< 16-bit unsigned integer value. */
+        dicey_u32 u32;        /**< 32-bit unsigned integer value. */
+        dicey_u64 u64;        /**< 64-bit unsigned integer value. */
 
         struct dicey_array_arg {
-            enum dicey_type         type;   /**< Type of the array elements. */
-            uint16_t                nitems; /**< Number of items in the array. */
-            const struct dicey_arg *elems;  /**< Children elements, which are required to be of type `type` */
-        } array;                            /**< Array value. */
+            enum dicey_type type;          /**< Type of the array elements. */
+            uint16_t nitems;               /**< Number of items in the array. */
+            const struct dicey_arg *elems; /**< Children elements, which are required to be of type `type` */
+        } array;                           /**< Array value. */
 
         struct dicey_tuple_arg {
-            uint16_t                nitems; /**< Number of items in the tuple. */
-            const struct dicey_arg *elems;  /**< Children elements, which are represented as variants */
-        } tuple;                            /**< Tuple value. */
+            uint16_t nitems;               /**< Number of items in the tuple. */
+            const struct dicey_arg *elems; /**< Children elements, which are represented as variants */
+        } tuple;                           /**< Tuple value. */
 
         struct dicey_pair_arg {
             const struct dicey_arg *first;  /**< First element of the pair. */
@@ -158,7 +158,7 @@ struct dicey_arg {
         } pair;                             /**< Pair value. Both values are represented as variants. */
 
         struct dicey_bytes_arg {
-            uint32_t       len;  /**< Length of the byte array. */
+            uint32_t len;        /**< Length of the byte array. */
             const uint8_t *data; /**< Byte array data. Note: must be alive for the entire lifetime of the argument */
         } bytes;                 /**< Byte array value. */
 
@@ -171,7 +171,7 @@ struct dicey_arg {
         struct dicey_selector selector;
 
         struct dicey_error_arg {
-            uint16_t    code;    /**< Error code (any value is fine, this is not defined yet)*/
+            uint16_t code;       /**< Error code (any value is fine, this is not defined yet)*/
             const char *message; /**< Error message. Note: must be alive for the entire lifetime of the argument */
         } error;                 /**< Error value. */
     };
@@ -194,7 +194,7 @@ struct dicey_arg {
  */
 DICEY_EXPORT enum dicey_error dicey_message_builder_set_value(
     struct dicey_message_builder *builder,
-    struct dicey_arg              value
+    struct dicey_arg value
 );
 
 /**
@@ -217,8 +217,8 @@ struct dicey_value_builder {
         enum dicey_type type; // type of the elements. Only valid if the value is an array
 
         // dynamic array of elements. Only valid if the value is an array or a tuple
-        uint16_t          nitems;
-        size_t            cap;
+        uint16_t nitems;
+        size_t cap;
         struct dicey_arg *elems;
     } _list;
 };
@@ -235,7 +235,7 @@ struct dicey_value_builder {
  */
 DICEY_EXPORT enum dicey_error dicey_message_builder_value_start(
     struct dicey_message_builder *builder,
-    struct dicey_value_builder   *value
+    struct dicey_value_builder *value
 );
 
 /**
@@ -251,7 +251,7 @@ DICEY_EXPORT enum dicey_error dicey_message_builder_value_start(
  */
 DICEY_EXPORT enum dicey_error dicey_message_builder_value_end(
     struct dicey_message_builder *builder,
-    struct dicey_value_builder   *value
+    struct dicey_value_builder *value
 );
 
 /**
@@ -265,7 +265,7 @@ DICEY_EXPORT enum dicey_error dicey_message_builder_value_end(
  */
 DICEY_EXPORT enum dicey_error dicey_value_builder_array_start(
     struct dicey_value_builder *builder,
-    enum dicey_type             type
+    enum dicey_type type
 );
 
 /**

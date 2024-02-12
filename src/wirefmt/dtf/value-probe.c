@@ -49,7 +49,7 @@ static ptrdiff_t array_probe(struct dicey_view *const src, union _dicey_data_inf
     }
 
     struct dicey_view elems = { 0 };
-    const ptrdiff_t   content_read_res = list_probe(src, header.nbytes, &elems);
+    const ptrdiff_t content_read_res = list_probe(src, header.nbytes, &elems);
     if (content_read_res < 0) {
         return content_read_res;
     }
@@ -124,7 +124,7 @@ static ptrdiff_t error_probe(struct dicey_view *const src, struct dicey_errmsg *
         return header_read_res;
     }
 
-    const char     *msg = NULL;
+    const char *msg = NULL;
     const ptrdiff_t content_read_res = dicey_view_as_zstring(src, &msg);
     if (content_read_res < 0) {
         return content_read_res;
@@ -162,7 +162,7 @@ static ptrdiff_t pair_probe(struct dicey_view *const src, union _dicey_data_info
     }
 
     struct dicey_view elems = { 0 };
-    const ptrdiff_t   content_read_res = list_probe(src, header.nbytes, &elems);
+    const ptrdiff_t content_read_res = list_probe(src, header.nbytes, &elems);
     if (content_read_res < 0) {
         return content_read_res;
     }
@@ -200,7 +200,7 @@ static ptrdiff_t tuple_probe(struct dicey_view *const src, union _dicey_data_inf
     }
 
     struct dicey_view elems = { 0 };
-    const ptrdiff_t   content_read_res = list_probe(src, header.nbytes, &elems);
+    const ptrdiff_t content_read_res = list_probe(src, header.nbytes, &elems);
     if (content_read_res < 0) {
         return content_read_res;
     }
@@ -287,8 +287,8 @@ static ptrdiff_t value_header_read(struct dicey_view *const src, struct dtf_valu
 }
 
 static ptrdiff_t value_probe_container(
-    const enum dicey_type         type,
-    struct dicey_view *const      src,
+    const enum dicey_type type,
+    struct dicey_view *const src,
     union _dicey_data_info *const data
 ) {
     switch (type) {
@@ -308,8 +308,8 @@ static ptrdiff_t value_probe_container(
 }
 
 static ptrdiff_t value_probe_dynamic(
-    const enum dicey_type         type,
-    struct dicey_view *const      src,
+    const enum dicey_type type,
+    struct dicey_view *const src,
     union _dicey_data_info *const data
 ) {
     switch (type) {
@@ -346,7 +346,7 @@ ptrdiff_t dtf_value_probe(struct dicey_view *const src, struct dtf_probed_value 
     }
 
     union _dicey_data_info data = { 0 };
-    const ptrdiff_t        content_read_res = dtf_value_probe_as(header.type, src, &data);
+    const ptrdiff_t content_read_res = dtf_value_probe_as(header.type, src, &data);
 
     if (content_read_res < 0) {
         return content_read_res;
@@ -366,8 +366,8 @@ ptrdiff_t dtf_value_probe(struct dicey_view *const src, struct dtf_probed_value 
 }
 
 ptrdiff_t dtf_value_probe_as(
-    const enum dicey_type         type,
-    struct dicey_view *const      src,
+    const enum dicey_type type,
+    struct dicey_view *const src,
     union _dicey_data_info *const info
 ) {
     assert(src && info);

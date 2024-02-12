@@ -83,9 +83,9 @@ int main(const int argc, char *const *argv) {
     (void) argc;
 
     const char *const progname = argv[0];
-    const char       *fin = NULL, *fout = NULL;
-    enum load_mode    mode = LOAD_MODE_PROBE;
-    bool              quiet = false, verbose = false;
+    const char *fin = NULL, *fout = NULL;
+    enum load_mode mode = LOAD_MODE_PROBE;
+    bool quiet = false, verbose = false;
 
     int opt = 0;
 
@@ -177,10 +177,10 @@ int main(const int argc, char *const *argv) {
     }
 
     uint8_t *dumped_bytes = NULL;
-    size_t   nbytes = 0, bcap = 0;
+    size_t nbytes = 0, bcap = 0;
 
     while (!feof(in)) {
-        uint8_t      buf[4096];
+        uint8_t buf[4096];
         const size_t n = fread(buf, 1, sizeof buf, in);
         if (!n) {
             break;

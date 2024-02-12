@@ -39,9 +39,9 @@ enum dicey_error {
  * @brief Structure that describes an error code.
  */
 struct dicey_error_def {
-    enum dicey_error errnum;  /**< The error code. */
-    const char      *name;    /**< The name of the error code in PascalCase. */
-    const char      *message; /**< The error message. */
+    enum dicey_error errnum; /**< The error code. */
+    const char *name;        /**< The name of the error code in PascalCase. */
+    const char *message;     /**< The error message. */
 };
 
 /**

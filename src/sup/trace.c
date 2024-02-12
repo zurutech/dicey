@@ -70,8 +70,8 @@ static void print_trace(const enum dicey_error errnum) {
         NULL
     )) {
         // Print the stack frame information
-        DWORD64            address = stack_frame.AddrPC.Offset;
-        char               symbol_buffer[sizeof(IMAGEHLP_SYMBOL64) + MAX_SYM_NAME * sizeof(TCHAR)];
+        DWORD64 address = stack_frame.AddrPC.Offset;
+        char symbol_buffer[sizeof(IMAGEHLP_SYMBOL64) + MAX_SYM_NAME * sizeof(TCHAR)];
         PIMAGEHLP_SYMBOL64 symbol = (PIMAGEHLP_SYMBOL64) symbol_buffer;
         symbol->SizeOfStruct = sizeof(IMAGEHLP_SYMBOL64);
         symbol->MaxNameLength = MAX_SYM_NAME;
@@ -106,7 +106,7 @@ static bool is_debugger_present(void) {
         return false;
     }
 
-    char          buf[4096] = { 0 };
+    char buf[4096] = { 0 };
     const ssize_t num_read = read(status_fd, buf, sizeof(buf) - 1);
     close(status_fd);
 
@@ -116,7 +116,7 @@ static bool is_debugger_present(void) {
 
     buf[num_read] = '\0';
 
-    const char        tracerPidString[] = "TracerPid:";
+    const char tracerPidString[] = "TracerPid:";
     const char *const tracer_pid_ptr = strstr(buf, tracerPidString);
     if (!tracer_pid_ptr) {
         return false;
@@ -152,7 +152,7 @@ static bool is_debugger_present(void) {
         [3] = getpid(),
     };
 
-    size_t    size = sizeof(info);
+    size_t size = sizeof(info);
     const int junk = sysctl(mib, sizeof(mib) / sizeof(*mib), &info, &size, NULL, 0);
     assert(!junk);
 
@@ -170,7 +170,7 @@ void trigger_breakpoint(void) {
 }
 
 static void print_trace(const enum dicey_error errnum) {
-    void     *buffer[32];
+    void *buffer[32];
     const int nptrs = backtrace(buffer, sizeof buffer / sizeof *buffer);
 
     fprintf(stderr, ">>DICEY_TRACE<< error: %s\n", dicey_error_msg(errnum));
@@ -189,8 +189,8 @@ static inline void print_trace(const enum dicey_error errnum) {
 #include <uv.h>
 
 static uv_once_t trace_enabled_flag = UV_ONCE_INIT;
-static bool      trace_enabled = false;
-static bool      under_debug = false;
+static bool trace_enabled = false;
+static bool under_debug = false;
 
 static void test_trace_enabled(void) {
     const char *const trace_env = getenv("DICEY_TRACE");

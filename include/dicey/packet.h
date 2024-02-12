@@ -141,18 +141,18 @@ struct dicey_hello {
  * @brief Structure representing a message in a packet.
  */
 struct dicey_message {
-    enum dicey_op         type;     /**< Operation type */
-    const char           *path;     /**< Path to operate on or that originated an event/response */
+    enum dicey_op type;             /**< Operation type */
+    const char *path;               /**< Path to operate on or that originated an event/response */
     struct dicey_selector selector; /**< Selector for the (trait:element) located at path target of this message */
-    struct dicey_value    value;    /**< Value either returned or to be submitted to the server*/
+    struct dicey_value value;       /**< Value either returned or to be submitted to the server*/
 };
 
 /**
  * @brief Structure representing a packet.
  */
 struct dicey_packet {
-    void  *payload; /**< Raw payload, castable to uint8_t* and ready to be sent on the wire */
-    size_t nbytes;  /**< Number of bytes allocated in payload*/
+    void *payload; /**< Raw payload, castable to uint8_t* and ready to be sent on the wire */
+    size_t nbytes; /**< Number of bytes allocated in payload*/
 };
 
 /**

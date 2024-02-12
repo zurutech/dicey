@@ -8,8 +8,8 @@
 int getopt(const int nargc, char *const nargv[], const char *const ostr);
 
 extern char *optarg;
-extern int   optind, opterr, optopt;
-extern int   optreset;
+extern int optind, opterr, optopt;
+extern int optreset;
 
 #else
 

@@ -139,7 +139,7 @@ static enum dicey_error json_to_version(struct dicey_version *const dest, const 
 
     errno = 0;
 
-    char               *end = NULL;
+    char *end = NULL;
     const unsigned long major = strtoul(value, &end, 10);
     if (end == value || *end != 'r' || errno == ERANGE || major > UINT16_MAX) {
         return DICEY_EBADMSG;
@@ -166,7 +166,7 @@ static enum dicey_error json_to_hello(struct dicey_packet *const dest, const cJS
         return DICEY_EBADMSG;
     }
 
-    struct dicey_version   version = { 0 };
+    struct dicey_version version = { 0 };
     const enum dicey_error res = json_to_version(&version, name_item);
     if (res) {
         return res;
@@ -226,7 +226,7 @@ static enum dicey_error json_to_value(struct dicey_value_builder *const dest, co
             }
 
             struct dicey_value_builder item = { 0 };
-            const int                  array_size = cJSON_GetArraySize(value);
+            const int array_size = cJSON_GetArraySize(value);
             for (int i = 0; i < array_size; ++i) {
                 const cJSON *const json_item = cJSON_GetArrayItem(value, i);
 
@@ -248,7 +248,7 @@ static enum dicey_error json_to_value(struct dicey_value_builder *const dest, co
             }
 
             struct dicey_value_builder item = { 0 };
-            cJSON                     *child = value->child;
+            cJSON *child = value->child;
             while (child) {
                 err = dicey_value_builder_next(dest, &item);
                 if (err) {
@@ -288,7 +288,7 @@ static enum dicey_error json_to_message(struct dicey_packet *const dest, const c
     }
 
     struct dicey_selector selector = { 0 };
-    const cJSON *const    selector_item = cJSON_GetObjectItem(message, "selector");
+    const cJSON *const selector_item = cJSON_GetObjectItem(message, "selector");
     if (selector_item) {
         const enum dicey_error res = json_to_selector(&selector, selector_item);
         if (res) {
@@ -297,7 +297,7 @@ static enum dicey_error json_to_message(struct dicey_packet *const dest, const c
     }
 
     struct dicey_message_builder msgbuild = { 0 };
-    enum dicey_error             err = dicey_message_builder_init(&msgbuild);
+    enum dicey_error err = dicey_message_builder_init(&msgbuild);
     if (err) {
         return err;
     }

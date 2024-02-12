@@ -16,7 +16,7 @@ static void dump_list(struct util_dumper *const dumper, const struct dicey_list 
 
     struct dicey_iterator iter = dicey_list_iter(list);
     for (size_t i = 0U; dicey_iterator_has_next(iter); ++i) {
-        struct dicey_value     item = { 0 };
+        struct dicey_value item = { 0 };
         const enum dicey_error err = dicey_iterator_next(&iter, &item);
         assert(!err);
         (void) err; // silence unused warning
@@ -30,7 +30,7 @@ static void dump_list(struct util_dumper *const dumper, const struct dicey_list 
 static void dump_array(struct util_dumper *const dumper, const struct dicey_value *const value) {
     assert(dumper && value);
 
-    struct dicey_list      list = { 0 };
+    struct dicey_list list = { 0 };
     const enum dicey_error err = dicey_value_get_array(value, &list);
     assert(!err);
     (void) err; // silence unused warning
@@ -49,7 +49,7 @@ static void dump_array(struct util_dumper *const dumper, const struct dicey_valu
 static void dump_bye(struct util_dumper *const dumper, const struct dicey_packet packet) {
     assert(dumper);
 
-    struct dicey_bye       bye = { 0 };
+    struct dicey_bye bye = { 0 };
     const enum dicey_error err = dicey_packet_as_bye(packet, &bye);
     assert(!err);
     (void) err; // silence unused warning
@@ -60,7 +60,7 @@ static void dump_bye(struct util_dumper *const dumper, const struct dicey_packet
 static void dump_hello(struct util_dumper *const dumper, const struct dicey_packet packet) {
     assert(dumper);
 
-    struct dicey_hello     hello = { 0 };
+    struct dicey_hello hello = { 0 };
     const enum dicey_error err = dicey_packet_as_hello(packet, &hello);
     assert(!err);
     (void) err; // silence unused warning
@@ -104,7 +104,7 @@ static void dump_hex_short(struct util_dumper *const dumper, const void *const d
 static void dump_pair(struct util_dumper *const dumper, const struct dicey_value *const value) {
     assert(dumper && value);
 
-    struct dicey_pair      pair = { 0 };
+    struct dicey_pair pair = { 0 };
     const enum dicey_error err = dicey_value_get_pair(value, &pair);
     assert(!err);
     (void) err; // silence unused warning
@@ -133,7 +133,7 @@ static void dump_selector(struct util_dumper *const dumper, const struct dicey_s
 static void dump_tuple(struct util_dumper *const dumper, const struct dicey_value *const value) {
     assert(dumper && value);
 
-    struct dicey_list      list = { 0 };
+    struct dicey_list list = { 0 };
     const enum dicey_error err = dicey_value_get_tuple(value, &list);
     assert(!err);
     (void) err; // silence unused warning
@@ -167,7 +167,7 @@ static void dump_value(struct util_dumper *const dumper, const struct dicey_valu
 
     case DICEY_TYPE_BOOL:
         {
-            bool                   dest;
+            bool dest;
             const enum dicey_error err = dicey_value_get_bool(value, &dest);
             assert(!err);
             (void) err; // silence unused warning
@@ -178,7 +178,7 @@ static void dump_value(struct util_dumper *const dumper, const struct dicey_valu
 
     case DICEY_TYPE_BYTE:
         {
-            uint8_t                dest;
+            uint8_t dest;
             const enum dicey_error err = dicey_value_get_byte(value, &dest);
             assert(!err);
             (void) err; // silence unused warning
@@ -189,7 +189,7 @@ static void dump_value(struct util_dumper *const dumper, const struct dicey_valu
 
     case DICEY_TYPE_FLOAT:
         {
-            double                 dest;
+            double dest;
             const enum dicey_error err = dicey_value_get_float(value, &dest);
             assert(!err);
             (void) err; // silence unused warning
@@ -200,7 +200,7 @@ static void dump_value(struct util_dumper *const dumper, const struct dicey_valu
 
     case DICEY_TYPE_INT16:
         {
-            int16_t                dest;
+            int16_t dest;
             const enum dicey_error err = dicey_value_get_i16(value, &dest);
             assert(!err);
             (void) err; // silence unused warning
@@ -211,7 +211,7 @@ static void dump_value(struct util_dumper *const dumper, const struct dicey_valu
 
     case DICEY_TYPE_INT32:
         {
-            int32_t                dest;
+            int32_t dest;
             const enum dicey_error err = dicey_value_get_i32(value, &dest);
             assert(!err);
             (void) err; // silence unused warning
@@ -222,7 +222,7 @@ static void dump_value(struct util_dumper *const dumper, const struct dicey_valu
 
     case DICEY_TYPE_INT64:
         {
-            int64_t                dest;
+            int64_t dest;
             const enum dicey_error err = dicey_value_get_i64(value, &dest);
             assert(!err);
             (void) err; // silence unused warning
@@ -233,7 +233,7 @@ static void dump_value(struct util_dumper *const dumper, const struct dicey_valu
 
     case DICEY_TYPE_UINT16:
         {
-            uint16_t               dest;
+            uint16_t dest;
             const enum dicey_error err = dicey_value_get_u16(value, &dest);
             assert(!err);
             (void) err; // silence unused warning
@@ -244,7 +244,7 @@ static void dump_value(struct util_dumper *const dumper, const struct dicey_valu
 
     case DICEY_TYPE_UINT32:
         {
-            uint32_t               dest;
+            uint32_t dest;
             const enum dicey_error err = dicey_value_get_u32(value, &dest);
             assert(!err);
             (void) err; // silence unused warning
@@ -255,7 +255,7 @@ static void dump_value(struct util_dumper *const dumper, const struct dicey_valu
 
     case DICEY_TYPE_UINT64:
         {
-            uint64_t               dest;
+            uint64_t dest;
             const enum dicey_error err = dicey_value_get_u64(value, &dest);
             assert(!err);
             (void) err; // silence unused warning
@@ -282,8 +282,8 @@ static void dump_value(struct util_dumper *const dumper, const struct dicey_valu
 
     case DICEY_TYPE_BYTES:
         {
-            const uint8_t         *dest;
-            size_t                 nbytes;
+            const uint8_t *dest;
+            size_t nbytes;
             const enum dicey_error err = dicey_value_get_bytes(value, &dest, &nbytes);
             assert(!err);
             (void) err; // silence unused warning
@@ -294,7 +294,7 @@ static void dump_value(struct util_dumper *const dumper, const struct dicey_valu
 
     case DICEY_TYPE_STR:
         {
-            const char            *dest;
+            const char *dest;
             const enum dicey_error err = dicey_value_get_str(value, &dest);
             assert(!err);
             (void) err; // silence unused warning
@@ -305,7 +305,7 @@ static void dump_value(struct util_dumper *const dumper, const struct dicey_valu
 
     case DICEY_TYPE_PATH:
         {
-            const char            *dest;
+            const char *dest;
             const enum dicey_error err = dicey_value_get_path(value, &dest);
             assert(!err);
             (void) err; // silence unused warning
@@ -316,7 +316,7 @@ static void dump_value(struct util_dumper *const dumper, const struct dicey_valu
 
     case DICEY_TYPE_SELECTOR:
         {
-            struct dicey_selector  dest;
+            struct dicey_selector dest;
             const enum dicey_error err = dicey_value_get_selector(value, &dest);
             assert(!err);
             (void) err; // silence unused warning
@@ -327,7 +327,7 @@ static void dump_value(struct util_dumper *const dumper, const struct dicey_valu
 
     case DICEY_TYPE_ERROR:
         {
-            struct dicey_errmsg    dest;
+            struct dicey_errmsg dest;
             const enum dicey_error err = dicey_value_get_error(value, &dest);
             assert(!err);
             (void) err; // silence unused warning
@@ -346,7 +346,7 @@ static void dump_value(struct util_dumper *const dumper, const struct dicey_valu
 static void dump_message(struct util_dumper *const dumper, const struct dicey_packet packet) {
     assert(dumper);
 
-    struct dicey_message   message = { 0 };
+    struct dicey_message message = { 0 };
     const enum dicey_error err = dicey_packet_as_message(packet, &message);
     assert(!err);
     (void) err; // silence unused warning
@@ -375,7 +375,7 @@ static void dump_message(struct util_dumper *const dumper, const struct dicey_pa
 void util_dumper_dump_packet(struct util_dumper *const dumper, const struct dicey_packet packet) {
     assert(dumper && dicey_packet_is_valid(packet));
 
-    uint32_t               seq = 0U;
+    uint32_t seq = 0U;
     const enum dicey_error err = dicey_packet_get_seq(packet, &seq);
     assert(!err);
     (void) err; // silence unused warning

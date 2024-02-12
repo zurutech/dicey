@@ -86,7 +86,7 @@ ptrdiff_t dtf_bytes_writer_write(struct dtf_bytes_writer *const writer, const st
 ptrdiff_t dtf_bytes_writer_write_chunks(
     struct dtf_bytes_writer *const writer,
     const struct dicey_view *const chunks,
-    const size_t                   nchunks
+    const size_t nchunks
 ) {
     if (!dtf_bytes_writer_is_valid(writer) || !chunks) {
         return TRACE(DICEY_EINVAL);

@@ -13,8 +13,8 @@
 
 static bool arglist_copy(
     const struct dicey_arg **const dest,
-    const struct dicey_arg *const  src,
-    const uint16_t                 nitems
+    const struct dicey_arg *const src,
+    const uint16_t nitems
 ) {
     struct dicey_arg *const list_dup = calloc(sizeof *list_dup, nitems);
     if (!list_dup) {
@@ -118,7 +118,7 @@ void dicey_arg_free_contents(const struct dicey_arg *const arg) {
 }
 
 void dicey_arg_get_list(
-    const struct dicey_arg *const  arg,
+    const struct dicey_arg *const arg,
     const struct dicey_arg **const list,
     const struct dicey_arg **const end
 ) {

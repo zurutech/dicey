@@ -40,7 +40,6 @@ AlignAfterOpenBracket: BlockIndent
 BinPackArguments: false
 BinPackParameters: false
 AlignArrayOfStructures: Left
-AlignConsecutiveDeclarations: true
 AllowShortBlocksOnASingleLine: Empty
 AllowShortCaseLabelsOnASingleLine: false
 AllowShortFunctionsOnASingleLine: InlineOnly

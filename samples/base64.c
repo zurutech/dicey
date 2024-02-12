@@ -20,8 +20,8 @@ int main(const int argc, const char *const *argv) {
     (void) argc;
 
     const char *const progname = argv[0];
-    bool              decode = false;
-    const char       *fin = NULL;
+    bool decode = false;
+    const char *fin = NULL;
 
     while (*++argv) {
         if (!strcmp(*argv, "-h")) {
@@ -55,10 +55,10 @@ int main(const int argc, const char *const *argv) {
     }
 
     uint8_t *dumped_bytes = NULL;
-    size_t   nbytes = 0, bcap = 0;
+    size_t nbytes = 0, bcap = 0;
 
     while (!feof(in)) {
-        uint8_t      buf[4096];
+        uint8_t buf[4096];
         const size_t n = fread(buf, 1, sizeof buf, in);
         if (!n) {
             break;
@@ -88,7 +88,7 @@ int main(const int argc, const char *const *argv) {
     }
 
     if (decode) {
-        size_t   out_len = 0;
+        size_t out_len = 0;
         uint8_t *decoded = util_base64_decode((const char *) dumped_bytes, nbytes, &out_len);
 
         free(dumped_bytes);
@@ -102,7 +102,7 @@ int main(const int argc, const char *const *argv) {
         free(decoded);
     } else {
         size_t out_len = 0;
-        char  *encoded = util_base64_encode(dumped_bytes, nbytes, &out_len);
+        char *encoded = util_base64_encode(dumped_bytes, nbytes, &out_len);
 
         free(dumped_bytes);
 

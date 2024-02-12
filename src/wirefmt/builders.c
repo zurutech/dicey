@@ -110,8 +110,8 @@ static bool valbuilder_is_valid(const struct dicey_value_builder *const builder)
 
 enum dicey_error valbuilder_list_start(
     struct dicey_value_builder *const builder,
-    const enum builder_state          list_kind,
-    const enum dicey_type             type
+    const enum builder_state list_kind,
+    const enum dicey_type type
 ) {
     assert(valbuilder_is_valid(builder));
 
@@ -157,7 +157,7 @@ enum dicey_error dicey_message_builder_begin(struct dicey_message_builder *const
 
 enum dicey_error dicey_message_builder_build(
     struct dicey_message_builder *const builder,
-    struct dicey_packet *const          packet
+    struct dicey_packet *const packet
 ) {
     assert(builder && packet);
 
@@ -231,7 +231,7 @@ enum dicey_error dicey_message_builder_set_path(struct dicey_message_builder *co
 
 enum dicey_error dicey_message_builder_set_selector(
     struct dicey_message_builder *const builder,
-    const struct dicey_selector         selector
+    const struct dicey_selector selector
 ) {
     assert(builder && dicey_selector_is_valid(selector));
 
@@ -258,7 +258,7 @@ enum dicey_error dicey_message_builder_set_seq(struct dicey_message_builder *con
 
 enum dicey_error dicey_message_builder_set_value(
     struct dicey_message_builder *const builder,
-    const struct dicey_arg              value
+    const struct dicey_arg value
 ) {
     assert(builder);
 
@@ -283,7 +283,7 @@ enum dicey_error dicey_message_builder_set_value(
 
 enum dicey_error dicey_message_builder_value_start(
     struct dicey_message_builder *const builder,
-    struct dicey_value_builder *const   value
+    struct dicey_value_builder *const value
 ) {
     if (builder_state_get(builder) != BUILDER_STATE_PENDING) {
         return TRACE(DICEY_EINVAL);
@@ -311,7 +311,7 @@ enum dicey_error dicey_message_builder_value_start(
 
 enum dicey_error dicey_message_builder_value_end(
     struct dicey_message_builder *const builder,
-    struct dicey_value_builder *const   value
+    struct dicey_value_builder *const value
 ) {
     assert(builder && value);
 
@@ -331,7 +331,7 @@ enum dicey_error dicey_message_builder_value_end(
 
 enum dicey_error dicey_value_builder_array_start(
     struct dicey_value_builder *const builder,
-    const enum dicey_type             type
+    const enum dicey_type type
 ) {
     return valbuilder_list_start(builder, BUILDER_STATE_ARRAY, type);
 }

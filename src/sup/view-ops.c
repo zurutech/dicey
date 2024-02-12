@@ -150,9 +150,9 @@ ptrdiff_t dicey_view_mut_write(struct dicey_view_mut *const dest, const struct d
 }
 
 ptrdiff_t dicey_view_mut_write_chunks(
-    struct dicey_view_mut *const   dest,
+    struct dicey_view_mut *const dest,
     const struct dicey_view *const chunks,
-    const size_t                   nchunks
+    const size_t nchunks
 ) {
     if (!dest || !dest->data || !chunks) {
         return TRACE(DICEY_EINVAL);

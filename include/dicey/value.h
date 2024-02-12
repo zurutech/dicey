@@ -23,7 +23,7 @@ extern "C" {
  */
 struct dicey_value {
     // internal data - do not touch
-    enum dicey_type        _type;
+    enum dicey_type _type;
     union _dicey_data_info _data;
 };
 
@@ -31,7 +31,7 @@ struct dicey_value {
  * @brief The dicey_iterator struct represents an iterator over an array, or tuple, of Dicey values.
  */
 struct dicey_iterator {
-    uint16_t          _type;
+    uint16_t _type;
     struct dicey_view _data; // Borrowed view over a sequence of dicey_value
 };
 
@@ -59,9 +59,9 @@ DICEY_EXPORT enum dicey_error dicey_iterator_next(struct dicey_iterator *iter, s
  */
 struct dicey_list {
     // internal data
-    uint16_t          _type;   // The array type or VARIANT_ID (for a tuple)
-    uint16_t          _nitems; // The number of items in the list.
-    struct dicey_view _data;   // Borrowed data associated with this list
+    uint16_t _type;          // The array type or VARIANT_ID (for a tuple)
+    uint16_t _nitems;        // The number of items in the list.
+    struct dicey_view _data; // Borrowed data associated with this list
 };
 
 /**
@@ -140,8 +140,8 @@ DICEY_EXPORT enum dicey_error dicey_value_get_byte(const struct dicey_value *val
  */
 DICEY_EXPORT enum dicey_error dicey_value_get_bytes(
     const struct dicey_value *value,
-    const uint8_t           **dest,
-    size_t                   *nbytes
+    const uint8_t **dest,
+    size_t *nbytes
 );
 
 /**

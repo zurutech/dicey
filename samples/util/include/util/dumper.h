@@ -10,9 +10,9 @@
 #define DEFAULT_PAD 4U
 
 struct util_dumper {
-    FILE    *dest;
+    FILE *dest;
     unsigned pad;
-    bool     newline;
+    bool newline;
 };
 
 static inline struct util_dumper util_dumper_for(FILE *const dest) {

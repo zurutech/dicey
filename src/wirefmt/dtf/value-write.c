@@ -28,9 +28,9 @@ static ptrdiff_t item_write(struct dtf_bytes_writer *dest, const struct dicey_ar
 
 static ptrdiff_t items_write(
     struct dtf_bytes_writer *const dest,
-    const struct dicey_arg *const  items,
-    const size_t                   nitems,
-    const enum item_policy         policy
+    const struct dicey_arg *const items,
+    const size_t nitems,
+    const enum item_policy policy
 ) {
     const struct dicey_arg *const end = items + nitems;
 
@@ -75,15 +75,15 @@ static ptrdiff_t len_write(struct dtf_bytes_writer *const dest, const ptrdiff_t 
 
 static ptrdiff_t list_write(
     struct dtf_bytes_writer *const dest,
-    const struct dicey_view        header,
-    const struct dicey_arg        *elems,
-    const dtf_nmemb                nitems,
-    const enum item_policy         policy
+    const struct dicey_view header,
+    const struct dicey_arg *elems,
+    const dtf_nmemb nitems,
+    const enum item_policy policy
 ) {
     // snapshot the writer. We will use the clone to write the byte size of the array. The byte size of the array
     // is guaranteed to be the first field of the array header, so we can write it from the clone safely.
     struct dtf_bytes_writer clone_at_nbytes = { 0 };
-    const ptrdiff_t         snapshot_res = dtf_bytes_writer_snapshot(dest, &clone_at_nbytes);
+    const ptrdiff_t snapshot_res = dtf_bytes_writer_snapshot(dest, &clone_at_nbytes);
     if (snapshot_res < 0) {
         return snapshot_res;
     }
@@ -223,8 +223,8 @@ static ptrdiff_t value_header_write(struct dtf_bytes_writer *const dest, const s
 
 static ptrdiff_t item_write(
     struct dtf_bytes_writer *const dest,
-    const struct dicey_arg *const  item,
-    const enum item_policy         policy
+    const struct dicey_arg *const item,
+    const enum item_policy policy
 ) {
     assert(dtf_bytes_writer_is_valid(dest) && item);
 

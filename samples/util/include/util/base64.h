@@ -7,6 +7,6 @@
 #include <stdint.h>
 
 uint8_t *util_base64_decode(const char *src, size_t len, size_t *out_len);
-char    *util_base64_encode(const uint8_t *src, size_t len, size_t *out_len);
+char *util_base64_encode(const uint8_t *src, size_t len, size_t *out_len);
 
 #endif // QVHUCEDPLP_BASE64_H

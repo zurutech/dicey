@@ -45,7 +45,7 @@ char *util_base64_encode(const uint8_t *const src, const size_t len, size_t *con
     }
 
     const uint8_t *const end = src + len, *in = src;
-    char                *pos = out;
+    char *pos = out;
 
     int line_len = 0;
     while (end - in >= 3) {
@@ -128,7 +128,7 @@ uint8_t *util_base64_decode(const char *const src, const size_t len, size_t *con
         return NULL;
     }
 
-    size_t   olen = count / 4 * 3;
+    size_t olen = count / 4 * 3;
     uint8_t *out, *pos;
     pos = out = malloc(olen);
 

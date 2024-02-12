@@ -14,7 +14,7 @@ extern "C" {
  * @brief Represents an immutable view of data.
  */
 struct dicey_view {
-    size_t      len;  /**< The length of the view. */
+    size_t len;       /**< The length of the view. */
     const void *data; /**< A pointer to the data. */
 };
 
@@ -22,8 +22,8 @@ struct dicey_view {
  * @brief Represents a mutable view of data.
  */
 struct dicey_view_mut {
-    size_t len;  /**< The length of the view. */
-    void  *data; /**< A pointer to the data. */
+    size_t len; /**< The length of the view. */
+    void *data; /**< A pointer to the data. */
 };
 
 #if defined(__cplusplus)
