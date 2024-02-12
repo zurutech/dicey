@@ -39,7 +39,7 @@ ptrdiff_t dicey_view_as_zstring(struct dicey_view *const view, const char **cons
     }
 
     size_t size = strnlen(view->data, view->len);
-    if (size == view->len && ((const char *) view->data)[size] != '\0') {
+    if (size == view->len) {
         return TRACE(DICEY_EINVAL);
     }
 
