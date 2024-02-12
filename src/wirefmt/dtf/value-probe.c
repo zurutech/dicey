@@ -5,7 +5,7 @@
 #include <stddef.h>
 
 #include <dicey/errors.h>
-#include <dicey/views.h>
+#include <dicey/internal/views.h>
 
 #include <dicey/internal/data-info.h>
 

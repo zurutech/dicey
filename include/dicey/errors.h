@@ -59,6 +59,7 @@ DICEY_EXPORT const struct dicey_error_def *dicey_error_info(enum dicey_error err
  * @param defs Pointer to an array of dicey_error_def structures.
  * @param count Pointer to a variable to store the number of error definitions.
  */
+DICEY_EXPORT void dicey_error_infos(const struct dicey_error_def **defs, size_t *count);
 
 /**
  * @brief Check if a specific error code is valid.
@@ -66,7 +67,6 @@ DICEY_EXPORT const struct dicey_error_def *dicey_error_info(enum dicey_error err
  * @return true if the error code is valid, false otherwise.
  */
 DICEY_EXPORT bool dicey_error_is_valid(enum dicey_error errnum);
-DICEY_EXPORT void dicey_error_infos(const struct dicey_error_def **defs, size_t *count);
 
 /**
  * @brief Get the error message for a specific error code.

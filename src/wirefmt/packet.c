@@ -10,7 +10,7 @@
 #include <dicey/errors.h>
 #include <dicey/packet.h>
 #include <dicey/type.h>
-#include <dicey/views.h>
+#include <dicey/internal/views.h>
 
 #include <dicey/internal/data-info.h>
 

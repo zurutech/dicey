@@ -4,7 +4,8 @@
 #define VEGOWIWLXE_DATA_INFO_H
 
 #include "../type.h"
-#include "../views.h"
+
+#include "views.h"
 
 // union used internally by dicey_value to represent a parsed value. Not intended for external use.
 union _dicey_data_info {

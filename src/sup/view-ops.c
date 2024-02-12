@@ -8,7 +8,7 @@
 #include <string.h>
 
 #include <dicey/errors.h>
-#include <dicey/views.h>
+#include <dicey/internal/views.h>
 
 #include "trace.h"
 #include "unsafe.h"

@@ -3,7 +3,7 @@
 #include <stdint.h>
 #include <string.h>
 
-#include <dicey/views.h>
+#include <dicey/internal/views.h>
 
 #include "unsafe.h"
 

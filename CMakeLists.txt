@@ -26,6 +26,12 @@ option(BUILD_SHARED_LIBS "Build using shared libraries" ON)
 
 add_library(${PROJECT_NAME})
 
+if (MSVC)
+    target_compile_options(${PROJECT_NAME} PRIVATE /W4 /WX)
+else()
+    target_compile_options(${PROJECT_NAME} PRIVATE -Wall -Wextra -pedantic -Werror)
+endif()
+
 if (DEFINED UV_INCLUDE_DIRS AND DEFINED UV_LIBS)
     target_include_directories(${PROJECT_NAME} PUBLIC ${UV_INCLUDE_DIRS})
     target_link_libraries(${PROJECT_NAME} PUBLIC ${UV_LIBS})
@@ -88,12 +94,6 @@ if (WIN32 AND CMAKE_BUILD_TYPE STREQUAL "Debug")
     target_link_libraries(${PROJECT_NAME} PUBLIC dbghelp)
 endif()
 
-if (MSVC)
-    add_compile_options(/W4 /WX)
-else()
-    add_compile_options(-Wall -Wextra -pedantic -Werror)
-endif()
-
 generate_export_header(${PROJECT_NAME})
 
 set(PUBLIC_HEADERS
@@ -104,10 +104,10 @@ set(PUBLIC_HEADERS
     "include/dicey/type.h"
     "include/dicey/value.h"
     "include/dicey/version.h"
-    "include/dicey/views.h"
-
+    
     # internal but public
     "include/dicey/internal/data-info.h"
+    "include/dicey/internal/views.h"
 )
 
 set(CORE_SOURCES

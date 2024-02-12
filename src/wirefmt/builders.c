@@ -11,7 +11,7 @@
 #include <dicey/packet.h>
 #include <dicey/type.h>
 #include <dicey/value.h>
-#include <dicey/views.h>
+#include <dicey/internal/views.h>
 
 #include "dtf/dtf.h"
 

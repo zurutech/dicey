@@ -7,7 +7,7 @@
 #include <stdint.h>
 #include <stdio.h>
 
-#include <dicey/views.h>
+#include <dicey/dicey.h>
 
 #include <util/dumper.h>
 

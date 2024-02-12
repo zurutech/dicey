@@ -8,6 +8,5 @@
 #include "packet.h"
 #include "type.h"
 #include "value.h"
-#include "views.h"
 
 #endif // IJDIIZJEMO_DICEY_H

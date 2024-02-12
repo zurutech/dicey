@@ -10,9 +10,9 @@
 #include "dicey_export.h"
 #include "errors.h"
 #include "type.h"
-#include "views.h"
 
 #include "internal/data-info.h"
+#include "internal/views.h"
 
 #if defined(__cplusplus)
 extern "C" {

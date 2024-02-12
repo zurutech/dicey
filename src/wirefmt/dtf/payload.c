@@ -9,7 +9,7 @@
 #include <dicey/builders.h>
 #include <dicey/errors.h>
 #include <dicey/value.h>
-#include <dicey/views.h>
+#include <dicey/internal/views.h>
 
 #include "sup/trace.h"
 #include "sup/util.h"

@@ -6,7 +6,7 @@
 #include <stdbool.h>
 #include <stddef.h>
 
-#include <dicey/views.h>
+#include <dicey/internal/views.h>
 
 #define DICEY_NULL ((struct dicey_view_mut) { .len = 0, .data = NULL })
 #define DICEY_CNULL ((struct dicey_view) { .len = 0, .data = NULL })

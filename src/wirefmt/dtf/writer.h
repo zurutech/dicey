@@ -6,7 +6,7 @@
 #include <stddef.h>
 
 #include <dicey/value.h>
-#include <dicey/views.h>
+#include <dicey/internal/views.h>
 
 enum dtf_bytes_writer_kind {
     DTF_BYTES_WRITER_KIND_INVALID,

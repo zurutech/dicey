@@ -14,7 +14,7 @@
 #include <dicey/builders.h>
 #include <dicey/packet.h>
 #include <dicey/value.h>
-#include <dicey/views.h>
+#include <dicey/internal/views.h>
 
 #include "to.h"
 #include "writer.h"

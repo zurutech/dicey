@@ -6,7 +6,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#include <dicey/views.h>
+#include <dicey/internal/views.h>
 
 #if defined(__cplusplus)
 extern "C" {
