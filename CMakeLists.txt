@@ -82,7 +82,7 @@ else()
     FetchContent_Declare(
         libxml2
         GIT_REPOSITORY https://gitlab.gnome.org/GNOME/libxml2.git
-        GIT_TAG        v2.11.7
+        GIT_TAG        v2.12.5
     )
 
     FetchContent_MakeAvailable(libxml2)
