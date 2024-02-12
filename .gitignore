@@ -102,6 +102,9 @@ _deps
 .clangd
 build*/
 
+# fuzzer crashes
+crash-*
+
 # Note: I love to keep random .c test files in the root directory.
 /*.h
 /*.c
