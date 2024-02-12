@@ -9,6 +9,12 @@ foreach(SAMPLE IN LISTS SAMPLE_FILES)
     get_filename_component(target_name ${SAMPLE} NAME_WE)
     
     add_executable("${target_name}" "${SAMPLE}")
+
+    if (MSVC)
+        target_compile_options("${target_name}" PRIVATE /W4 /WX)
+    else()
+        target_compile_options("${target_name}" PRIVATE -Wall -Wextra -pedantic -Werror)
+    endif()
     
     # add the include directory of the parent project
     target_link_libraries("${target_name}" PRIVATE "${PROJECT_NAME}" samples_util)

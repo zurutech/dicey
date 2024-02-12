@@ -46,6 +46,12 @@ set(CMAKE_C_STANDARD_REQUIRED ON)
 
 add_library(samples_util STATIC)
 
+if (MSVC)
+    target_compile_options(samples_util PRIVATE /W4 /WX)
+else()
+    target_compile_options(samples_util PRIVATE -Wall -Wextra -pedantic -Werror)
+endif()
+
 if (DEFINED CJSON_DIRS AND DEFINED CJSON_LIBS)
     target_include_directories(samples_util PUBLIC ${CJSON_INCLUDE_DIRS})
     target_link_libraries(samples_util PUBLIC ${CJSON_LIBS})
