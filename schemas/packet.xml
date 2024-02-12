@@ -3,7 +3,7 @@
 <packet seq="0">
     <message op="SET">
         <path>/foo/bar</path>
-        <selector>some.trait.named.Bob:Bobbable</selector>
+        <selector>a.street.trait.named.Bob:Bobbable</selector>
         <value>
             <tuple>
                 <array type="bool">
