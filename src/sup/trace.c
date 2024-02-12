@@ -1,5 +1,7 @@
 // Copyright (c) 2014-2024 Zuru Tech HK Limited, All rights reserved.
 
+#define _CRT_SECURE_NO_WARNINGS
+
 #include <stdbool.h>
 
 #include <dicey/errors.h>
