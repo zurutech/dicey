@@ -11,9 +11,9 @@
 #include <stdint.h>
 
 #include <dicey/builders.h>
+#include <dicey/internal/views.h>
 #include <dicey/packet.h>
 #include <dicey/value.h>
-#include <dicey/internal/views.h>
 
 #include "to.h"
 

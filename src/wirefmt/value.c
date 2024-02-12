@@ -7,9 +7,9 @@
 #include <string.h>
 
 #include <dicey/errors.h>
+#include <dicey/internal/views.h>
 #include <dicey/type.h>
 #include <dicey/value.h>
-#include <dicey/internal/views.h>
 
 #include <dicey/internal/data-info.h>
 
