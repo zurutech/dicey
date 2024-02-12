@@ -8,9 +8,9 @@
 #include <stdlib.h>
 
 #include <dicey/errors.h>
+#include <dicey/internal/views.h>
 #include <dicey/packet.h>
 #include <dicey/type.h>
-#include <dicey/internal/views.h>
 
 #include <dicey/internal/data-info.h>
 
@@ -67,6 +67,10 @@ static enum dicey_packet_kind pktkind_from_dtf(const enum dtf_payload_kind kind)
     case DTF_PAYLOAD_RESPONSE:
         return DICEY_PACKET_KIND_MESSAGE;
     }
+}
+
+static enum dicey_error validate_bye(const struct dicey_packet packet) {
+    return dicey_packet_as_bye(packet, &(struct dicey_bye) { 0 });
 }
 
 static enum dicey_error validate_value(const struct dicey_value *value);
@@ -168,11 +172,10 @@ static enum dicey_error validate_value(const struct dicey_value *const value) {
     }
 }
 
-static enum dicey_error validate_message(const struct dicey_packet *const packet) {
-    assert(packet);
+static enum dicey_error validate_message(const struct dicey_packet packet) {
+    struct dicey_message message = { 0 };
 
-    struct dicey_message   message = { 0 };
-    const enum dicey_error as_message_err = dicey_packet_as_message(*packet, &message);
+    const enum dicey_error as_message_err = dicey_packet_as_message(packet, &message);
     if (as_message_err) {
         return as_message_err;
     }
@@ -552,12 +555,29 @@ enum dicey_error dicey_packet_load(struct dicey_packet *const packet, const void
     };
 
 #if !defined(DICEY_NO_VALIDATION)
-    if (kind == DICEY_PACKET_KIND_MESSAGE) {
-        const enum dicey_error validate_err = validate_message(packet);
-        if (validate_err) {
-            err = validate_err;
-            goto fail;
-        }
+    enum dicey_error validate_err = DICEY_OK;
+
+    switch (kind) {
+    case DICEY_PACKET_KIND_BYE:
+        validate_err = validate_bye(*packet);
+        break;
+
+    case DICEY_PACKET_KIND_HELLO:
+        break;
+
+    case DICEY_PACKET_KIND_MESSAGE:
+        validate_err = validate_message(*packet);
+        break;
+
+    default:
+        assert(false); // unreachable or bug
+    }
+
+    if (validate_err) {
+        // it's useless to report stuff like "invalid message" to the message - the validate_xxx functions reuse the
+        // public API, so in this context it means the packet we just loaded is malformed
+        err = validate_err == DICEY_EINVAL ? TRACE(DICEY_EBADMSG) : validate_err;
+        goto fail;
     }
 #endif
 
