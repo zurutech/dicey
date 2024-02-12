@@ -74,15 +74,14 @@ if (NOT cJSON_FOUND)
     # if someone knows how to do this without changing the global state, please let me know
     set(OLD_SHARED_STATE ${BUILD_SHARED_LIBS})
     set(BUILD_SHARED_LIBS OFF)
-
+    set(ENABLE_CJSON_UNINSTALL CACHE BOOL OFF)
+    set(ENABLE_CUSTOM_COMPILER_FLAGS CACHE BOOL OFF)
+    set(ENABLE_CJSON_TEST CACHE BOOL OFF)
+    
     FetchContent_Declare(
         cJSON
         GIT_REPOSITORY https://github.com/DaveGamble/cJSON
         GIT_TAG        v1.7.17
-        CMAKE_ARGS 
-            -DBUILD_SHARED_LIBS=OFF # completely ignored, for some arcane reason
-            -DENABLE_CJSON_TEST=OFF
-            -DENABLE_CJSON_UNINSTALL=OFF
     )
 
     FetchContent_MakeAvailable(cJSON)

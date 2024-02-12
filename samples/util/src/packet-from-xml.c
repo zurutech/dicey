@@ -24,6 +24,10 @@
 #include <util/packet-xml.h>
 #include <util/strext.h>
 
+#if defined(_MSC_VER)
+#pragma warning(disable : 4996)
+#endif
+
 static uv_once_t libxml_init_once = UV_ONCE_INIT;
 xmlSchema *schema = NULL;
 
