@@ -3,7 +3,7 @@
 #include <assert.h>
 #include <stddef.h>
 
-#include <dicey/errors.h>
+#include <dicey/core/errors.h>
 
 // the errors conventionally use the first byte as an incremental index
 #define INDEX_OF(E) ((ptrdiff_t) (-(E) &0xFF))

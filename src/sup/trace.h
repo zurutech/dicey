@@ -6,7 +6,7 @@
 #if defined(NDEBUG)
 #define TRACE(X) X
 #else
-#include <dicey/errors.h>
+#include <dicey/core/errors.h>
 
 enum dicey_error _trace_err(enum dicey_error errnum);
 

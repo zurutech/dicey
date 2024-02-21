@@ -7,12 +7,11 @@
 #include <stdint.h>
 #include <stdlib.h>
 
-#include <dicey/errors.h>
-#include <dicey/internal/views.h>
-#include <dicey/packet.h>
-#include <dicey/type.h>
-
-#include <dicey/internal/data-info.h>
+#include <dicey/core/data-info.h>
+#include <dicey/core/errors.h>
+#include <dicey/core/packet.h>
+#include <dicey/core/type.h>
+#include <dicey/core/views.h>
 
 #include "dtf/dtf.h"
 

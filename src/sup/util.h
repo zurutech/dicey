@@ -7,7 +7,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#include <dicey/internal/views.h>
+#include <dicey/core/views.h>
 
 #define DICEY_UNUSED(X) ((void) (X))
 

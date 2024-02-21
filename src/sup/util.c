@@ -4,7 +4,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include <dicey/errors.h>
+#include <dicey/core/errors.h>
 
 #include "trace.h"
 #include "util.h"

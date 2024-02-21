@@ -10,10 +10,10 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#include <dicey/builders.h>
-#include <dicey/internal/views.h>
-#include <dicey/packet.h>
-#include <dicey/value.h>
+#include <dicey/core/builders.h>
+#include <dicey/core/packet.h>
+#include <dicey/core/value.h>
+#include <dicey/core/views.h>
 
 #include "to.h"
 

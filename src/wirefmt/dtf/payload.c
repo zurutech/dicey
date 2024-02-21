@@ -6,10 +6,10 @@
 #include <stdint.h>
 #include <stdlib.h>
 
-#include <dicey/builders.h>
-#include <dicey/errors.h>
-#include <dicey/internal/views.h>
-#include <dicey/value.h>
+#include <dicey/core/builders.h>
+#include <dicey/core/errors.h>
+#include <dicey/core/value.h>
+#include <dicey/core/views.h>
 
 #include "sup/trace.h"
 #include "sup/util.h"

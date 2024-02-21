@@ -6,12 +6,11 @@
 #include <stdint.h>
 #include <string.h>
 
-#include <dicey/errors.h>
-#include <dicey/internal/views.h>
-#include <dicey/type.h>
-#include <dicey/value.h>
-
-#include <dicey/internal/data-info.h>
+#include <dicey/core/data-info.h>
+#include <dicey/core/errors.h>
+#include <dicey/core/type.h>
+#include <dicey/core/value.h>
+#include <dicey/core/views.h>
 
 #include "dtf/dtf.h"
 

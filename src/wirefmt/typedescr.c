@@ -4,8 +4,8 @@
 #include <stdbool.h>
 #include <string.h>
 
-#include <dicey/errors.h>
-#include <dicey/packet.h>
+#include <dicey/core/errors.h>
+#include <dicey/core/packet.h>
 
 #include "typedescr.h"
 

@@ -3,8 +3,7 @@
 #if !defined(VEGOWIWLXE_DATA_INFO_H)
 #define VEGOWIWLXE_DATA_INFO_H
 
-#include "../type.h"
-
+#include "type.h"
 #include "views.h"
 
 // union used internally by dicey_value to represent a parsed value. Not intended for external use.

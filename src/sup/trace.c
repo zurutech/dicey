@@ -4,8 +4,9 @@
 
 #include <stdbool.h>
 
-#include <dicey/errors.h>
 #include <uv.h>
+
+#include <dicey/core/errors.h>
 
 #include "trace.h"
 

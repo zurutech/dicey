@@ -100,17 +100,18 @@ endif()
 generate_export_header(${PROJECT_NAME})
 
 set(PUBLIC_HEADERS
-    "include/dicey/builders.h"
     "include/dicey/dicey.h"
-    "include/dicey/errors.h"
-    "include/dicey/packet.h"
-    "include/dicey/type.h"
-    "include/dicey/value.h"
-    "include/dicey/version.h"
+
     
     # internal but public
-    "include/dicey/internal/data-info.h"
-    "include/dicey/internal/views.h"
+    "include/dicey/core/builders.h"
+    "include/dicey/core/data-info.h"
+    "include/dicey/core/errors.h"
+    "include/dicey/core/packet.h"
+    "include/dicey/core/type.h"
+    "include/dicey/core/value.h"
+    "include/dicey/core/version.h"
+    "include/dicey/core/views.h"
 )
 
 set(CORE_SOURCES

@@ -11,8 +11,8 @@
 #include "errors.h"
 #include "type.h"
 
-#include "internal/data-info.h"
-#include "internal/views.h"
+#include "data-info.h"
+#include "views.h"
 
 #if defined(__cplusplus)
 extern "C" {
