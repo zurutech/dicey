@@ -20,19 +20,24 @@ enum dicey_error {
     /**< Resource temporarily unavailable, or not enough data for a given operation */
     DICEY_EAGAIN = -0x0101,
 
-    DICEY_ENOMEM = -0x0102,    /**< Out of memory. */
-    DICEY_EINVAL = -0x0103,    /**< Invalid argument(s). */
-    DICEY_ENODATA = -0x0104,   /**< No data available. */
-    DICEY_EBADMSG = -0x0105,   /**< Bad message format. */
-    DICEY_EOVERFLOW = -0x0106, /**< Value or buffer overflow. */
+    DICEY_ENOMEM = -0x0102,       /**< Out of memory. */
+    DICEY_EINVAL = -0x0103,       /**< Invalid argument(s). */
+    DICEY_ENODATA = -0x0104,      /**< No data available. */
+    DICEY_EBADMSG = -0x0105,      /**< Bad message format. */
+    DICEY_EOVERFLOW = -0x0106,    /**< Value or buffer overflow. */
+    DICEY_ECONNREFUSED = -0x0107, /**< Connection refused. */
 
-    DICEY_EPATH_TOO_LONG = -0x0207,  /**< A path is too long. */
-    DICEY_ETUPLE_TOO_LONG = -0x0208, /**< Tuple too long. (currently unused) */
-    DICEY_EARRAY_TOO_LONG = -0x0209, /**< Array too long. (currently unused) */
+    DICEY_EPATH_TOO_LONG = -0x0208,  /**< A path is too long. */
+    DICEY_ETUPLE_TOO_LONG = -0x0209, /**< Tuple too long. (currently unused) */
+    DICEY_EARRAY_TOO_LONG = -0x020A, /**< Array too long. (currently unused) */
 
-    DICEY_EVALUE_TYPE_MISMATCH = -0x030A, /**< Value type mismatch. */
+    DICEY_EVALUE_TYPE_MISMATCH = -0x030B, /**< Value type mismatch. */
 
-    DICEY_ENOT_SUPPORTED = -0x040B, /**< Operation not supported. */
+    DICEY_ENOT_SUPPORTED = -0x040C,  /**< Operation not supported. */
+    DICEY_ECLIENT_TOO_OLD = -0x040D, /**< Client is too old. */
+    DICEY_ESERVER_TOO_OLD = -0x040E, /**< Client is too old. */
+
+    DICEY_EUV_UNKNOWN = -0x050F /**< Unknown libuv error. */
 };
 
 /**

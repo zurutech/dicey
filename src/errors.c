@@ -17,11 +17,15 @@ static const struct dicey_error_def error_info[] = {
     ERROR_INFO_FOR(DICEY_ENODATA, "NoDataAvailable", "no data available"),
     ERROR_INFO_FOR(DICEY_EBADMSG, "BadMessage", "bad message"),
     ERROR_INFO_FOR(DICEY_EOVERFLOW, "Overflow", "overflow"),
+    ERROR_INFO_FOR(DICEY_ECONNREFUSED, "ConnectionRefused", "connection refused"),
     ERROR_INFO_FOR(DICEY_EPATH_TOO_LONG, "PathTooLong", "path too long"),
     ERROR_INFO_FOR(DICEY_ETUPLE_TOO_LONG, "TupleTooLong", "tuple too long"),
     ERROR_INFO_FOR(DICEY_EARRAY_TOO_LONG, "ArrayTooLong", "array too long"),
     ERROR_INFO_FOR(DICEY_EVALUE_TYPE_MISMATCH, "ValueTypeMismatch", "value type mismatch"),
     ERROR_INFO_FOR(DICEY_ENOT_SUPPORTED, "NotSupported", "unsupported operation"),
+    ERROR_INFO_FOR(DICEY_ECLIENT_TOO_OLD, "ClientTooOld", "client too old"),
+    ERROR_INFO_FOR(DICEY_ESERVER_TOO_OLD, "ServerTooOld", "server too old"),
+    ERROR_INFO_FOR(DICEY_EUV_UNKNOWN, "UnknownUVError", "unknown libuv error"),
 };
 
 const struct dicey_error_def *dicey_error_info(const enum dicey_error errnum) {
@@ -44,11 +48,15 @@ bool dicey_error_is_valid(enum dicey_error errnum) {
     case DICEY_ENODATA:
     case DICEY_EBADMSG:
     case DICEY_EOVERFLOW:
+    case DICEY_ECONNREFUSED:
     case DICEY_EPATH_TOO_LONG:
     case DICEY_ETUPLE_TOO_LONG:
     case DICEY_EARRAY_TOO_LONG:
     case DICEY_EVALUE_TYPE_MISMATCH:
     case DICEY_ENOT_SUPPORTED:
+    case DICEY_ECLIENT_TOO_OLD:
+    case DICEY_ESERVER_TOO_OLD:
+    case DICEY_EUV_UNKNOWN:
         return true;
 
     default:
