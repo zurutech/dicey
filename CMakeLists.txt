@@ -104,6 +104,8 @@ set(PUBLIC_HEADERS
 
     
     # internal but public
+
+    # core
     "include/dicey/core/builders.h"
     "include/dicey/core/data-info.h"
     "include/dicey/core/errors.h"
@@ -112,6 +114,10 @@ set(PUBLIC_HEADERS
     "include/dicey/core/value.h"
     "include/dicey/core/version.h"
     "include/dicey/core/views.h"
+
+    # ipc
+    "include/dicey/ipc/client.h"
+    "include/dicey/ipc/server.h"
 )
 
 set(CORE_SOURCES
@@ -150,10 +156,14 @@ set(CORE_SOURCES
     src/sup/view-ops.h
 
     # ipc
+    src/ipc/client.c
     src/ipc/chunk.c
     src/ipc/chunk.h
     src/ipc/queue.c
     src/ipc/queue.h
+    src/ipc/server.c
+    src/ipc/uvtools.c
+    src/ipc/uvtools.h
 )
 
 target_sources(

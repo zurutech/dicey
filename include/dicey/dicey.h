@@ -9,4 +9,7 @@
 #include "core/type.h"
 #include "core/value.h"
 
+#include "ipc/client.h"
+#include "ipc/server.h"
+
 #endif // IJDIIZJEMO_DICEY_H

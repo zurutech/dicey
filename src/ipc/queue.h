@@ -9,6 +9,7 @@
 #include <uv.h>
 
 #include <dicey/core/errors.h>
+#include <dicey/core/packet.h>
 
 #define REQUEST_QUEUE_CAP 128
 
@@ -29,7 +30,9 @@ struct dicey_queue {
 void dicey_queue_deinit(struct dicey_queue *queue, void (*free_data)(void *data));
 enum dicey_error dicey_queue_init(struct dicey_queue *queue);
 bool dicey_queue_pop(struct dicey_queue *queue, void **val, enum dicey_locking_policy policy);
+bool dicey_queue_pop_packet(struct dicey_queue *queue, struct dicey_packet *dest, enum dicey_locking_policy policy);
 bool dicey_queue_push(struct dicey_queue *queue, void *val, enum dicey_locking_policy policy);
+bool dicey_queue_push_packet(struct dicey_queue *queue, struct dicey_packet packet, enum dicey_locking_policy policy);
 size_t dicey_queue_size(const struct dicey_queue *queue);
 
 #endif // NYSSJKURJT_QUEUE_H

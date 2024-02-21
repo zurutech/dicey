@@ -3,8 +3,8 @@
 #if !defined(CJUSXVGERU_UVTOOLS_H)
 #define CJUSXVGERU_UVTOOLS_H
 
-#include <dicey/dicey.h>
+#include <dicey/core/errors.h>
 
-enum dicey_error util_uverr_to_dicey(int uv_error);
+enum dicey_error dicey_error_from_uv(int uv_error);
 
 #endif // CJUSXVGERU_UVTOOLS_H

@@ -3,8 +3,10 @@
 #include <assert.h>
 #include <stdbool.h>
 #include <stddef.h>
+#include <stdlib.h>
 
 #include <dicey/core/errors.h>
+#include <dicey/core/packet.h>
 
 #include "queue.h"
 
@@ -61,7 +63,26 @@ bool dicey_queue_pop(struct dicey_queue *const queue, void **const val, const en
     return true;
 }
 
-bool request_queue_push(struct dicey_queue *const queue, void *const req, const enum dicey_locking_policy policy) {
+bool dicey_queue_pop_packet(
+    struct dicey_queue *const queue,
+    struct dicey_packet *const dest,
+    const enum dicey_locking_policy policy
+) {
+    assert(queue && dest);
+
+    void *packet = NULL;
+    if (!dicey_queue_pop(queue, &packet, policy)) {
+        return false;
+    }
+
+    *dest = *(struct dicey_packet *) packet;
+
+    free(packet);
+
+    return true;
+}
+
+bool dicey_queue_push(struct dicey_queue *const queue, void *const req, const enum dicey_locking_policy policy) {
     uv_mutex_lock(&queue->mutex);
 
     const ptrdiff_t new_tail = (queue->tail + 1) % REQUEST_QUEUE_CAP;
@@ -85,6 +106,23 @@ bool request_queue_push(struct dicey_queue *const queue, void *const req, const 
     uv_mutex_unlock(&queue->mutex);
 
     return true;
+}
+
+bool dicey_queue_push_packet(
+    struct dicey_queue *const queue,
+    const struct dicey_packet packet,
+    const enum dicey_locking_policy policy
+) {
+    assert(queue && dicey_packet_is_valid(packet));
+
+    struct dicey_packet *const req = malloc(sizeof *req);
+    if (!req) {
+        return false;
+    }
+
+    *req = packet;
+
+    return dicey_queue_push(queue, req, policy);
 }
 
 size_t dicey_queue_size(const struct dicey_queue *const queue) {

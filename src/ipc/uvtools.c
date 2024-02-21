@@ -2,9 +2,9 @@
 
 #include <uv.h>
 
-#include <dicey/dicey.h>
+#include <dicey/core/errors.h>
 
-enum dicey_error util_uverr_to_dicey(const int uv_error) {
+enum dicey_error dicey_error_from_uv(const int uv_error) {
     switch (uv_error) {
     case 0:
         return DICEY_OK;

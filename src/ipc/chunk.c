@@ -10,7 +10,6 @@
 #include <uv.h>
 
 #define BUFFER_MINCAP 1024U // 1KB
-#define READ_MINBUF 256U    // 256B
 
 size_t dicey_chunk_avail(struct dicey_chunk *const cnk) {
     return cnk ? cnk->cap - cnk->len - sizeof *cnk : 0U;
