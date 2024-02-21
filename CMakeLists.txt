@@ -138,7 +138,6 @@ set(CORE_SOURCES
     src/wirefmt/dtf/writer.c
     src/wirefmt/dtf/writer.h
 
-
     # sup
 
     src/sup/trace.c
@@ -149,6 +148,12 @@ set(CORE_SOURCES
     src/sup/util.h
     src/sup/view-ops.c
     src/sup/view-ops.h
+
+    # ipc
+    src/ipc/chunk.c
+    src/ipc/chunk.h
+    src/ipc/queue.c
+    src/ipc/queue.h
 )
 
 target_sources(
