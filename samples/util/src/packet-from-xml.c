@@ -1133,7 +1133,7 @@ static struct util_xml_error *xml_to_message(
     }
 
 fail:
-    dicey_message_builder_destroy(&msgbuild);
+    dicey_message_builder_discard(&msgbuild);
     buffer_cache_clear(&cache);
 
     return err;

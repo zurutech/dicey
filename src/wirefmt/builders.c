@@ -197,24 +197,12 @@ enum dicey_error dicey_message_builder_build(
     return DICEY_OK;
 }
 
-enum dicey_error dicey_message_builder_destroy(struct dicey_message_builder *const builder) {
+void dicey_message_builder_discard(struct dicey_message_builder *const builder) {
     assert(builder);
 
     dicey_arg_free(builder->_root);
 
     *builder = (struct dicey_message_builder) { 0 };
-
-    return DICEY_OK;
-}
-
-void dicey_message_builder_discard(struct dicey_message_builder *const builder) {
-    assert(builder);
-
-    if (builder_state_get(builder) != BUILDER_STATE_IDLE) {
-        dicey_arg_free(builder->_root);
-
-        *builder = (struct dicey_message_builder) { 0 };
-    }
 }
 
 enum dicey_error dicey_message_builder_set_path(struct dicey_message_builder *const builder, const char *const path) {

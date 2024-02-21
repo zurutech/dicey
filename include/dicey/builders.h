@@ -72,14 +72,6 @@ DICEY_EXPORT enum dicey_error dicey_message_builder_build(
 );
 
 /**
- * @brief Destroys a message builder, discarding any current state.
- * @param builder Message builder to destroy.
- * @return Error code. Possible errors are:
- *          - OK: (Never fails)
- */
-DICEY_EXPORT enum dicey_error dicey_message_builder_destroy(struct dicey_message_builder *builder);
-
-/**
  * @brief Discards the current state of a message builder.
  * @note This function completely discards the builder contents, leaving it ready to be reused.
  * @param builder Message builder to wipe.

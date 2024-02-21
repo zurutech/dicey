@@ -351,7 +351,7 @@ int main(const int argc, const char *argv[]) {
 fail:
     fclose(out.f);
     free(dumped_bytes);
-    dicey_message_builder_destroy(&msgbuild);
+    dicey_message_builder_discard(&msgbuild);
 
     fprintf(stderr, "error: %s\n", dicey_error_msg(err));
 
