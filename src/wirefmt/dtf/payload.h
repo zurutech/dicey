@@ -84,4 +84,6 @@ ptrdiff_t dtf_payload_get_seq(union dtf_payload msg);
 
 struct dtf_result dtf_payload_load(union dtf_payload *dest, struct dicey_view *src);
 
+enum dicey_error dtf_payload_set_seq(union dtf_payload msg, uint32_t seq);
+
 #endif // DTF_DHCBDDHD_H

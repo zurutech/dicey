@@ -452,3 +452,23 @@ struct dtf_result dtf_payload_load(union dtf_payload *const payload, struct dice
 
     return (struct dtf_result) { .result = DICEY_OK, .data = data, .size = (size_t) needed_len };
 }
+
+enum dicey_error dtf_payload_set_seq(const union dtf_payload msg, const uint32_t seq) {
+    if (!msg.header) {
+        return TRACE(DICEY_EINVAL);
+    }
+
+    // compute the pointer of seq without ever dereferencing msg.header (to hopefully reduce the risk of UB)
+    uint8_t *const seq_ptr = MEMBER_PTR(struct dtf_payload_head, seq, msg.header);
+
+    struct dicey_view_mut dest = {
+        .data = seq_ptr,
+        .len = sizeof msg.header->seq,
+    };
+
+    struct dicey_view src = { .data = &seq, .len = sizeof seq };
+
+    const ptrdiff_t write_res = dicey_view_mut_write(&dest, src);
+
+    return write_res < 0 ? TRACE((enum dicey_error) write_res) : DICEY_OK;
+}

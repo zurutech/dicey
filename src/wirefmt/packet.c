@@ -453,6 +453,19 @@ enum dicey_error dicey_packet_get_seq(const struct dicey_packet packet, uint32_t
     return DICEY_OK;
 }
 
+enum dicey_error dicey_packet_set_seq(const struct dicey_packet packet, const uint32_t seq) {
+    assert(dicey_packet_is_valid(packet));
+
+    const ptrdiff_t set_seq_res = dtf_payload_set_seq(
+        (union dtf_payload) {
+            .header = packet.payload,
+        },
+        seq
+    );
+
+    return set_seq_res < 0 ? set_seq_res : DICEY_OK;
+}
+
 enum dicey_error dicey_packet_hello(
     struct dicey_packet *const dest,
     const uint32_t seq,
