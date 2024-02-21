@@ -116,6 +116,7 @@ set(PUBLIC_HEADERS
 set(CORE_SOURCES
     # common
     src/errors.c
+    src/version.c
 
     # wirefmt
     

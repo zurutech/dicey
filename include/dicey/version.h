@@ -5,6 +5,8 @@
 
 #include <stdint.h>
 
+#include "dicey_export.h"
+
 #if defined(__cplusplus)
 extern "C" {
 #endif
@@ -30,6 +32,8 @@ struct dicey_version {
 
 #define DICEY_PROTO_VERSION_CURRENT                                                                                    \
     ((struct dicey_version) { .major = DICEY_PROTO_MAJOR, .revision = DICEY_PROTO_REVISION })
+
+DICEY_EXPORT int dicey_version_cmp(struct dicey_version a, struct dicey_version b);
 
 /**
  * @brief Major version number of the Dicey library
