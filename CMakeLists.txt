@@ -29,6 +29,23 @@ add_library(${PROJECT_NAME})
 
 if (MSVC)
     target_compile_options(${PROJECT_NAME} PRIVATE /W4 /WX)
+
+    include(CheckCSourceCompiles)
+    set(C11_ATOMICS_TEST "int main(void) { _Atomic int x = 2; x += 1; return x; }")
+
+    check_c_source_compiles("${C11_ATOMICS_TEST}" DICEY_MSVC_HAS_C11_ATOMICS)
+
+    if (NOT DICEY_MSVC_HAS_C11_ATOMICS)
+        set(CMAKE_REQUIRED_FLAGS /experimental:c11atomics)
+
+        check_c_source_compiles("${C11_ATOMICS_TEST}" DICEY_MSVC_HAS_C11_EXPERIMENTAL_ATOMICS)
+
+        if (DICEY_MSVC_HAS_C11_EXPERIMENTAL_ATOMICS)
+            target_compile_options(${PROJECT_NAME} PRIVATE /experimental:c11atomics)
+        else()
+            message(FATAL_ERROR "MSVC is too old - no C11 atomics support")
+        endif()
+    endif()
 else()
     target_compile_options(${PROJECT_NAME} PRIVATE -Wall -Wextra -pedantic -Werror)
 endif()
@@ -143,9 +160,10 @@ set(CORE_SOURCES
     src/wirefmt/dtf/value.h
     src/wirefmt/dtf/writer.c
     src/wirefmt/dtf/writer.h
-
+    
     # sup
-
+    
+    src/sup/assume.h
     src/sup/trace.c
     src/sup/trace.h
     src/sup/unsafe.c
@@ -156,15 +174,21 @@ set(CORE_SOURCES
     src/sup/view-ops.h
 
     # ipc
-    src/ipc/client.c
     src/ipc/chunk.c
     src/ipc/chunk.h
+    src/ipc/client.c
+    src/ipc/pending-list.c
+    src/ipc/pending-list.h
     src/ipc/queue.c
     src/ipc/queue.h
     src/ipc/server.c
     src/ipc/uvtools.c
     src/ipc/uvtools.h
 )
+
+if (WIN32)
+    list(APPEND CORE_SOURCES src/sup/asprintf.c)
+endif()
 
 target_sources(
     ${PROJECT_NAME}
