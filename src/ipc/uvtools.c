@@ -24,6 +24,9 @@ enum dicey_error dicey_error_from_uv(const int uv_error) {
     case UV_EOVERFLOW:
         return DICEY_EOVERFLOW;
 
+    case UV_ETIMEDOUT:
+        return DICEY_ETIMEDOUT;
+
     case UV_ECONNREFUSED:
         return DICEY_ECONNREFUSED;
 
