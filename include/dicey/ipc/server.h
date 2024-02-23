@@ -11,6 +11,10 @@
 
 #include "dicey_export.h"
 
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
 struct dicey_client_info {
     size_t id;
     void *user_data;
@@ -34,5 +38,9 @@ DICEY_EXPORT void dicey_server_delete(struct dicey_server *state);
 DICEY_EXPORT enum dicey_error dicey_server_new(struct dicey_server **const dest, const struct dicey_server_args *args);
 DICEY_EXPORT enum dicey_error dicey_server_send(struct dicey_server *server, size_t id, struct dicey_packet packet);
 DICEY_EXPORT enum dicey_error dicey_server_start(struct dicey_server *server, const char *name, size_t len);
+
+#if defined(__cplusplus)
+}
+#endif
 
 #endif // JJYWCOYURK_SERVER_H
