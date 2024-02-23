@@ -1,6 +1,7 @@
 // Copyright (c) 2014-2024 Zuru Tech HK Limited, All rights reserved.
 
 #include <assert.h>
+#include <inttypes.h>
 #include <limits.h>
 #include <stdbool.h>
 #include <stddef.h>
@@ -357,10 +358,18 @@ static ptrdiff_t client_got_bye(struct client_data *client, const struct dicey_b
     return CLIENT_STATE_DEAD;
 }
 
-static ptrdiff_t client_got_hello(struct client_data *client, const struct dicey_hello hello) {
+static ptrdiff_t client_got_hello(struct client_data *client, const uint32_t seq, const struct dicey_hello hello) {
     assert(client);
 
     if (client->state != CLIENT_STATE_CONNECTED) {
+        return DICEY_EINVAL;
+    }
+
+    if (seq) {
+        client->parent->on_error(
+            DICEY_EINVAL, &client->info, "unexpected seq number %" PRIu32 "in hello packet, must be 0", seq
+        );
+
         return DICEY_EINVAL;
     }
 
@@ -370,7 +379,8 @@ static ptrdiff_t client_got_hello(struct client_data *client, const struct dicey
 
     struct dicey_packet hello_repl = { 0 };
 
-    enum dicey_error err = dicey_packet_hello(&hello_repl, client_data_next_seq(client), DICEY_PROTO_VERSION_CURRENT);
+    // reply with the same seq
+    enum dicey_error err = dicey_packet_hello(&hello_repl, seq, DICEY_PROTO_VERSION_CURRENT);
     if (err) {
         return err;
     }
@@ -416,8 +426,16 @@ static enum dicey_error client_got_packet(struct client_data *client, struct dic
 
     switch (dicey_packet_get_kind(packet)) {
     case DICEY_PACKET_KIND_HELLO:
-        err = client_got_hello(client, *(struct dicey_hello *) packet.payload);
-        break;
+        {
+            uint32_t seq = 0U;
+            err = dicey_packet_get_seq(packet, &seq);
+            if (err) {
+                break;
+            }
+
+            err = client_got_hello(client, seq, *(struct dicey_hello *) packet.payload);
+            break;
+        }
 
     case DICEY_PACKET_KIND_BYE:
         err = client_got_bye(client, *(struct dicey_bye *) packet.payload);
