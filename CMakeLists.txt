@@ -177,6 +177,8 @@ set(CORE_SOURCES
     src/ipc/chunk.c
     src/ipc/chunk.h
     src/ipc/client.c
+    src/ipc/client-data.c
+    src/ipc/client-data.h
     src/ipc/pending-list.c
     src/ipc/pending-list.h
     src/ipc/queue.c

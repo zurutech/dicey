@@ -17,20 +17,9 @@
 #include <dicey/ipc/server.h>
 
 #include "chunk.h"
+#include "client-data.h"
 #include "queue.h"
 #include "uvtools.h"
-
-#if defined(_WIN32) || defined(__unix__) || defined(__unix) || defined(unix) ||                                        \
-    (defined(__APPLE__) && defined(__MACH__))
-#define ZERO_PTRLIST(TYPE, BASE, LEN) memset((BASE), 0, sizeof *(BASE) * (LEN))
-#else
-#define ZERO_PTRLIST(TYPE, BASE, END)                                                                                  \
-    for (TYPE *it = (BASE); it != (END); ++it) {                                                                       \
-        *it = NULL;                                                                                                    \
-    }
-#endif
-
-#define BASE_CAP 128
 
 struct send_request {
     size_t target;
@@ -66,27 +55,6 @@ enum server_state {
     SERVER_STATE_DEAD,
 };
 
-enum client_state {
-    CLIENT_STATE_CONNECTED,
-    CLIENT_STATE_RUNNING,
-    CLIENT_STATE_DEAD,
-};
-
-struct client_data {
-    uv_pipe_t pipe;
-
-    enum client_state state;
-
-    uint32_t seq_cnt;
-
-    struct dicey_client_info info;
-    struct dicey_version version;
-
-    struct dicey_chunk *chunk;
-
-    struct dicey_server *parent;
-};
-
 struct write_request {
     uv_write_t req;
     struct dicey_server *server;
@@ -112,9 +80,7 @@ struct dicey_server {
     dicey_server_on_error_fn *on_error;
     dicey_server_on_message_fn *on_message;
 
-    struct client_data **clients;
-    size_t num;
-    size_t cap;
+    struct dicey_client_list *clients;
 };
 
 static void on_write(uv_write_t *req, int status);
@@ -132,7 +98,7 @@ static bool is_server_msg(const enum dicey_op op) {
 
 static enum dicey_error server_sendpkt(
     struct dicey_server *const server,
-    struct client_data *const client,
+    struct dicey_client_data *const client,
     struct dicey_packet packet
 ) {
     assert(server && client && dicey_packet_is_valid(packet));
@@ -172,119 +138,29 @@ fail:
     return err;
 }
 
-static size_t compute_cap(size_t cap, const size_t new_num) {
-    while (cap < new_num) {
-        cap = cap * 3 / 2;
-    }
-
-    return cap;
-}
-
 #define READ_MINBUF 256U // 256B
 
-static void client_data_delete(struct client_data *const client) {
-    if (!client) {
-        return;
-    }
-
-    free(client->chunk);
-    free(client);
-}
-
-static uint32_t client_data_next_seq(struct client_data *const client) {
-    const uint32_t next = client->seq_cnt;
-
-    client->seq_cnt += 2U;
-
-    if (client->seq_cnt < next) {
-        abort(); // TODO: handle overflow
-    }
-
-    return next;
-}
-
-static struct client_data *client_data_new(struct dicey_server *const parent, const size_t id) {
-    struct client_data *new_client = calloc(1U, sizeof *new_client);
-    if (!new_client) {
-        return NULL;
-    }
-
-    *new_client = (struct client_data) {
-        .seq_cnt = 1U, // server-initiated packets are odd
-
-        .info = {
-            .id = id,
-        },
-
-        .parent = parent,
-    };
-
-    return new_client;
-}
-
 static void on_client_end(uv_handle_t *const handle) {
-    struct client_data *const client = (struct client_data *) handle;
+    struct dicey_client_data *const client = (struct dicey_client_data *) handle;
 
     if (client->parent->on_disconnect) {
         client->parent->on_disconnect(&client->info);
     }
 
-    client_data_delete(client);
+    dicey_client_data_delete(client);
 }
 
-static enum dicey_error server_ensure_cap(struct dicey_server *const state, const size_t new_num) {
-    if (new_num > state->cap) {
-        const size_t new_cap = compute_cap(state->cap, new_num);
+static ptrdiff_t server_add_client(struct dicey_server *const server, struct dicey_client_data **const dest) {
+    struct dicey_client_data **client_bucket = NULL;
+    size_t id = 0U;
 
-        if (new_cap > (size_t) PTRDIFF_MAX) {
-            return DICEY_EOVERFLOW;
-        }
-
-        struct client_data **const new_clients = realloc(state->clients, sizeof(*state->clients) * new_cap);
-        ZERO_PTRLIST(struct dicey_client_state, new_clients + state->cap, new_cap - state->cap);
-
-        if (!new_clients) {
-            return DICEY_ENOMEM;
-        }
-
-        state->clients = new_clients;
-        state->cap = new_cap;
+    if (!dicey_client_list_new_bucket(&server->clients, &client_bucket, &id)) {
+        return DICEY_ENOMEM;
     }
 
-    return DICEY_OK;
-}
-
-static enum dicey_error server_pick_empty_bucket(struct dicey_server *const server, struct client_data **const dest) {
-    const enum dicey_error err = server_ensure_cap(server, server->num + 1);
-    if (err) {
-        return err;
-    }
-
-    for (size_t i = 0; i < server->cap; ++i) {
-        if (!server->clients[i]) {
-            struct client_data *const new_client = client_data_new(server, i);
-            if (!new_client) {
-                return DICEY_ENOMEM;
-            }
-
-            server->clients[i] = new_client;
-            ++server->num;
-
-            *dest = new_client;
-
-            return DICEY_OK;
-        }
-    }
-
-    abort(); // unreachable, server_ensure_cap guarantees a free slot, if it fails, it's a hard bug
-}
-
-static ptrdiff_t server_add_client(struct dicey_server *const server, struct client_data **const dest) {
-    struct client_data *client = NULL;
-
-    const enum dicey_error err = server_pick_empty_bucket(server, &client);
-    if (err) {
-        return err;
+    struct dicey_client_data *const client = *client_bucket = dicey_client_data_new(server, id);
+    if (!client) {
+        return DICEY_ENOMEM;
     }
 
     if (uv_pipe_init(&server->loop, &client->pipe, 0)) {
@@ -298,30 +174,20 @@ static ptrdiff_t server_add_client(struct dicey_server *const server, struct cli
     return client->info.id;
 }
 
-static struct client_data **server_get_client_bucket(const struct dicey_server *const server, const size_t id) {
-    assert(server);
-
-    return id < server->cap ? server->clients + id : NULL;
-}
-
-static struct client_data *server_get_client(const struct dicey_server *const server, const size_t id) {
-    struct client_data *const *const bucket = server_get_client_bucket(server, id);
-
-    return bucket ? *bucket : NULL;
-}
-
 static enum dicey_error server_kick_client(
     struct dicey_server *const server,
     const size_t id,
     const enum dicey_bye_reason reason
 ) {
-    struct client_data *client = server_get_client(server, id);
+    assert(server);
+
+    struct dicey_client_data *const client = dicey_client_list_get_client(server->clients, id);
     if (!client) {
         return DICEY_EINVAL;
     }
 
     struct dicey_packet packet = { 0 };
-    enum dicey_error err = dicey_packet_bye(&packet, client_data_next_seq(client), reason);
+    enum dicey_error err = dicey_packet_bye(&packet, dicey_client_data_next_seq(client), reason);
     if (!err) {
         return err;
     }
@@ -330,25 +196,22 @@ static enum dicey_error server_kick_client(
 }
 
 static enum dicey_error server_remove_client(struct dicey_server *const server, const size_t index) {
-    if (!server || !server->num) {
+    if (!server) {
         return DICEY_EINVAL;
     }
 
-    struct client_data **const bucket = server_get_client_bucket(server, index);
+    struct dicey_client_data *const bucket = dicey_client_list_drop_client(server->clients, index);
 
     if (!bucket) {
         return DICEY_EINVAL;
     }
 
-    uv_close((uv_handle_t *) *bucket, &on_client_end);
-
-    *bucket = NULL;
-    --server->num;
+    uv_close((uv_handle_t *) bucket, &on_client_end);
 
     return DICEY_OK;
 }
 
-static ptrdiff_t client_got_bye(struct client_data *client, const struct dicey_bye bye) {
+static ptrdiff_t client_got_bye(struct dicey_client_data *client, const struct dicey_bye bye) {
     (void) bye; // unused
 
     assert(client);
@@ -358,7 +221,11 @@ static ptrdiff_t client_got_bye(struct client_data *client, const struct dicey_b
     return CLIENT_STATE_DEAD;
 }
 
-static ptrdiff_t client_got_hello(struct client_data *client, const uint32_t seq, const struct dicey_hello hello) {
+static ptrdiff_t client_got_hello(
+    struct dicey_client_data *client,
+    const uint32_t seq,
+    const struct dicey_hello hello
+) {
     assert(client);
 
     if (client->state != CLIENT_STATE_CONNECTED) {
@@ -390,7 +257,7 @@ static ptrdiff_t client_got_hello(struct client_data *client, const uint32_t seq
     return CLIENT_STATE_RUNNING;
 }
 
-static ptrdiff_t client_got_message(struct client_data *client, const struct dicey_packet packet) {
+static ptrdiff_t client_got_message(struct dicey_client_data *client, const struct dicey_packet packet) {
     assert(client);
 
     struct dicey_message message = { 0 };
@@ -409,7 +276,7 @@ static ptrdiff_t client_got_message(struct client_data *client, const struct dic
     return CLIENT_STATE_RUNNING;
 }
 
-static enum dicey_error client_raised_error(struct client_data *client, const enum dicey_error err) {
+static enum dicey_error client_raised_error(struct dicey_client_data *client, const enum dicey_error err) {
     assert(client && client->state != CLIENT_STATE_CONNECTED);
 
     client->state = CLIENT_STATE_DEAD;
@@ -419,7 +286,7 @@ static enum dicey_error client_raised_error(struct client_data *client, const en
     return server_kick_client(client->parent, client->info.id, DICEY_BYE_REASON_ERROR);
 }
 
-static enum dicey_error client_got_packet(struct client_data *client, struct dicey_packet packet) {
+static enum dicey_error client_got_packet(struct dicey_client_data *client, struct dicey_packet packet) {
     assert(client && dicey_packet_is_valid(packet));
 
     enum dicey_error err = DICEY_OK;
@@ -460,7 +327,7 @@ static void on_write(uv_write_t *const req, const int status) {
 
     assert(server);
 
-    const struct client_data *const client = server_get_client(server, write_req->client_id);
+    const struct dicey_client_data *const client = dicey_client_list_get_client(server->clients, write_req->client_id);
     assert(client);
 
     const struct dicey_client_info *const info = &client->info;
@@ -483,7 +350,7 @@ static void on_write(uv_write_t *const req, const int status) {
 static void alloc_buffer(uv_handle_t *const handle, const size_t suggested_size, uv_buf_t *const buf) {
     (void) suggested_size; // useless, always 65k (max UDP packet size)
 
-    struct client_data *const client = (struct client_data *) handle;
+    struct dicey_client_data *const client = (struct dicey_client_data *) handle;
     assert(client);
 
     *buf = dicey_chunk_get_buf(&client->chunk, READ_MINBUF);
@@ -494,7 +361,7 @@ static void alloc_buffer(uv_handle_t *const handle, const size_t suggested_size,
 static void on_read(uv_stream_t *const stream, const ssize_t nread, const uv_buf_t *const buf) {
     (void) buf;
 
-    struct client_data *const client = (struct client_data *) stream;
+    struct dicey_client_data *const client = (struct dicey_client_data *) stream;
     assert(client && client->parent && client->chunk);
 
     if (nread < 0) {
@@ -554,7 +421,7 @@ static void data_available(uv_async_t *const async) {
         struct send_request req = *(struct send_request *) item;
         free(item);
 
-        struct client_data *const client = server_get_client(server, req.target);
+        struct dicey_client_data *const client = dicey_client_list_get_client(server->clients, req.target);
 
         if (client) {
             if (req.packet.nbytes > UINT_MAX) {
@@ -597,7 +464,7 @@ static void on_connect(uv_stream_t *const stream, const int status) {
         return;
     }
 
-    struct client_data *client = NULL;
+    struct dicey_client_data *client = NULL;
 
     const ptrdiff_t id = server_add_client(server, &client);
     if (id < 0) {
@@ -648,9 +515,9 @@ void dicey_server_delete(struct dicey_server *const state) {
         return;
     }
 
-    struct client_data *const *const end = state->clients + state->num;
+    struct dicey_client_data *const *const end = dicey_client_list_end(state->clients);
 
-    for (struct client_data *const *client = state->clients; client < end; ++client) {
+    for (struct dicey_client_data *const *client = dicey_client_list_begin(state->clients); client < end; ++client) {
         uv_close((uv_handle_t *) *client, NULL);
 
         free(*client);
@@ -682,9 +549,7 @@ enum dicey_error dicey_server_new(struct dicey_server **const dest, const struct
 
         .on_error = &dummy_error_handler,
 
-        .clients = malloc(sizeof(*server->clients) * BASE_CAP),
-        .num = 0,
-        .cap = BASE_CAP,
+        .clients = NULL,
     };
 
     if (args) {

@@ -44,12 +44,11 @@
 enum client_state {
     CLIENT_STATE_UNINIT,
     CLIENT_STATE_INIT,
-    CLIENT_STATE_CONNECTING,
+    CLIENT_STATE_CONNECT_START,
     CLIENT_STATE_HELLO_SENT,
     CLIENT_STATE_RUNNING,
 
     CLIENT_STATE_DEAD,
-    CLIENT_STATE_CONN_FAIL,
 };
 
 static bool is_server_msg(const enum dicey_op op) {
@@ -109,8 +108,6 @@ static void this_thread_do_init(void) {
     if (res < 0) {
         abort(); // if we can't init a semaphore, this is the safest possible course of action
     }
-
-    uv_sem_post(&this_thread_sem);
 }
 
 static void this_thread_init(void) {
@@ -147,6 +144,16 @@ static bool client_process_event(
     ...
 );
 
+static void client_set_state(struct dicey_client *const client, const enum client_state state) {
+    assert(client && state >= CLIENT_STATE_UNINIT && state <= CLIENT_STATE_DEAD);
+
+    assert(client->state != CLIENT_STATE_DEAD); // dead clients can't change state
+
+    assert(client->state <= state); // state transitions must be forward
+
+    client->state = state;
+}
+
 static bool client_process_event_va(
     struct dicey_client_event *const ev,
     struct dicey_client *const client,
@@ -161,14 +168,14 @@ static bool client_process_event_va(
     case DICEY_CLIENT_EVENT_CONNECT:
         assert(client->state == CLIENT_STATE_HELLO_SENT);
 
-        client->state = CLIENT_STATE_RUNNING;
+        client_set_state(client, CLIENT_STATE_RUNNING);
 
         break;
 
     case DICEY_CLIENT_EVENT_DISCONNECT:
         assert(client->state >= CLIENT_STATE_HELLO_SENT);
 
-        client->state = CLIENT_STATE_DEAD; // TODO: support reconnections
+        client_set_state(client, CLIENT_STATE_DEAD); // TODO: support reconnections
 
         break;
 
@@ -181,7 +188,7 @@ static bool client_process_event_va(
                 abort(); // no idea on how to recover from out of memory in this very spot
             }
 
-            client->state = client->state <= CLIENT_STATE_CONNECTING ? CLIENT_STATE_CONN_FAIL : CLIENT_STATE_DEAD;
+            client_set_state(client, CLIENT_STATE_DEAD);
 
             break;
         }
@@ -191,19 +198,21 @@ static bool client_process_event_va(
 
         ev->version = va_arg(args, struct dicey_version);
 
-        client->state = CLIENT_STATE_CONNECTING;
+        client_set_state(client, CLIENT_STATE_CONNECT_START);
 
         break;
 
     case DICEY_CLIENT_EVENT_HANDSHAKE_WAITING:
-        assert(client->state == CLIENT_STATE_CONNECTING);
+        assert(client->state == CLIENT_STATE_CONNECT_START);
+
+        client_set_state(client, CLIENT_STATE_HELLO_SENT);
 
         break;
 
     case DICEY_CLIENT_EVENT_INIT:
         assert(client->state == CLIENT_STATE_UNINIT);
 
-        client->state = CLIENT_STATE_INIT;
+        client_set_state(client, CLIENT_STATE_INIT);
 
         break;
 
@@ -241,14 +250,14 @@ static bool client_process_event_va(
 
     case DICEY_CLIENT_EVENT_SERVER_BYE:
         {
-            assert(client->state >= CLIENT_STATE_CONNECTING);
+            assert(client->state >= CLIENT_STATE_CONNECT_START);
 
             const enum dicey_bye_reason bye_reason = va_arg(args, enum dicey_bye_reason);
             if (bye_reason == DICEY_BYE_REASON_ERROR) {
                 return client_process_event(ev, client, DICEY_CLIENT_EVENT_ERROR, "kicked by server");
             } else {
                 // raise the event
-                client->state = CLIENT_STATE_DEAD;
+                client_set_state(client, CLIENT_STATE_DEAD);
             }
 
             break;
@@ -324,6 +333,10 @@ static void on_write(uv_write_t *const req, const int status) {
 
     free(req);
 
+    if (client->state == CLIENT_STATE_DEAD) {
+        goto cleanup;
+    }
+
     if (status < 0) {
         client_event(
             client, DICEY_CLIENT_EVENT_ERROR, dicey_error_from_uv(status), "uv_write: %s", uv_strerror(status)
@@ -339,8 +352,7 @@ static void on_write(uv_write_t *const req, const int status) {
         return;
 
     case DICEY_PACKET_KIND_HELLO:
-        assert(client->state == CLIENT_STATE_CONNECTING);
-        client->state = CLIENT_STATE_HELLO_SENT;
+        client_event(client, DICEY_CLIENT_EVENT_HANDSHAKE_WAITING);
 
         break;
 
@@ -474,7 +486,7 @@ static enum dicey_error client_queue_out_packet(
 
     // seq 0 is reserved for the first packet, which is always a hello
     // also, we use even numbers for client-initiated packets, so check for that
-    assert(seq && !(seq % 2U));
+    assert(!(seq && seq % 2U));
 
     *req = (struct send_request) {
         .seq = seq,
@@ -563,7 +575,7 @@ static enum dicey_error client_got_bye(struct dicey_client *client, const struct
     struct dicey_bye bye = { 0 };
     DICEY_ASSUME(dicey_packet_as_bye(packet, &bye));
 
-    assert(client && client->state >= CLIENT_STATE_CONNECTING);
+    assert(client && client->state >= CLIENT_STATE_CONNECT_START);
 
     client_event(client, DICEY_CLIENT_EVENT_SERVER_BYE, bye.reason);
 
@@ -675,7 +687,7 @@ static void on_read(uv_stream_t *const stream, const ssize_t nread, const uv_buf
     assert(client && client->chunk);
 
     if (nread < 0) {
-        if (nread != UV_EOF) {
+        if (nread != UV_EOF && client->state != CLIENT_STATE_DEAD) {
             const int uverr = (int) nread;
 
             client_event(
@@ -796,8 +808,6 @@ static void on_connect(uv_connect_t *const conn, const int status) {
 
     assert(client);
 
-    free(conn);
-
     if (status < 0) {
         client_event(
             client, DICEY_CLIENT_EVENT_ERROR, dicey_error_from_uv(status), "uv_connect: %s", uv_strerror(status)
@@ -828,11 +838,11 @@ static void on_connect(uv_connect_t *const conn, const int status) {
 static void connect_and_loop(void *const arg) {
     assert(arg);
 
-    struct connect_args *const args = arg;
-    struct dicey_client *const client = args->client;
-    const char *const addr = args->addr;
-    const size_t addr_len = args->addr_len;
-    dicey_client_on_connect_fn *const on_connect_cb = args->on_connect_cb;
+    struct connect_args *const conn = arg;
+    struct dicey_client *const client = conn->client;
+    const char *const addr = conn->addr;
+    const size_t addr_len = conn->addr_len;
+    dicey_client_on_connect_fn *const on_connect_cb = conn->on_connect_cb;
 
     assert(on_connect_cb);
 
@@ -840,18 +850,7 @@ static void connect_and_loop(void *const arg) {
 
     enum dicey_error err = DICEY_OK;
 
-    uv_connect_t *const conn = malloc(sizeof *conn);
-    if (!conn) {
-        err = DICEY_ENOMEM;
-
-        goto fail;
-    }
-
-    *conn = (uv_connect_t) { .data = client };
-
-    client->state = CLIENT_STATE_CONNECTING;
-
-    int uverr = uv_pipe_connect2(conn, &client->pipe, addr, addr_len, 0, &on_connect);
+    int uverr = uv_pipe_connect2((uv_connect_t *) conn, &client->pipe, addr, addr_len, 0, &on_connect);
     if (uverr < 0) {
         free(conn);
 
@@ -860,7 +859,7 @@ static void connect_and_loop(void *const arg) {
         goto fail;
     }
 
-    uverr = uv_timer_start(&client->timeout_timer, &check_timeout, 0, 1000);
+    uverr = uv_timer_start(&client->timeout_timer, &check_timeout, 100, 100);
     if (uverr < 0) {
         free(conn);
 
@@ -1063,6 +1062,8 @@ enum dicey_error dicey_client_new(struct dicey_client **const dest, const struct
 
         goto free_pipe;
     }
+
+    client->timeout_timer.data = client;
 
     *dest = client;
 
