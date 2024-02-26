@@ -4,6 +4,7 @@
 #define _CRT_SECURE_NO_WARNINGS 1
 
 #include <assert.h>
+#include <inttypes.h>
 #include <stdarg.h>
 #include <stdbool.h>
 #include <stdint.h>
@@ -27,111 +28,68 @@ enum load_mode {
     LOAD_MODE_XML,
 };
 
-struct recv_data {
-    uint32_t seq;
-
-    uv_sem_t sem;
-};
-
-static struct recv_data *make_data(void) {
-    struct recv_data *const data = calloc(1U, sizeof *data);
-    if (!data) {
-        return NULL;
-    }
-
-    const int err = uv_sem_init(&data->sem, 0);
-    if (err < 0) {
-        free(data);
-
-        return NULL;
-    }
-
-    return data;
-}
-
-static void at_client_exit(struct dicey_client *const client) {
-    struct recv_data *const data = dicey_client_get_data(client);
-    if (data) {
-        uv_sem_post(&data->sem);
-    }
-}
-
-static void on_client_connect(struct dicey_client *const client) {
+static void inspector(const struct dicey_client *const client, void *const ctx, struct dicey_client_event event) {
     (void) client;
+    (void) ctx;
 
-    puts("info: client connected");
+    assert(client);
+
+    switch (event.type) {
+    case DICEY_CLIENT_EVENT_CONNECT:
+        puts("client connected");
+        break;
+
+    case DICEY_CLIENT_EVENT_DISCONNECT:
+        printf("client disconnected");
+        break;
+
+    case DICEY_CLIENT_EVENT_ERROR:
+        fprintf(stderr, "error: [%s] %s\n", dicey_error_msg(event.error.err), event.error.msg);
+        break;
+
+    case DICEY_CLIENT_EVENT_HANDSHAKE_START:
+        printf(
+            "handshake started, presenting version %" PRId16 "r%" PRId16, event.version.major, event.version.revision
+        );
+        break;
+
+    case DICEY_CLIENT_EVENT_HANDSHAKE_WAITING:
+        puts("waiting for server to reply to handshake");
+        break;
+
+    case DICEY_CLIENT_EVENT_INIT:
+        puts("client initialized");
+        break;
+
+    case DICEY_CLIENT_EVENT_MESSAGE_RECEIVING:
+        puts("receiving message");
+        break;
+
+    case DICEY_CLIENT_EVENT_MESSAGE_SENDING:
+        puts("sending message");
+        break;
+
+    case DICEY_CLIENT_EVENT_SERVER_BYE:
+        puts("server said goodbye");
+        break;
+
+    default:
+        break;
+    }
 }
 
-static void on_client_disconnect(struct dicey_client *const cln) {
-    (void) cln;
-
-    puts("info: client disconnected");
-}
-
-static void on_client_error(
+static void on_client_event(
     const struct dicey_client *const client,
-    const enum dicey_error err,
-    const char *const msg,
-    ...
+    void *const ctx,
+    const struct dicey_packet packet
 ) {
     (void) client;
+    (void) ctx;
 
-    va_list args;
-    va_start(args, msg);
-
-    fprintf(stderr, "%sError (%s):", dicey_error_name(err), dicey_error_msg(err));
-
-    vfprintf(stderr, msg, args);
-    fputc('\n', stderr);
-
-    va_end(args);
-}
-
-static void on_message_received(struct dicey_client *const cln, struct dicey_packet packet) {
-    (void) cln;
-
-    puts("info: received packet from server");
+    assert(client);
 
     struct util_dumper dumper = util_dumper_for(stdout);
-
-    util_dumper_dump_packet(&dumper, packet);
-
-    uint32_t seq = 0U;
-    const enum dicey_error err = dicey_packet_get_seq(packet, &seq);
-    if (err) {
-        abort(); // unreachable, dicey_packet_is_valid guarantees a valid packet
-    }
-
-    struct recv_data *const data = dicey_client_get_data(cln);
-    assert(data);
-
-    if (seq == data->seq) {
-        // unlock main thread
-        uv_sem_post(&data->sem);
-    }
-
-    dicey_packet_deinit(&packet);
-}
-
-static void on_message_sent(struct dicey_client *const cln, struct dicey_packet packet) {
-    (void) cln;
-
-    uint32_t seq = 0U;
-
-    const enum dicey_error err = dicey_packet_get_seq(packet, &seq);
-    if (err) {
-        abort(); // unreachable
-    }
-
-    struct recv_data *const data = dicey_client_get_data(cln);
-    assert(data);
-
-    data->seq = seq;
-
-    puts("info: sent packet to server");
-
-    struct util_dumper dumper = util_dumper_for(stdout);
-
+    util_dumper_printlnf(&dumper, "received event:");
     util_dumper_dump_packet(&dumper, packet);
 }
 
@@ -141,12 +99,8 @@ static int do_send(char *addr, struct dicey_packet packet) {
     enum dicey_error err = dicey_client_new(
         &client,
         &(struct dicey_client_args) {
-            .at_exit = &at_client_exit,
-            .on_connect = &on_client_connect,
-            .on_disconnect = &on_client_disconnect,
-            .on_error = &on_client_error,
-            .on_message_recv = &on_message_received,
-            .on_message_sent = &on_message_sent,
+            .inspect_func = &inspector,
+            .on_event = &on_client_event,
         }
     );
 
@@ -154,32 +108,28 @@ static int do_send(char *addr, struct dicey_packet packet) {
         return err;
     }
 
-    struct recv_data *data = make_data();
-    if (!data) {
-        abort();
-    }
-
-    const void *const old_data = dicey_client_set_data(client, data);
-    assert(!old_data);
-    (void) old_data; // suppress unused variable warning with MSVC in release builds
-
     err = dicey_client_connect(client, dicey_addr_from_str(addr));
     if (err) {
-        free(data);
         dicey_client_delete(client);
         dicey_packet_deinit(&packet);
 
         return err;
     }
 
-    err = dicey_client_send(client, packet);
+    struct util_dumper dumper = util_dumper_for(stdout);
+    util_dumper_printlnf(&dumper, "sending packet:");
+    util_dumper_dump_packet(&dumper, packet);
+
+    err = dicey_client_request(client, packet, &packet, 3000); // 3 seconds
     if (err) {
-        free(data);
         dicey_client_delete(client);
         dicey_packet_deinit(&packet);
+
+        return err;
     }
 
-    uv_sem_wait(&data->sem);
+    util_dumper_printlnf(&dumper, "received packet:");
+    util_dumper_dump_packet(&dumper, packet);
 
     return DICEY_OK;
 }

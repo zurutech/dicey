@@ -293,7 +293,7 @@ static bool client_event(struct dicey_client *const client, const int event, ...
     va_end(args);
 
     if (res) {
-        client->inspect_func(client, client->data, ev);
+        client->inspect_func(client, dicey_client_get_context(client), ev);
     }
 
     return res;
@@ -888,7 +888,9 @@ struct sync_conn_data {
 };
 
 static void wait_for_connect(struct dicey_client *const client, void *const data, const enum dicey_error err) {
-    assert(client && data);
+    (void) client;
+
+    assert(data);
 
     struct sync_conn_data *const sync_data = data;
 
@@ -911,7 +913,9 @@ static void wait_for_reply(
     struct dicey_packet packet,
     void *data
 ) {
-    assert(client && data);
+    (void) client;
+
+    assert(data);
 
     struct sync_reply_data *const sync_data = data;
 

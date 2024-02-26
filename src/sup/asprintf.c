@@ -5,28 +5,35 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-int asprintf(char **const s, const char *const fmt, ...) {
-    va_list ap;
-    va_start(ap, fmt);
+#include "asprintf.h"
 
-    const int ret = vasprintf(s, fmt, ap);
+int asprintf(char **const dest, const char *const fmt, ...) {
+    va_list args;
+    va_start(args, fmt);
 
-    va_end(ap);
+    const int ret = vasprintf(dest, fmt, args);
+
+    va_end(args);
 
     return ret;
 }
 
-int vasprintf(char **const s, const char *const fmt, va_list ap) {
-    va_list ap2;
-    va_copy(ap2, ap);
+int vasprintf(char **const dest, const char *const fmt, va_list args) {
+    va_list args2;
+    va_copy(args2, args);
 
-    const int l = vsnprintf(NULL, 0, fmt, ap2);
+    const int len = vsnprintf(NULL, 0, fmt, args2);
 
-    va_end(ap2);
+    va_end(args2);
 
-    if (l < 0 || !(*s = malloc(l + 1U))) {
-        return -1;
+    // ugly nonsense due to MSVC disliking assignments in conditionals
+    if (len >= 0) {
+        *dest = malloc(len + 1U);
+
+        if (dest) {
+            return vsnprintf(*dest, len + 1U, fmt, args);
+        }
     }
 
-    return vsnprintf(*s, l + 1U, fmt, ap);
+    return -1;
 }

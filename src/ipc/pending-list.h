@@ -13,6 +13,10 @@
 #include <dicey/core/packet.h>
 #include <dicey/ipc/client.h>
 
+#if defined(_MSC_VER)
+#pragma warning(disable : 4200)
+#endif
+
 struct dicey_pending_reply {
     uint32_t seq;
 
