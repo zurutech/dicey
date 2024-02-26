@@ -29,13 +29,12 @@ struct dicey_client_list {
 };
 
 static struct dicey_client_list *client_list_grow(struct dicey_client_list *list) {
-    const size_t new_cap = list && list->cap ? list->cap * 3 / 2 : BASE_CAP;
+    const size_t old_cap = list ? list->cap : 0U;
+    const size_t new_cap = old_cap ? old_cap * 3 / 2 : BASE_CAP;
 
     if (new_cap > (size_t) PTRDIFF_MAX) {
         return NULL;
     }
-
-    const size_t old_cap = list->cap;
 
     list = realloc(list, sizeof *list + sizeof(*list->clients) * new_cap);
     if (!list) {
@@ -124,9 +123,12 @@ struct dicey_client_data **dicey_client_list_new_bucket(
 ) {
     assert(list_ptr && bucket_dest && id);
 
-    struct dicey_client_list *list = *list_ptr;
+    size_t old_cap = 0U;
 
-    if (list) {
+    // if there's a list, search for an empty slot
+    if (*list_ptr) {
+        struct dicey_client_list *list = *list_ptr;
+
         for (size_t i = 0; i < list->cap; ++i) {
             if (!list->clients[i]) {
                 *id = i;
@@ -135,12 +137,17 @@ struct dicey_client_data **dicey_client_list_new_bucket(
                 return *bucket_dest;
             }
         }
+
+        old_cap = list->cap;
     }
 
-    *list_ptr = client_list_grow(list);
-    if (!list) {
+    // if there's no list, or no empty slot, grow the list and return the first new slot
+    *list_ptr = client_list_grow(*list_ptr);
+    if (!*list_ptr) {
         return NULL;
     }
 
-    return dicey_client_list_new_bucket(list_ptr, bucket_dest, id);
+    *id = old_cap;
+
+    return *bucket_dest = &(*list_ptr)->clients[old_cap];
 }

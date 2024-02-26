@@ -1,5 +1,7 @@
 // Copyright (c) 2014-2024 Zuru Tech HK Limited, All rights reserved.
 
+#include "dicey/ipc/server.h"
+#include <complex.h>
 #include <stdarg.h>
 #include <stdbool.h>
 #include <stddef.h>
@@ -26,7 +28,9 @@
 #define PIPE_NAME "/tmp/.uvsock"
 #endif
 
-static bool on_client_connect(const size_t id, void **const user_data) {
+static bool on_client_connect(struct dicey_server *const server, const size_t id, void **const user_data) {
+    (void) server;
+
     printf("info: client %zu connected\n", id);
 
     *user_data = NULL;
@@ -34,16 +38,21 @@ static bool on_client_connect(const size_t id, void **const user_data) {
     return true;
 }
 
-static void on_client_disconnect(const struct dicey_client_info *const cln) {
+static void on_client_disconnect(struct dicey_server *const server, const struct dicey_client_info *const cln) {
+    (void) server;
+
     printf("info: client %zu disconnected\n", cln->id);
 }
 
 static void on_client_error(
+    struct dicey_server *const server,
     const enum dicey_error err,
     const struct dicey_client_info *const cln,
     const char *const msg,
     ...
 ) {
+    (void) server;
+
     va_list args;
     va_start(args, msg);
 
@@ -58,9 +67,17 @@ static void on_client_error(
     fputc('\n', stderr);
 
     va_end(args);
+
+    exit(EXIT_FAILURE);
 }
 
-static void on_packet_received(const struct dicey_client_info *const cln, struct dicey_packet packet) {
+static void on_packet_received(
+    struct dicey_server *const server,
+    const struct dicey_client_info *const cln,
+    struct dicey_packet packet
+) {
+    (void) server;
+
     printf("info: received packet from client %zu\n", cln->id);
 
     struct util_dumper dumper = { 0 };
@@ -77,10 +94,6 @@ static enum dicey_error remove_socket_if_present(uv_loop_t *const loop) {
 #endif
 
 int main(void) {
-    uv_loop_t loop = { 0 };
-
-    uv_loop_init(&loop);
-
     struct dicey_server *server = NULL;
 
     enum dicey_error err = dicey_server_new(
@@ -115,7 +128,7 @@ int main(void) {
         goto quit;
     }
 
-    uv_fs_unlink(&loop, &(uv_fs_t) { 0 }, PIPE_NAME, NULL);
+    uv_fs_unlink(NULL, &(uv_fs_t) { 0 }, PIPE_NAME, NULL);
 
 quit:
     dicey_server_delete(server);

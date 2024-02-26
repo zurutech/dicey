@@ -22,10 +22,20 @@ struct dicey_client_info {
 
 struct dicey_server;
 
-typedef bool dicey_server_on_connect_fn(size_t id, void **user_data);
-typedef void dicey_server_on_disconnect_fn(const struct dicey_client_info *cln);
-typedef void dicey_server_on_error_fn(enum dicey_error err, const struct dicey_client_info *cln, const char *msg, ...);
-typedef void dicey_server_on_message_fn(const struct dicey_client_info *cln, struct dicey_packet packet);
+typedef bool dicey_server_on_connect_fn(struct dicey_server *server, size_t id, void **user_data);
+typedef void dicey_server_on_disconnect_fn(struct dicey_server *server, const struct dicey_client_info *cln);
+typedef void dicey_server_on_error_fn(
+    struct dicey_server *server,
+    enum dicey_error err,
+    const struct dicey_client_info *cln,
+    const char *msg,
+    ...
+);
+typedef void dicey_server_on_message_fn(
+    struct dicey_server *server,
+    const struct dicey_client_info *cln,
+    struct dicey_packet packet
+);
 
 struct dicey_server_args {
     dicey_server_on_connect_fn *on_connect;

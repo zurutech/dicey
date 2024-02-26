@@ -144,7 +144,7 @@ static void on_client_end(uv_handle_t *const handle) {
     struct dicey_client_data *const client = (struct dicey_client_data *) handle;
 
     if (client->parent->on_disconnect) {
-        client->parent->on_disconnect(&client->info);
+        client->parent->on_disconnect(client->parent, &client->info);
     }
 
     dicey_client_data_delete(client);
@@ -228,13 +228,16 @@ static ptrdiff_t client_got_hello(
 ) {
     assert(client);
 
+    struct dicey_server *const server = client->parent;
+    assert(server);
+
     if (client->state != CLIENT_STATE_CONNECTED) {
         return DICEY_EINVAL;
     }
 
     if (seq) {
-        client->parent->on_error(
-            DICEY_EINVAL, &client->info, "unexpected seq number %" PRIu32 "in hello packet, must be 0", seq
+        server->on_error(
+            server, DICEY_EINVAL, &client->info, "unexpected seq number %" PRIu32 "in hello packet, must be 0", seq
         );
 
         return DICEY_EINVAL;
@@ -252,13 +255,16 @@ static ptrdiff_t client_got_hello(
         return err;
     }
 
-    err = server_sendpkt(client->parent, client, hello_repl);
+    err = server_sendpkt(server, client, hello_repl);
 
     return CLIENT_STATE_RUNNING;
 }
 
 static ptrdiff_t client_got_message(struct dicey_client_data *client, const struct dicey_packet packet) {
     assert(client);
+
+    struct dicey_server *const server = client->parent;
+    assert(server);
 
     struct dicey_message message = { 0 };
     if (dicey_packet_as_message(packet, &message) != DICEY_OK || is_server_msg(message.type)) {
@@ -269,8 +275,8 @@ static ptrdiff_t client_got_message(struct dicey_client_data *client, const stru
         return DICEY_EINVAL;
     }
 
-    if (client->parent->on_message) {
-        client->parent->on_message(&client->info, packet);
+    if (server->on_message) {
+        server->on_message(server, &client->info, packet);
     }
 
     return CLIENT_STATE_RUNNING;
@@ -279,11 +285,14 @@ static ptrdiff_t client_got_message(struct dicey_client_data *client, const stru
 static enum dicey_error client_raised_error(struct dicey_client_data *client, const enum dicey_error err) {
     assert(client && client->state != CLIENT_STATE_CONNECTED);
 
+    struct dicey_server *const server = client->parent;
+    assert(server);
+
     client->state = CLIENT_STATE_DEAD;
 
-    client->parent->on_error(err, &client->info, "client error: %s", dicey_error_name(err));
+    server->on_error(server, err, &client->info, "client error: %s", dicey_error_name(err));
 
-    return server_kick_client(client->parent, client->info.id, DICEY_BYE_REASON_ERROR);
+    return server_kick_client(server, client->info.id, DICEY_BYE_REASON_ERROR);
 }
 
 static enum dicey_error client_got_packet(struct dicey_client_data *client, struct dicey_packet packet) {
@@ -323,7 +332,7 @@ static void on_write(uv_write_t *const req, const int status) {
     assert(req);
 
     struct write_request *const write_req = (struct write_request *) req;
-    const struct dicey_server *const server = write_req->server;
+    struct dicey_server *const server = write_req->server;
 
     assert(server);
 
@@ -333,13 +342,13 @@ static void on_write(uv_write_t *const req, const int status) {
     const struct dicey_client_info *const info = &client->info;
 
     if (status < 0) {
-        server->on_error(dicey_error_from_uv(status), info, "write error %s\n", uv_strerror(status));
+        server->on_error(server, dicey_error_from_uv(status), info, "write error %s\n", uv_strerror(status));
     }
 
     if (dicey_packet_get_kind(write_req->packet) == DICEY_PACKET_KIND_BYE) {
         const enum dicey_error err = server_remove_client(write_req->server, write_req->client_id);
         if (err) {
-            server->on_error(err, info, "server_remove_client: %s\n", dicey_error_name(err));
+            server->on_error(server, err, info, "server_remove_client: %s\n", dicey_error_name(err));
         }
     }
 
@@ -364,17 +373,19 @@ static void on_read(uv_stream_t *const stream, const ssize_t nread, const uv_buf
     struct dicey_client_data *const client = (struct dicey_client_data *) stream;
     assert(client && client->parent && client->chunk);
 
+    struct dicey_server *const server = client->parent;
+
     if (nread < 0) {
         if (nread != UV_EOF) {
             const int uverr = (int) nread;
 
-            client->parent->on_error(dicey_error_from_uv(uverr), &client->info, "Read error %s\n", uv_strerror(uverr));
+            server->on_error(server, dicey_error_from_uv(uverr), &client->info, "Read error %s\n", uv_strerror(uverr));
         }
 
         const enum dicey_error remove_err = server_remove_client(client->parent, client->info.id);
         if (remove_err) {
-            client->parent->on_error(
-                remove_err, &client->info, "server_remove_client: %s\n", dicey_error_name(remove_err)
+            server->on_error(
+                server, remove_err, &client->info, "server_remove_client: %s\n", dicey_error_name(remove_err)
             );
         }
 
@@ -426,7 +437,7 @@ static void data_available(uv_async_t *const async) {
         if (client) {
             if (req.packet.nbytes > UINT_MAX) {
                 dicey_packet_deinit(&req.packet);
-                server->on_error(DICEY_EOVERFLOW, &client->info, "packet too large");
+                server->on_error(server, DICEY_EOVERFLOW, &client->info, "packet too large");
 
                 continue;
             }
@@ -444,7 +455,7 @@ static void data_available(uv_async_t *const async) {
 
             const int err = uv_write(write_req, (uv_stream_t *) &client->pipe, &buf, 1, &on_write);
             if (err) {
-                server->on_error(dicey_error_from_uv(err), &client->info, "uv_write: %s", uv_strerror(err));
+                server->on_error(server, dicey_error_from_uv(err), &client->info, "uv_write: %s", uv_strerror(err));
 
                 free(write_req);
                 dicey_packet_deinit(&req.packet);
@@ -459,7 +470,7 @@ static void on_connect(uv_stream_t *const stream, const int status) {
     struct dicey_server *const server = (struct dicey_server *) stream;
 
     if (status < 0) {
-        server->on_error(dicey_error_from_uv(status), NULL, "New connection error %s", uv_strerror(status));
+        server->on_error(server, dicey_error_from_uv(status), NULL, "New connection error %s", uv_strerror(status));
 
         return;
     }
@@ -468,7 +479,7 @@ static void on_connect(uv_stream_t *const stream, const int status) {
 
     const ptrdiff_t id = server_add_client(server, &client);
     if (id < 0) {
-        server->on_error(id, NULL, "server_add_client: %s", dicey_error_name(id));
+        server->on_error(server, id, NULL, "server_add_client: %s", dicey_error_name(id));
 
         return;
     }
@@ -477,13 +488,13 @@ static void on_connect(uv_stream_t *const stream, const int status) {
 
     const int accept_err = uv_accept(stream, (uv_stream_t *) client);
     if (accept_err) {
-        server->on_error(dicey_error_from_uv(accept_err), NULL, "uv_accept: %s", uv_strerror(accept_err));
+        server->on_error(server, dicey_error_from_uv(accept_err), NULL, "uv_accept: %s", uv_strerror(accept_err));
 
         server_remove_client(server, (size_t) id);
     }
 
-    if (server->on_connect && !server->on_connect((size_t) id, &client->info.user_data)) {
-        server->on_error(DICEY_ECONNREFUSED, &client->info, "connection refused by user code");
+    if (server->on_connect && !server->on_connect(server, (size_t) id, &client->info.user_data)) {
+        server->on_error(server, DICEY_ECONNREFUSED, &client->info, "connection refused by user code");
 
         server_remove_client(server, (size_t) id);
 
@@ -493,18 +504,20 @@ static void on_connect(uv_stream_t *const stream, const int status) {
     const int err = uv_read_start((uv_stream_t *) client, &alloc_buffer, &on_read);
 
     if (err < 0) {
-        server->on_error(dicey_error_from_uv(err), &client->info, "read_start fail: %s", uv_strerror(err));
+        server->on_error(server, dicey_error_from_uv(err), &client->info, "read_start fail: %s", uv_strerror(err));
 
         server_remove_client(server, (size_t) id);
     }
 }
 
 static void dummy_error_handler(
+    struct dicey_server *const state,
     const enum dicey_error err,
     const struct dicey_client_info *const cln,
     const char *const msg,
     ...
 ) {
+    (void) state;
     (void) err;
     (void) cln;
     (void) msg;
@@ -562,12 +575,6 @@ enum dicey_error dicey_server_new(struct dicey_server **const dest, const struct
         }
     }
 
-    if (!server->clients) {
-        err = DICEY_ENOMEM;
-
-        goto free_struct;
-    }
-
     int uverr = uv_loop_init(&server->loop);
     if (uverr < 0) {
         err = dicey_error_from_uv(uverr);
@@ -614,7 +621,6 @@ free_loop:
 free_clients:
     free(server->clients);
 
-free_struct:
     free(server);
 
     return err;
