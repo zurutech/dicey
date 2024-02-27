@@ -9,19 +9,11 @@
 
 #include <dicey/ipc/server.h>
 
+#include "sup/unsafe.h"
+
 #include "client-data.h"
 
 #define BASE_CAP 128
-
-#if defined(_WIN32) || defined(__unix__) || defined(__unix) || defined(unix) ||                                        \
-    (defined(__APPLE__) && defined(__MACH__))
-#define ZERO_PTRLIST(TYPE, BASE, LEN) memset((BASE), 0, sizeof *(BASE) * (LEN))
-#else
-#define ZERO_PTRLIST(TYPE, BASE, END)                                                                                  \
-    for (TYPE *it = (BASE); it != (END); ++it) {                                                                       \
-        *it = NULL;                                                                                                    \
-    }
-#endif
 
 struct dicey_client_list {
     size_t cap;
@@ -41,7 +33,7 @@ static struct dicey_client_list *client_list_grow(struct dicey_client_list *list
         return NULL;
     }
 
-    ZERO_PTRLIST(struct dicey_client_state, list->clients + old_cap, new_cap - old_cap);
+    ZERO_ARRAY(list->clients + old_cap, new_cap - old_cap);
 
     list->cap = new_cap;
 

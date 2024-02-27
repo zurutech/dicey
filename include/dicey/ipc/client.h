@@ -45,8 +45,8 @@ typedef void dicey_client_on_reply_fn(
     void *ctx
 );
 
-typedef void dicey_client_event_fn(const struct dicey_client *client, void *ctx, struct dicey_packet packet);
-typedef void dicey_client_inspect_fn(const struct dicey_client *client, void *ctx, struct dicey_client_event event);
+typedef void dicey_client_event_fn(struct dicey_client *client, void *ctx, struct dicey_packet packet);
+typedef void dicey_client_inspect_fn(struct dicey_client *client, void *ctx, struct dicey_client_event event);
 
 struct dicey_client_args {
     dicey_client_inspect_fn *inspect_func;
@@ -75,12 +75,15 @@ DICEY_EXPORT enum dicey_error dicey_client_connect_async(
 
 DICEY_EXPORT void *dicey_client_get_context(const struct dicey_client *client);
 
+DICEY_EXPORT enum dicey_error dicey_client_disconnect(struct dicey_client *client);
+
 DICEY_EXPORT enum dicey_error dicey_client_request(
     struct dicey_client *const client,
     struct dicey_packet packet,
     struct dicey_packet *const response,
     uint32_t timeout
 );
+
 DICEY_EXPORT enum dicey_error dicey_client_request_async(
     struct dicey_client *const client,
     struct dicey_packet packet,
@@ -88,6 +91,10 @@ DICEY_EXPORT enum dicey_error dicey_client_request_async(
     void *data,
     uint32_t timeout
 );
+
+DICEY_EXPORT void *dicey_client_set_context(struct dicey_client *client, void *data);
+
+DICEY_EXPORT enum dicey_error dicey_client_stop(struct dicey_client *client);
 
 #if defined(__cplusplus)
 }

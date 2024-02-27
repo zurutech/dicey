@@ -14,22 +14,32 @@
 
 #include "pending-list.h"
 
+#define BASE_CAP 128U
+
 static bool pending_list_grow_if_needed(struct dicey_pending_list **const list_ptr) {
     assert(list_ptr);
 
     struct dicey_pending_list *list = *list_ptr;
 
-    if (list->len < list->cap) {
+    const size_t len = list ? list->len : 0U;
+    const size_t old_cap = list ? list->cap : 0U;
+
+    if (len < old_cap) {
         return true;
     }
 
-    const size_t new_cap = list->cap * 3U / 2U;
-    if (new_cap < list->cap) { // overflow
+    const size_t new_cap = old_cap ? old_cap * 3U / 2U : BASE_CAP;
+
+    if (new_cap < old_cap) { // overflow
         return false;
     }
 
-    list = realloc(list, sizeof *list + new_cap * sizeof *list->waiting);
+    const size_t new_size = sizeof *list + new_cap * sizeof *list->waiting;
+
+    list = list ? realloc(list, new_size) : calloc(1U, new_size);
     if (!list) {
+        free(*list_ptr);
+
         return false;
     }
 

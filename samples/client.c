@@ -28,7 +28,7 @@ enum load_mode {
     LOAD_MODE_XML,
 };
 
-static void inspector(const struct dicey_client *const client, void *const ctx, struct dicey_client_event event) {
+static void inspector(struct dicey_client *const client, void *const ctx, struct dicey_client_event event) {
     (void) client;
     (void) ctx;
 
@@ -40,16 +40,24 @@ static void inspector(const struct dicey_client *const client, void *const ctx, 
         break;
 
     case DICEY_CLIENT_EVENT_DISCONNECT:
-        printf("client disconnected");
+        puts("client disconnected");
         break;
 
     case DICEY_CLIENT_EVENT_ERROR:
         fprintf(stderr, "error: [%s] %s\n", dicey_error_msg(event.error.err), event.error.msg);
+
+        if (!dicey_client_stop(client)) {
+            fprintf(stderr, "error: failed to stop client\n");
+
+            exit(EXIT_FAILURE);
+        }
         break;
 
     case DICEY_CLIENT_EVENT_HANDSHAKE_START:
         printf(
-            "handshake started, presenting version %" PRId16 "r%" PRId16, event.version.major, event.version.revision
+            "handshake started, presenting version %" PRId16 "r%" PRId16 "\n",
+            event.version.major,
+            event.version.revision
         );
         break;
 
@@ -78,11 +86,7 @@ static void inspector(const struct dicey_client *const client, void *const ctx, 
     }
 }
 
-static void on_client_event(
-    const struct dicey_client *const client,
-    void *const ctx,
-    const struct dicey_packet packet
-) {
+static void on_client_event(struct dicey_client *const client, void *const ctx, const struct dicey_packet packet) {
     (void) client;
     (void) ctx;
 

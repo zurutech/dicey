@@ -39,6 +39,7 @@
 #define HAS_ABSTRACT_SOCKETS 0
 #endif
 
+#define DEFAULT_TIMEOUT 1000
 #define READ_MINBUF 256U // 256B
 
 enum client_state {
@@ -62,14 +63,25 @@ static bool is_server_msg(const enum dicey_op op) {
     }
 }
 
-struct send_request {
-    uint32_t seq;
-    struct dicey_client *client;
-    dicey_client_on_reply_fn *cb;
-    void *data;
-    struct dicey_packet packet;
+enum request_kind {
+    CLIENT_REQUEST_QUIT,
+    CLIENT_REQUEST_SEND,
+};
 
-    uv_timespec64_t expires_at;
+struct loop_request {
+    enum request_kind kind;
+
+    struct dicey_client *client;
+
+    struct {
+        uint32_t seq;
+
+        dicey_client_on_reply_fn *cb;
+        void *data;
+        struct dicey_packet packet;
+
+        uv_timespec64_t expires_at;
+    } send;
 };
 
 int32_t add_wrapping(int32_t *a, const int32_t b, const int32_t max) {
@@ -147,7 +159,7 @@ static bool client_process_event(
 static void client_set_state(struct dicey_client *const client, const enum client_state state) {
     assert(client && state >= CLIENT_STATE_UNINIT && state <= CLIENT_STATE_DEAD);
 
-    assert(client->state != CLIENT_STATE_DEAD); // dead clients can't change state
+    assert(client->state != CLIENT_STATE_DEAD || state == CLIENT_STATE_DEAD); // dead clients can't change state
 
     assert(client->state <= state); // state transitions must be forward
 
@@ -323,15 +335,15 @@ static void client_quit(struct dicey_client *const client) {
     uv_close((uv_handle_t *) &client->pipe, &on_close);
 }
 
-static void on_write(uv_write_t *const req, const int status) {
-    assert(req && req->data);
+static void on_write(uv_write_t *const write_req, const int status) {
+    assert(write_req && write_req->data);
 
-    struct send_request *const send_req = req->data;
-    struct dicey_client *const client = send_req->client;
+    struct loop_request *const req = write_req->data;
+    struct dicey_client *const client = req->client;
 
-    assert(client);
+    assert(client && req->kind == CLIENT_REQUEST_SEND);
 
-    free(req);
+    free(write_req);
 
     if (client->state == CLIENT_STATE_DEAD) {
         goto cleanup;
@@ -346,7 +358,7 @@ static void on_write(uv_write_t *const req, const int status) {
         goto cleanup;
     }
 
-    switch (dicey_packet_get_kind(send_req->packet)) {
+    switch (dicey_packet_get_kind(req->send.packet)) {
     case DICEY_PACKET_KIND_BYE:
         client_quit(client);
         return;
@@ -363,26 +375,22 @@ static void on_write(uv_write_t *const req, const int status) {
     dicey_pending_list_append(
         &client->pending,
         &(struct dicey_pending_reply) {
-            .seq = send_req->seq,
-            .callback = send_req->cb,
-            .data = send_req->data,
-            .expires_at = send_req->expires_at,
+            .seq = req->send.seq,
+            .callback = req->send.cb,
+            .data = req->send.data,
+            .expires_at = req->send.expires_at,
         }
     );
 
 cleanup:
-    dicey_packet_deinit(&send_req->packet);
-    free(send_req);
+    dicey_packet_deinit(&req->send.packet);
+    free(req);
 }
 
 static void check_timeout(uv_timer_t *const timer) {
     struct dicey_client *const client = (struct dicey_client *) timer->data;
 
     assert(client);
-
-    if (client->state != CLIENT_STATE_RUNNING) {
-        return;
-    }
 
     dicey_pending_list_prune(client->pending, client);
 }
@@ -397,44 +405,46 @@ static void connstr_fixup(char *connstr) {
 }
 #endif
 
-static enum dicey_error client_do_send(struct dicey_client *const client, struct send_request *req) {
-    assert(client && req && dicey_packet_is_valid(req->packet));
+static enum dicey_error client_do_send(struct dicey_client *const client, struct loop_request *req) {
+    assert(client && req && req->kind == CLIENT_REQUEST_SEND);
+
+    struct dicey_packet packet = req->send.packet;
+
+    assert(dicey_packet_is_valid(packet));
 
     uv_write_t *const write_req = malloc(sizeof *write_req);
     if (!write_req) {
-        dicey_packet_deinit(&req->packet);
+        dicey_packet_deinit(&packet);
 
         return DICEY_ENOMEM;
     }
 
-    if (req->packet.nbytes > UINT_MAX) {
+    if (packet.nbytes > UINT_MAX) {
         client_event(
             client,
             DICEY_CLIENT_EVENT_ERROR,
             DICEY_EOVERFLOW,
             "attempting to send an abnormally sized packet of %" PRIu64 " bytes",
-            req->packet.nbytes
+            packet.nbytes
         );
 
         free(write_req);
-        dicey_packet_deinit(&req->packet);
+        dicey_packet_deinit(&packet);
 
         return DICEY_EOVERFLOW;
     }
 
-    uv_buf_t buf = uv_buf_init(req->packet.payload, (unsigned int) req->packet.nbytes);
+    uv_buf_t buf = uv_buf_init(packet.payload, (unsigned int) packet.nbytes);
 
     write_req->data = req;
-
-    client_event(client, DICEY_CLIENT_EVENT_MESSAGE_SENDING, &req->packet);
 
     const int err = uv_write(write_req, (uv_stream_t *) &client->pipe, &buf, 1U, &on_write);
     if (err) {
         client_event(client, DICEY_CLIENT_EVENT_ERROR, dicey_error_from_uv(err), "uv_write: %s", uv_strerror(err));
 
         free(write_req);
+        dicey_packet_deinit(&packet);
         free(req);
-        dicey_packet_deinit(&req->packet);
 
         client_quit(client);
     }
@@ -453,14 +463,51 @@ static void data_available(uv_async_t *const async) {
     while (dicey_queue_pop(&client->queue, &req_ptr, DICEY_LOCKING_POLICY_NONBLOCKING)) {
         assert(req_ptr);
 
-        struct send_request *const req = req_ptr;
+        struct loop_request *const req = req_ptr;
 
-        const enum dicey_error err = client_do_send(client, req);
-
-        if (err) {
+        switch (req->kind) {
+        case CLIENT_REQUEST_QUIT:
             client_quit(client);
+            free(req);
+
+            break;
+
+        case CLIENT_REQUEST_SEND:
+            {
+                if (client->state == CLIENT_STATE_DEAD) {
+                    dicey_packet_deinit(&req->send.packet);
+                    free(req);
+
+                    break;
+                }
+
+                const enum dicey_error err = client_do_send(client, req);
+
+                if (err) {
+                    client_quit(client);
+                }
+
+                break;
+            }
         }
     }
+}
+
+static enum dicey_error client_queue_out_request(struct dicey_client *const client, struct loop_request *const req) {
+    enum dicey_error err = DICEY_OK;
+
+    if (!dicey_queue_push(&client->queue, req, DICEY_LOCKING_POLICY_BLOCKING)) {
+        err = DICEY_ENOMEM;
+        goto fail;
+    }
+
+    dicey_error_from_uv(uv_async_send(&client->async));
+
+fail:
+    dicey_packet_deinit(&req->send.packet);
+    free(req);
+
+    return err;
 }
 
 static enum dicey_error client_queue_out_packet(
@@ -470,7 +517,7 @@ static enum dicey_error client_queue_out_packet(
     void *const data,
     const uint32_t timeout
 ) {
-    struct send_request *const req = malloc(sizeof *req);
+    struct loop_request *const req = malloc(sizeof *req);
     if (!req) {
         dicey_packet_deinit(&packet);
 
@@ -478,7 +525,7 @@ static enum dicey_error client_queue_out_packet(
     }
 
     uint32_t seq = 0U;
-    const enum dicey_error err = dicey_packet_get_seq(packet, &seq);
+    enum dicey_error err = dicey_packet_get_seq(packet, &seq);
     if (err) {
         dicey_packet_deinit(&packet);
         free(req);
@@ -488,22 +535,19 @@ static enum dicey_error client_queue_out_packet(
     // also, we use even numbers for client-initiated packets, so check for that
     assert(!(seq && seq % 2U));
 
-    *req = (struct send_request) {
-        .seq = seq,
+    *req = (struct loop_request) {
+        .kind = CLIENT_REQUEST_SEND,
         .client = client,
-        .cb = cb,
-        .data = data,
-        .packet = packet,
-        .expires_at = now_plus(timeout),
+        .send = {
+            .seq = seq,
+            .cb = cb,
+            .data = data,
+            .packet = packet,
+            .expires_at = now_plus(timeout),
+        }
     };
 
-    if (!dicey_queue_push(&client->queue, req, DICEY_LOCKING_POLICY_BLOCKING)) {
-        dicey_packet_deinit(&packet);
-
-        return DICEY_ENOMEM;
-    }
-
-    return dicey_error_from_uv(uv_async_send(&client->async));
+    return client_queue_out_request(client, req);
 }
 
 static uint32_t client_data_next_seq(struct dicey_client *const client) {
@@ -521,20 +565,22 @@ static uint32_t client_data_next_seq(struct dicey_client *const client) {
 static enum dicey_error client_signal_quit(struct dicey_client *const client, const enum dicey_bye_reason reason) {
     assert(client && client->state != CLIENT_STATE_DEAD);
 
-    struct send_request *const req = malloc(sizeof *req);
+    struct loop_request *const req = malloc(sizeof *req);
     if (!req) {
         return DICEY_ENOMEM;
     }
 
-    *req = (struct send_request) {
-        .seq = client_data_next_seq(client),
+    *req = (struct loop_request) {
         .client = client,
-        .cb = NULL,
-        .data = NULL,
-        .expires_at = now_plus(0),
+        .send = {
+            .seq = client_data_next_seq(client),
+            .cb = NULL,
+            .data = NULL,
+            .expires_at = now_plus(DEFAULT_TIMEOUT),
+        }
     };
 
-    enum dicey_error err = dicey_packet_bye(&req->packet, client_data_next_seq(client), reason);
+    enum dicey_error err = dicey_packet_bye(&req->send.packet, client_data_next_seq(client), reason);
     if (!err) {
         return err;
     }
@@ -749,6 +795,15 @@ void on_server_hello_reply(
     (void) packet; // unused with NDEBUG
 
     assert(client && data);
+
+    if (error) {
+        client_event(client, DICEY_CLIENT_EVENT_ERROR, error, "server hello reply: %s", dicey_error_msg(error));
+
+        client_quit(client);
+
+        return;
+    }
+
     assert(dicey_packet_is_valid(packet) && dicey_packet_get_kind(packet) == DICEY_PACKET_KIND_HELLO);
 
     struct connect_args *const connect_data = data;
@@ -765,23 +820,27 @@ static enum dicey_error client_quick_send_first_hello(struct connect_args *const
 
     struct dicey_client *const client = connect_data->client;
 
-    struct send_request *const req = malloc(sizeof *req);
+    struct loop_request *const req = malloc(sizeof *req);
     if (!req) {
         return DICEY_ENOMEM;
     }
 
-    *req = (struct send_request) {
-        .seq = client_data_next_seq(client),
+    *req = (struct loop_request) {
         .client = client,
-        .cb = &on_server_hello_reply,
-        .data = connect_data,
-        .expires_at = now_plus(0),
+        .send = {
+            .seq = client_data_next_seq(client),
+            .cb = &on_server_hello_reply,
+            .data = connect_data,
+            .expires_at = now_plus(DEFAULT_TIMEOUT),
+        }
     };
 
-    assert(!req->seq); // first packet MUST have seq 0
+    assert(!req->send.seq); // first packet MUST have seq 0
 
-    enum dicey_error err = dicey_packet_hello(&req->packet, req->seq, DICEY_PROTO_VERSION_CURRENT);
+    enum dicey_error err = dicey_packet_hello(&req->send.packet, req->send.seq, DICEY_PROTO_VERSION_CURRENT);
     if (err) {
+        free(req);
+
         client_event(client, DICEY_CLIENT_EVENT_ERROR, err, "failed to create hello packet");
         client_quit(client);
 
@@ -790,7 +849,7 @@ static enum dicey_error client_quick_send_first_hello(struct connect_args *const
 
     err = client_do_send(client, req);
     if (err) {
-        dicey_packet_deinit(&req->packet);
+        dicey_packet_deinit(&req->send.packet);
         free(req);
         free(connect_data);
 
@@ -1147,4 +1206,22 @@ void *dicey_client_set_context(struct dicey_client *const client, void *const da
     client->data = data;
 
     return old_data;
+}
+
+enum dicey_error dicey_client_stop(struct dicey_client *const client) {
+    if (!client) {
+        return DICEY_EINVAL;
+    }
+
+    struct loop_request *const req = malloc(sizeof *req);
+    if (!req) {
+        return DICEY_ENOMEM;
+    }
+
+    *req = (struct loop_request) {
+        .kind = CLIENT_REQUEST_QUIT,
+        .client = client,
+    };
+
+    return client_queue_out_request(client, req);
 }
