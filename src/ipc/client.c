@@ -1062,7 +1062,6 @@ fail:
 
 quit:
     free_all_queues(client);
-    free(client->pending);
     uv_loop_close(&client->loop);
 }
 
