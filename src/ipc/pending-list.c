@@ -70,6 +70,14 @@ bool dicey_pending_list_append(struct dicey_pending_list **const list_ptr, struc
     return true;
 }
 
+const struct dicey_pending_reply *dicey_pending_list_begin(const struct dicey_pending_list *const list) {
+    return list ? list->waiting : NULL;
+}
+
+const struct dicey_pending_reply *dicey_pending_list_end(const struct dicey_pending_list *list) {
+    return list ? list->waiting + list->len : NULL;
+}
+
 void dicey_pending_list_erase(struct dicey_pending_list *const list, const size_t entry) {
     assert(list && entry < list->len && list->len);
 

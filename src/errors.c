@@ -19,6 +19,7 @@ static const struct dicey_error_def error_info[] = {
     ERROR_INFO_FOR(DICEY_EOVERFLOW, "Overflow", "overflow"),
     ERROR_INFO_FOR(DICEY_ECONNREFUSED, "ConnectionRefused", "connection refused"),
     ERROR_INFO_FOR(DICEY_ETIMEDOUT, "TimedOut", "timed out"),
+    ERROR_INFO_FOR(DICEY_ECANCELLED, "Cancelled", "operation cancelled"),
     ERROR_INFO_FOR(DICEY_EPATH_TOO_LONG, "PathTooLong", "path too long"),
     ERROR_INFO_FOR(DICEY_ETUPLE_TOO_LONG, "TupleTooLong", "tuple too long"),
     ERROR_INFO_FOR(DICEY_EARRAY_TOO_LONG, "ArrayTooLong", "array too long"),
@@ -51,6 +52,7 @@ bool dicey_error_is_valid(enum dicey_error errnum) {
     case DICEY_EOVERFLOW:
     case DICEY_ECONNREFUSED:
     case DICEY_ETIMEDOUT:
+    case DICEY_ECANCELLED:
     case DICEY_EPATH_TOO_LONG:
     case DICEY_ETUPLE_TOO_LONG:
     case DICEY_EARRAY_TOO_LONG:

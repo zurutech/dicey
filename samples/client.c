@@ -1,6 +1,7 @@
 // Copyright (c) 2014-2024 Zuru Tech HK Limited, All rights reserved.
 
 // thank you MS, but just no
+#include "dicey/ipc/client.h"
 #define _CRT_SECURE_NO_WARNINGS 1
 
 #include <assert.h>
@@ -39,14 +40,10 @@ static void inspector(struct dicey_client *const client, void *const ctx, struct
         puts("client connected");
         break;
 
-    case DICEY_CLIENT_EVENT_DISCONNECT:
-        puts("client disconnected");
-        break;
-
     case DICEY_CLIENT_EVENT_ERROR:
         fprintf(stderr, "error: [%s] %s\n", dicey_error_msg(event.error.err), event.error.msg);
 
-        if (!dicey_client_stop(client)) {
+        if (dicey_client_stop(client) != DICEY_OK) {
             fprintf(stderr, "error: failed to stop client\n");
 
             exit(EXIT_FAILURE);
@@ -81,8 +78,16 @@ static void inspector(struct dicey_client *const client, void *const ctx, struct
         puts("server said goodbye");
         break;
 
-    default:
+    case DICEY_CLIENT_EVENT_QUITTING:
+        puts("client quitting");
         break;
+
+    case DICEY_CLIENT_EVENT_QUIT:
+        puts("client quit");
+        break;
+
+    default:
+        abort();
     }
 }
 

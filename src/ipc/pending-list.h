@@ -32,6 +32,8 @@ struct dicey_pending_list {
 };
 
 bool dicey_pending_list_append(struct dicey_pending_list **list_ptr, struct dicey_pending_reply *reply);
+const struct dicey_pending_reply *dicey_pending_list_begin(const struct dicey_pending_list *list);
+const struct dicey_pending_reply *dicey_pending_list_end(const struct dicey_pending_list *list);
 void dicey_pending_list_erase(struct dicey_pending_list *list, size_t entry);
 void dicey_pending_list_prune(struct dicey_pending_list *list, struct dicey_client *client);
 bool dicey_pending_list_search_and_remove(
