@@ -20,6 +20,7 @@ static const struct dicey_error_def error_info[] = {
     ERROR_INFO_FOR(DICEY_ECONNREFUSED, "ConnectionRefused", "connection refused"),
     ERROR_INFO_FOR(DICEY_ETIMEDOUT, "TimedOut", "timed out"),
     ERROR_INFO_FOR(DICEY_ECANCELLED, "Cancelled", "operation cancelled"),
+    ERROR_INFO_FOR(DICEY_EALREADY, "Already", "already in progress"),
     ERROR_INFO_FOR(DICEY_EPATH_TOO_LONG, "PathTooLong", "path too long"),
     ERROR_INFO_FOR(DICEY_ETUPLE_TOO_LONG, "TupleTooLong", "tuple too long"),
     ERROR_INFO_FOR(DICEY_EARRAY_TOO_LONG, "ArrayTooLong", "array too long"),

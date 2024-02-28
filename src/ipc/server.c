@@ -40,7 +40,9 @@ struct send_request *make_request(size_t target, struct dicey_packet packet) {
     return req;
 }
 
-void free_request(void *const ptr) {
+void free_request(void *const ctx, void *const ptr) {
+    (void) ctx;
+
     struct send_request *const req = ptr;
     if (req) {
         dicey_packet_deinit(&req->packet);
@@ -539,7 +541,7 @@ void dicey_server_delete(struct dicey_server *const state) {
     uv_close((uv_handle_t *) &state->pipe, NULL);
     uv_close((uv_handle_t *) &state->async, NULL);
 
-    dicey_queue_deinit(&state->queue, &free_request);
+    dicey_queue_deinit(&state->queue, &free_request, NULL);
 
     uv_loop_close(&state->loop);
 
@@ -613,7 +615,7 @@ free_async:
     uv_close((uv_handle_t *) &server->async, NULL);
 
 free_queue:
-    dicey_queue_deinit(&server->queue, &free_request);
+    dicey_queue_deinit(&server->queue, &free_request, NULL);
 
 free_loop:
     uv_loop_close(&server->loop);

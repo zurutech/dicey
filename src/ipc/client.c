@@ -969,7 +969,7 @@ free_async:
     uv_close((uv_handle_t *) &client->async, NULL);
 
 free_queue:
-    dicey_queue_deinit(&client->queue, NULL);
+    dicey_queue_deinit(&client->queue, NULL, NULL);
 
 free_loop:
     uv_loop_close(&client->loop);
@@ -980,7 +980,9 @@ free_struct:
     return uverr;
 }
 
-static void free_pending_req(void *const data) {
+static void free_pending_req(void *const ctx, void *const data) {
+    (void) ctx;
+
     struct loop_request *const req = data;
 
     if (req->kind == CLIENT_REQUEST_SEND) {
@@ -1005,7 +1007,7 @@ static void free_all_queues(struct dicey_client *const client) {
 
     free(client->pending);
 
-    dicey_queue_deinit(&client->queue, &free_pending_req);
+    dicey_queue_deinit(&client->queue, &free_pending_req, NULL);
 }
 
 static void connect_and_loop(void *const arg) {

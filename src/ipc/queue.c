@@ -10,13 +10,13 @@
 
 #include "queue.h"
 
-void dicey_queue_deinit(struct dicey_queue *const queue, void (*const free_data)(void *data)) {
+void dicey_queue_deinit(struct dicey_queue *const queue, free_data_fn *const free_data, void *ctx) {
     uv_mutex_destroy(&queue->mutex);
     uv_cond_destroy(&queue->cond);
 
     if (free_data) {
         for (ptrdiff_t i = queue->head; i != queue->tail; i = (i + 1) % REQUEST_QUEUE_CAP) {
-            free_data(queue->data[i]);
+            free_data(ctx, queue->data[i]);
         }
     }
 }

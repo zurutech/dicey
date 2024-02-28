@@ -184,6 +184,10 @@ set(CORE_SOURCES
     src/ipc/queue.c
     src/ipc/queue.h
     src/ipc/server.c
+    src/ipc/task-list.c
+    src/ipc/task-list.h
+    src/ipc/task-loop.c
+    src/ipc/task-loop.h
     src/ipc/uvtools.c
     src/ipc/uvtools.h
 )

@@ -27,7 +27,9 @@ struct dicey_queue {
     ptrdiff_t tail;
 };
 
-void dicey_queue_deinit(struct dicey_queue *queue, void (*free_data)(void *data));
+typedef void free_data_fn(void *ctx, void *data);
+
+void dicey_queue_deinit(struct dicey_queue *queue, free_data_fn *free_fn, void *ctx);
 enum dicey_error dicey_queue_init(struct dicey_queue *queue);
 bool dicey_queue_pop(struct dicey_queue *queue, void **val, enum dicey_locking_policy policy);
 bool dicey_queue_push(struct dicey_queue *queue, void *val, enum dicey_locking_policy policy);
