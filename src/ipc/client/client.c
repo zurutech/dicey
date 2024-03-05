@@ -422,7 +422,7 @@ static struct dicey_task_result issue_connect(
 
     struct dicey_client *const client = ctx->client;
 
-    assert(client->state == CLIENT_STATE_INIT);
+    assert(client->state == CLIENT_STATE_INIT && !uv_is_active((uv_handle_t *) &client->pipe));
 
     struct dicey_task_error *const err = dicey_task_op_connect_pipe(tloop, id, &client->pipe, ctx->addr);
 

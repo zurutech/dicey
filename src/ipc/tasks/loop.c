@@ -291,6 +291,7 @@ static void loop_thread(void *const arg) {
         goto deinit_idle;
     }
 
+    up_check.tloop = req->tloop;
     up_check.sem = req->sem;
 
     struct dicey_task_loop *const tloop = req->tloop;
@@ -458,6 +459,10 @@ void dicey_task_loop_fail_with(
 
 void *dicey_task_loop_get_context(const struct dicey_task_loop *const tloop) {
     return tloop ? tloop->ctx : NULL;
+}
+
+uv_loop_t *dicey_task_loop_get_raw_handle(struct dicey_task_loop *const tloop) {
+    return tloop ? tloop->loop : NULL;
 }
 
 bool dicey_task_loop_is_running(struct dicey_task_loop *const tloop) {

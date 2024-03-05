@@ -135,13 +135,22 @@ struct dicey_task_error *dicey_task_op_connect_pipe(
 ) {
     assert(tloop && pipe && addr.addr && addr.len);
 
+    // assume the pipe is uninitialized. Allocate it using safe defaults
+    uv_loop_t *const loop = dicey_task_loop_get_raw_handle(tloop);
+    assert(loop);
+
+    int uverr = uv_pipe_init(loop, pipe, 0);
+    if (uverr < 0) {
+        return dicey_task_error_new(dicey_error_from_uv(uverr), "failed to initialize pipe: %s", uv_strerror(uverr));
+    }
+
     struct connect_op *const conn = malloc(sizeof(*conn));
 
     *conn = (struct connect_op) {
         .cookie = {tloop, id},
     };
 
-    const int uverr = uv_pipe_connect2((uv_connect_t *) conn, pipe, addr.addr, addr.len, 0, &on_connect);
+    uverr = uv_pipe_connect2((uv_connect_t *) conn, pipe, addr.addr, addr.len, 0, &on_connect);
     if (uverr < 0) {
         free(conn);
 
