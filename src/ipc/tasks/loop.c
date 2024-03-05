@@ -451,6 +451,8 @@ void dicey_task_loop_fail_with(
 
         fail_task(tloop, id, req, err);
 
+        free(err);
+
         dicey_task_list_erase(tloop->pending_tasks, id);
     }
 }
