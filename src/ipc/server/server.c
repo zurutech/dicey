@@ -16,10 +16,11 @@
 #include <dicey/core/packet.h>
 #include <dicey/ipc/server.h>
 
-#include "chunk.h"
+#include "ipc/chunk.h"
+#include "ipc/queue.h"
+#include "ipc/uvtools.h"
+
 #include "client-data.h"
-#include "queue.h"
-#include "uvtools.h"
 
 struct send_request {
     size_t target;

@@ -178,18 +178,20 @@ set(CORE_SOURCES
     src/ipc/address.c
     src/ipc/chunk.c
     src/ipc/chunk.h
-    src/ipc/client-data.c
-    src/ipc/client-data.h
     src/ipc/queue.c
     src/ipc/queue.h
-    src/ipc/server.c
     src/ipc/uvtools.c
     src/ipc/uvtools.h
-    src/ipc/waiting-list.c
-    src/ipc/waiting-list.h
     
     # ipc/client
     src/ipc/client/client.c
+    src/ipc/client/waiting-list.c
+    src/ipc/client/waiting-list.h
+    
+    # ipc/server
+    src/ipc/server/server.c
+    src/ipc/server/client-data.c
+    src/ipc/server/client-data.h
 
     # ipc/tasks
     src/ipc/tasks/io.c

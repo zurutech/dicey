@@ -11,7 +11,7 @@
 #include <dicey/core/version.h>
 #include <dicey/ipc/server.h>
 
-#include "chunk.h"
+#include "ipc/chunk.h"
 
 #if defined(_MSC_VER)
 #pragma warning(disable : 4200)
