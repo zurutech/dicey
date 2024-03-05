@@ -9,7 +9,7 @@
 
 #include <dicey/ipc/address.h>
 
-#include "task-loop.h"
+#include "loop.h"
 
 struct dicey_task_error *dicey_task_op_close(struct dicey_task_loop *tloop, int64_t id, uv_handle_t *handle);
 

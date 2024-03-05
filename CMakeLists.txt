@@ -178,22 +178,26 @@ set(CORE_SOURCES
     src/ipc/address.c
     src/ipc/chunk.c
     src/ipc/chunk.h
-    src/ipc/client.c
     src/ipc/client-data.c
     src/ipc/client-data.h
     src/ipc/queue.c
     src/ipc/queue.h
     src/ipc/server.c
-    src/ipc/task-io.c
-    src/ipc/task-io.h
-    src/ipc/task-list.c
-    src/ipc/task-list.h
-    src/ipc/task-loop.c
-    src/ipc/task-loop.h
     src/ipc/uvtools.c
     src/ipc/uvtools.h
     src/ipc/waiting-list.c
     src/ipc/waiting-list.h
+    
+    # ipc/client
+    src/ipc/client/client.c
+
+    # ipc/tasks
+    src/ipc/tasks/io.c
+    src/ipc/tasks/io.h
+    src/ipc/tasks/list.c
+    src/ipc/tasks/list.h
+    src/ipc/tasks/loop.c
+    src/ipc/tasks/loop.h
 )
 
 if (WIN32)

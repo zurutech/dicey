@@ -12,11 +12,11 @@
 
 #include <dicey/core/errors.h>
 
-#include "queue.h"
-#include "task-list.h"
-#include "uvtools.h"
+#include "ipc/queue.h"
+#include "ipc/uvtools.h"
 
-#include "task-loop.h"
+#include "list.h"
+#include "loop.h"
 
 #define TIMEOUT_CHECK_MS 10U
 

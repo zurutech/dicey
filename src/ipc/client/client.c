@@ -17,12 +17,13 @@
 
 #include "sup/asprintf.h"
 
-#include "chunk.h"
-#include "task-io.h"
-#include "task-list.h"
-#include "task-loop.h"
-#include "uvtools.h"
-#include "waiting-list.h"
+#include "ipc/chunk.h"
+
+#include "ipc/tasks/io.h"
+#include "ipc/tasks/list.h"
+#include "ipc/tasks/loop.h"
+#include "ipc/uvtools.h"
+#include "ipc/waiting-list.h"
 
 #define DEFAULT_TIMEOUT ((int32_t) 1000U)
 #define READ_MINBUF 256U // 256B

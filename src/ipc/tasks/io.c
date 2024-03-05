@@ -9,10 +9,10 @@
 #include <dicey/core/errors.h>
 #include <dicey/ipc/address.h>
 
-#include "task-loop.h"
-#include "uvtools.h"
+#include "ipc/uvtools.h"
 
-#include "task-io.h"
+#include "io.h"
+#include "loop.h"
 
 enum task_lock_policy {
     TASK_UNLOCK_AFTER_OP,
