@@ -161,8 +161,6 @@ static void process_queue(uv_async_t *const async) {
         } else {
             fail_task(task_loop, -1, req, dicey_task_error_new(DICEY_ENOMEM, "failed to add task to pending list"));
         }
-
-        free(req);
     }
 }
 
