@@ -86,8 +86,8 @@ static void on_packet_received(
 }
 
 #if PIPE_NEEDS_CLEANUP
-static enum dicey_error remove_socket_if_present(uv_loop_t *const loop) {
-    const int err = uv_fs_unlink(loop, &(uv_fs_t) { 0 }, PIPE_NAME, NULL);
+static enum dicey_error remove_socket_if_present(void) {
+    const int err = uv_fs_unlink(NULL, &(uv_fs_t) { 0 }, PIPE_NAME, NULL);
 
     return err == UV_ENOENT ? 0 : DICEY_EUV_UNKNOWN;
 }
@@ -113,7 +113,7 @@ int main(void) {
     }
 
 #if PIPE_NEEDS_CLEANUP
-    err = remove_socket_if_present(&loop);
+    err = remove_socket_if_present();
     if (err) {
         fprintf(stderr, "uv_fs_unlink: %s\n", uv_err_name(err));
 

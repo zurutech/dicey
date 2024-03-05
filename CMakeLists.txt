@@ -133,6 +133,7 @@ set(PUBLIC_HEADERS
     "include/dicey/core/views.h"
 
     # ipc
+    "include/dicey/ipc/address.h"
     "include/dicey/ipc/client.h"
     "include/dicey/ipc/server.h"
 )
@@ -174,22 +175,25 @@ set(CORE_SOURCES
     src/sup/view-ops.h
 
     # ipc
+    src/ipc/address.c
     src/ipc/chunk.c
     src/ipc/chunk.h
     src/ipc/client.c
     src/ipc/client-data.c
     src/ipc/client-data.h
-    src/ipc/pending-list.c
-    src/ipc/pending-list.h
     src/ipc/queue.c
     src/ipc/queue.h
     src/ipc/server.c
+    src/ipc/task-io.c
+    src/ipc/task-io.h
     src/ipc/task-list.c
     src/ipc/task-list.h
     src/ipc/task-loop.c
     src/ipc/task-loop.h
     src/ipc/uvtools.c
     src/ipc/uvtools.h
+    src/ipc/waiting-list.c
+    src/ipc/waiting-list.h
 )
 
 if (WIN32)

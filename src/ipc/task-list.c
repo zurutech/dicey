@@ -13,6 +13,8 @@
 #include "task-list.h"
 
 #define BASE_CAP 128U
+#define FOREVER_TIME                                                                                                   \
+    (uv_timespec64_t) { 0 }
 
 static int32_t add_wrapping(int32_t *const a, const int32_t b, const int32_t max) {
     const imaxdiv_t a_div = imaxdiv(*a, max);
@@ -21,6 +23,33 @@ static int32_t add_wrapping(int32_t *const a, const int32_t b, const int32_t max
     *a = (int32_t) (a_div.rem + b_div.rem) % max;
 
     return (int32_t) (a_div.quot + b_div.quot);
+}
+
+static void task_list_erase_at(struct dicey_task_list *const list, const size_t entry) {
+    assert(list && entry < list->len && list->len);
+
+    if (entry + 1 < list->len) {
+        const ptrdiff_t len_after = list->len - entry - 1;
+
+        memmove(&list->waiting[entry], &list->waiting[entry + 1], len_after * sizeof *list->waiting);
+    }
+
+    --list->len;
+}
+
+static ptrdiff_t task_list_find_index(const struct dicey_task_list *const list, const int64_t id) {
+    assert(list);
+
+    const size_t len = list->len;
+    assert(len <= (size_t) PTRDIFF_MAX);
+
+    for (ptrdiff_t i = 0; i < (ptrdiff_t) len; ++i) {
+        if (list->waiting[i].id == id) {
+            return i;
+        }
+    }
+
+    return -1;
 }
 
 static uv_timespec64_t now_plus(const int32_t ms) {
@@ -36,12 +65,20 @@ static uv_timespec64_t now_plus(const int32_t ms) {
     return now;
 }
 
+static bool is_wait_forever(const uv_timespec64_t ts) {
+    return !ts.tv_sec && !ts.tv_nsec;
+}
+
 static bool task_list_grow_if_needed(struct dicey_task_list **const list_ptr) {
     assert(list_ptr);
 
     struct dicey_task_list *list = *list_ptr;
 
     const size_t len = list ? list->len : 0U;
+    if ((uintmax_t) len >= (uintmax_t) INT64_MAX) {
+        return false; // ids go up to int64_t and are positive
+    }
+
     const size_t old_cap = list ? list->cap : 0U;
 
     if (len < old_cap) {
@@ -76,16 +113,24 @@ static int timespec_cmp(const uv_timespec64_t a, const uv_timespec64_t b) {
     return sec_cmp ? sec_cmp : (a.tv_nsec > b.tv_nsec) - (a.tv_nsec < b.tv_nsec);
 }
 
-bool dicey_task_list_append(struct dicey_task_list **const list_ptr, void *const entry_data, const uint32_t delay_ms) {
+int64_t dicey_task_list_append(
+    struct dicey_task_list **const list_ptr,
+    void *const entry_data,
+    const int32_t delay_ms
+) {
     assert(list_ptr && entry_data);
 
     if (!task_list_grow_if_needed(list_ptr)) {
-        return false;
+        return -1;
     }
 
     struct dicey_task_list *const list = *list_ptr;
 
-    list->waiting[list->len++] = (struct dicey_task_entry) { .data = entry_data, .expires_at = now_plus(delay_ms) };
+    list->waiting[list->len++] = (struct dicey_task_entry) {
+        .id = list->next_id++,
+        .expires_at = delay_ms == WAIT_FOREVER ? FOREVER_TIME : now_plus(delay_ms),
+        .data = entry_data,
+    };
 
     return true;
 }
@@ -98,31 +143,25 @@ const struct dicey_task_entry *dicey_task_list_end(const struct dicey_task_list 
     return list ? list->waiting + list->len : NULL;
 }
 
-bool dicey_task_list_erase(struct dicey_task_list *const list, const void *const entry_data) {
-    assert(list && entry_data);
+bool dicey_task_list_erase(struct dicey_task_list *const list, const int64_t id) {
+    assert(list);
 
-    const size_t len = list->len;
-    for (size_t i = 0; i < len; ++i) {
-        if (list->waiting[i].data == entry_data) {
-            dicey_task_list_erase_at(list, i);
-
-            return true;
-        }
+    const ptrdiff_t index = task_list_find_index(list, id);
+    if (index < 0) {
+        return false;
     }
 
-    return false;
+    task_list_erase_at(list, index);
+
+    return true;
 }
 
-void dicey_task_list_erase_at(struct dicey_task_list *const list, const size_t entry) {
-    assert(list && entry < list->len && list->len);
+const struct dicey_task_entry *dicey_task_list_find(const struct dicey_task_list *const list, const int64_t id) {
+    assert(list);
 
-    if (entry + 1 < list->len) {
-        const ptrdiff_t len_after = list->len - entry - 1;
+    const ptrdiff_t index = task_list_find_index(list, id);
 
-        memmove(&list->waiting[entry], &list->waiting[entry + 1], len_after * sizeof *list->waiting);
-    }
-
-    --list->len;
+    return index >= 0 ? &list->waiting[index] : NULL;
 }
 
 void dicey_task_list_prune(
@@ -149,10 +188,12 @@ void dicey_task_list_prune(
 
         struct dicey_task_entry *const item = &task->waiting[index];
 
-        if (timespec_cmp(item->expires_at, now) < 0) {
-            expired_cb(ctx, item->data);
+        const uv_timespec64_t expires_at = item->expires_at;
 
-            dicey_task_list_erase_at(task, index);
+        if (!is_wait_forever(expires_at) && timespec_cmp(expires_at, now) < 0) {
+            expired_cb(ctx, item->id, item->data);
+
+            task_list_erase_at(task, index);
 
             // note: keep the index at the current value. The rest of the array has been shifted down by one.
             // Len has been decreased by one.

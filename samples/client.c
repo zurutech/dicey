@@ -42,7 +42,7 @@ static void inspector(struct dicey_client *const client, void *const ctx, struct
     case DICEY_CLIENT_EVENT_ERROR:
         fprintf(stderr, "error: [%s] %s\n", dicey_error_msg(event.error.err), event.error.msg);
 
-        if (dicey_client_stop(client) != DICEY_OK) {
+        if (dicey_client_disconnect(client) != DICEY_OK) {
             fprintf(stderr, "error: failed to stop client\n");
 
             exit(EXIT_FAILURE);
@@ -55,10 +55,6 @@ static void inspector(struct dicey_client *const client, void *const ctx, struct
             event.version.major,
             event.version.revision
         );
-        break;
-
-    case DICEY_CLIENT_EVENT_HANDSHAKE_WAITING:
-        puts("waiting for server to reply to handshake");
         break;
 
     case DICEY_CLIENT_EVENT_INIT:
