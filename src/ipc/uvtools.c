@@ -12,6 +12,9 @@ enum dicey_error dicey_error_from_uv(const int uv_error) {
     case UV_EAGAIN:
         return DICEY_EAGAIN;
 
+    case UV_ENOENT:
+        return DICEY_ENOENT;
+
     case UV_ENOMEM:
         return DICEY_ENOMEM;
 
