@@ -32,6 +32,7 @@ struct dicey_task_loop {
     struct dicey_task_list *pending_tasks;
 
     dicey_task_loop_global_at_end *global_at_end;
+    dicey_task_loop_global_stopped *global_stopped;
 
     void *_Atomic ctx;
 
@@ -260,8 +261,6 @@ static void loop_thread(void *const arg) {
 
     struct thread_init_req *const req = arg;
     assert(req->sem && req->tloop);
-
-    *req = (struct thread_init_req) { 0 };
 
     req->err = dicey_error_from_uv(uv_loop_init(&loop));
     if (req->err) {
