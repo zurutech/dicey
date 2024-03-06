@@ -429,6 +429,8 @@ deinit_loop:
     {
         const int uverr = uv_loop_close(&loop);
         assert(uverr != UV_EBUSY);
+
+        (void) uverr;
     }
 
     if (tloop) {
