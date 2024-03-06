@@ -75,14 +75,16 @@ DICEY_EXPORT enum dicey_error dicey_client_connect_async(
     void *data
 );
 
-DICEY_EXPORT void *dicey_client_get_context(const struct dicey_client *client);
-
 DICEY_EXPORT enum dicey_error dicey_client_disconnect(struct dicey_client *client);
 DICEY_EXPORT enum dicey_error dicey_client_disconnect_async(
     struct dicey_client *client,
     dicey_client_on_disconnect_fn *cb,
     void *data
 );
+
+DICEY_EXPORT void *dicey_client_get_context(const struct dicey_client *client);
+
+DICEY_EXPORT bool dicey_client_is_running(const struct dicey_client *client);
 
 DICEY_EXPORT enum dicey_error dicey_client_request(
     struct dicey_client *client,

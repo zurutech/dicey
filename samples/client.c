@@ -42,7 +42,7 @@ static void inspector(struct dicey_client *const client, void *const ctx, struct
     case DICEY_CLIENT_EVENT_ERROR:
         fprintf(stderr, "error: [%s] %s\n", dicey_error_msg(event.error.err), event.error.msg);
 
-        if (dicey_client_disconnect(client) != DICEY_OK) {
+        if (dicey_client_is_running(client) && dicey_client_disconnect(client) != DICEY_OK) {
             fprintf(stderr, "error: failed to stop client\n");
 
             exit(EXIT_FAILURE);
@@ -112,7 +112,15 @@ static int do_send(char *addr, struct dicey_packet packet) {
         return err;
     }
 
-    err = dicey_client_connect(client, dicey_addr_from_str(addr));
+    struct dicey_addr daddr = { 0 };
+    if (!dicey_addr_from_str(&daddr, addr)) {
+        dicey_client_delete(client);
+        dicey_packet_deinit(&packet);
+
+        return DICEY_ENOMEM;
+    }
+
+    err = dicey_client_connect(client, daddr);
     if (err) {
         dicey_client_delete(client);
         dicey_packet_deinit(&packet);

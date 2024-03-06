@@ -536,10 +536,9 @@ static void connect_end(const int64_t id, struct dicey_task_error *const err, vo
 
     connect_ctx->cb(client, connect_ctx->cb_data, errcode, errmsg);
 
-    free((void *) connect_ctx->addr.addr); // all non-static data is allocated by malloc in the end, so it was void*
+    dicey_addr_deinit(&connect_ctx->addr);
     dicey_packet_deinit(&connect_ctx->hello);
     free(connect_ctx);
-    free(ctx);
 }
 
 static const struct dicey_task_request connect_sequence = {
@@ -1054,6 +1053,12 @@ void *dicey_client_get_context(const struct dicey_client *client) {
     assert(client);
 
     return client->ctx;
+}
+
+bool dicey_client_is_running(const struct dicey_client *const client) {
+    assert(client);
+
+    return client->state == CLIENT_STATE_RUNNING;
 }
 
 enum dicey_error dicey_client_disconnect(struct dicey_client *const client) {

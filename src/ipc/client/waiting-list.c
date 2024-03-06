@@ -113,7 +113,9 @@ bool dicey_waiting_list_remove_task(
     const uint64_t task_id,
     uint32_t *const seq
 ) {
-    assert(list);
+    if (!list) {
+        return false;
+    }
 
     for (size_t i = 0; i < list->len; ++i) {
         if (list->waiting[i].task_id == task_id) {

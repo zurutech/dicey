@@ -126,13 +126,15 @@ int64_t dicey_task_list_append(
 
     struct dicey_task_list *const list = *list_ptr;
 
+    const int64_t id = list->next_id++;
+
     list->waiting[list->len++] = (struct dicey_task_entry) {
-        .id = list->next_id++,
+        .id = id,
         .expires_at = delay_ms == WAIT_FOREVER ? FOREVER_TIME : now_plus(delay_ms),
         .data = entry_data,
     };
 
-    return true;
+    return id;
 }
 
 const struct dicey_task_entry *dicey_task_list_begin(const struct dicey_task_list *const list) {

@@ -213,7 +213,7 @@ struct task_queue_free_ctx {
     struct dicey_task_error *err;
 };
 
-static void free_pending_task(void *const ctx, void *const data) {
+static void free_incoming_task(void *const ctx, void *const data) {
     assert(ctx && data);
 
     struct task_queue_free_ctx *const free_ctx = ctx;
@@ -244,7 +244,8 @@ static void cancel_all_pending(struct dicey_task_loop *const tloop) {
         }
     }
 
-    dicey_queue_deinit(&tloop->queue, &free_pending_task, &free_ctx);
+    free(tloop->pending_tasks);
+    dicey_queue_deinit(&tloop->queue, &free_incoming_task, &free_ctx);
 
     free(free_ctx.err);
 }
@@ -256,6 +257,7 @@ static void loop_thread(void *const arg) {
     uv_loop_t loop = { 0 };
     uv_timer_t timer = { 0 };
     struct loop_checker up_check = { 0 };
+    struct dicey_task_loop *tloop = NULL;
 
     struct thread_init_req *const req = arg;
     assert(req->sem && req->tloop);
@@ -277,6 +279,8 @@ static void loop_thread(void *const arg) {
         goto deinit_halt_async;
     }
 
+    halt_async.data = req->tloop;
+
     req->err = dicey_error_from_uv(uv_timer_init(&loop, &timer));
     if (req->err) {
         goto deinit_timer;
@@ -292,9 +296,10 @@ static void loop_thread(void *const arg) {
     up_check.tloop = req->tloop;
     up_check.sem = req->sem;
 
-    struct dicey_task_loop *const tloop = req->tloop;
+    tloop = req->tloop;
     tloop->loop = &loop;
     tloop->jobs_async = &jobs_async;
+    tloop->halt_async = &halt_async;
     tloop->timer = &timer;
 
     req->err = dicey_queue_init(&req->tloop->queue);
@@ -320,8 +325,6 @@ static void loop_thread(void *const arg) {
         uv_sem_post(up_check.sem);
     }
 
-    tloop->running = false;
-
 clear_all:
 deinit_queue:
     cancel_all_pending(tloop);
@@ -342,6 +345,10 @@ deinit_jobs_async:
 
 deinit_loop:
     uv_loop_close(&loop);
+
+    if (tloop) {
+        tloop->running = false;
+    }
 }
 
 static struct dicey_task_error *task_error_vnew(const enum dicey_error error, const char *const fmt, va_list ap) {
@@ -415,7 +422,7 @@ void dicey_task_loop_advance(struct dicey_task_loop *const tloop, const int64_t 
 void dicey_task_loop_delete(struct dicey_task_loop *const tloop) {
     assert(tloop);
 
-    dicey_task_loop_stop(tloop);
+    dicey_task_loop_stop_and_wait(tloop);
 
     free(tloop);
 }
@@ -452,9 +459,9 @@ void dicey_task_loop_fail_with(
         fail_task(tloop, id, req, err);
 
         dicey_task_list_erase(tloop->pending_tasks, id);
+    } else {
+        free(err);
     }
-
-    free(err);
 }
 
 void *dicey_task_loop_get_context(const struct dicey_task_loop *const tloop) {

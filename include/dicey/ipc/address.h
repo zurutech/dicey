@@ -12,6 +12,7 @@ struct dicey_addr {
     size_t len;
 };
 
-DICEY_EXPORT struct dicey_addr dicey_addr_from_str(const char *str);
+DICEY_EXPORT void dicey_addr_deinit(struct dicey_addr *addr);
+DICEY_EXPORT const char *dicey_addr_from_str(struct dicey_addr *dest, const char *str);
 
 #endif // BHSWUFULAM_ADDRESS_H
