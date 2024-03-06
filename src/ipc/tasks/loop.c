@@ -39,6 +39,11 @@ struct dicey_task_loop {
     uint64_t next_id;
 };
 
+struct close_ctx {
+    struct dicey_task_loop *tloop;
+    const ptrdiff_t *next_offsets;
+};
+
 struct thread_init_req {
     enum dicey_error err;
 
@@ -130,6 +135,77 @@ static bool start_task(struct dicey_task_loop *const tloop, int64_t id, struct d
     return step_task(tloop, id, task, NULL);
 }
 
+static const ptrdiff_t handle_offsets[] = {
+    offsetof(struct dicey_task_loop, jobs_async),
+    offsetof(struct dicey_task_loop, halt_async),
+    offsetof(struct dicey_task_loop, timer),
+    -1,
+};
+
+static void on_close_handle(uv_handle_t *const handle) {
+    assert(handle);
+
+    struct close_ctx *const ctx = handle->data;
+    assert(ctx);
+
+    // when all
+
+    const ptrdiff_t next_offset = *ctx->next_offsets++;
+
+    if (next_offset >= 0) {
+        uv_handle_t *const next_handle = *(uv_handle_t **) ((char *) ctx->tloop + next_offset);
+
+        if (next_handle && !uv_is_closing(next_handle)) {
+            next_handle->data = ctx;
+
+            uv_close(next_handle, &on_close_handle);
+        }
+    } else {
+        uv_stop(ctx->tloop->loop);
+
+        free(ctx);
+    }
+}
+
+static void close_handles(struct dicey_task_loop *const tloop) {
+    assert(tloop);
+
+    const ptrdiff_t *offsets = handle_offsets;
+
+    while (*offsets >= 0) {
+        uv_handle_t *const handle = *(uv_handle_t **) ((char *) tloop + *offsets);
+
+        ++offsets;
+
+        if (!handle || uv_is_closing(handle)) {
+            continue;
+        }
+
+        struct close_ctx *ctx = malloc(sizeof *ctx);
+        if (!ctx) {
+            // accept the leak
+            uv_stop(tloop->loop);
+
+            return;
+        }
+
+        *ctx = (struct close_ctx) {
+            .tloop = tloop,
+            .next_offsets = offsets,
+        };
+
+        handle->data = ctx;
+
+        uv_close(handle, &on_close_handle);
+
+        // the handles will be closed in the callback
+        return;
+    }
+
+    // no handles to close. stop the loop
+    uv_stop(tloop->loop);
+}
+
 static void halt_loop(uv_async_t *const async) {
     assert(async);
 
@@ -137,7 +213,7 @@ static void halt_loop(uv_async_t *const async) {
 
     assert(tloop);
 
-    uv_stop(tloop->loop);
+    close_handles(tloop);
 }
 
 static void process_queue(uv_async_t *const async) {
@@ -205,7 +281,7 @@ static void notify_running(uv_idle_t *const idle) {
 
     uv_sem_post(up_check->sem);
 
-    uv_idle_stop(idle);
+    uv_close((uv_handle_t *) idle, NULL);
 }
 
 struct task_queue_free_ctx {
@@ -330,21 +406,30 @@ deinit_queue:
     cancel_all_pending(tloop);
 
 deinit_idle:
-    if (uv_is_closing((uv_handle_t *) &up_check.idle)) {
+    if (!uv_is_closing((uv_handle_t *) &up_check.idle)) {
         uv_close((uv_handle_t *) &up_check.idle, NULL);
     }
 
 deinit_timer:
-    uv_close((uv_handle_t *) &timer, NULL);
+    if (!uv_is_closing((uv_handle_t *) &timer)) {
+        uv_close((uv_handle_t *) &timer, NULL);
+    }
 
 deinit_halt_async:
-    uv_close((uv_handle_t *) &halt_async, NULL);
+    if (!uv_is_closing((uv_handle_t *) &halt_async)) {
+        uv_close((uv_handle_t *) &halt_async, NULL);
+    }
 
 deinit_jobs_async:
-    uv_close((uv_handle_t *) &jobs_async, NULL);
+    if (!uv_is_closing((uv_handle_t *) &jobs_async)) {
+        uv_close((uv_handle_t *) &jobs_async, NULL);
+    }
 
 deinit_loop:
-    uv_loop_close(&loop);
+    {
+        const int uverr = uv_loop_close(&loop);
+        assert(uverr != UV_EBUSY);
+    }
 
     if (tloop) {
         tloop->running = false;

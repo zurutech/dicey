@@ -531,6 +531,8 @@ static void connect_end(const int64_t id, struct dicey_task_error *const err, vo
     const char *const errmsg = err ? err->message : NULL;
 
     if (errcode) {
+        uv_close((uv_handle_t *) &client->pipe, NULL); // cleanup the pipe
+
         client_event(client, DICEY_CLIENT_EVENT_ERROR, err->error, "%s", errmsg);
     }
 
