@@ -26,7 +26,11 @@ static int32_t add_wrapping(int32_t *const a, const int32_t b, const int32_t max
 }
 
 static void task_list_erase_at(struct dicey_task_list *const list, const size_t entry) {
-    assert(list && entry < list->len && list->len);
+    assert(list);
+
+    if (entry >= list->len) {
+        return; // the node has been already removed somehow
+    }
 
     if (entry + 1 < list->len) {
         const ptrdiff_t len_after = list->len - entry - 1;

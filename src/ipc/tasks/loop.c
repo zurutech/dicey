@@ -241,19 +241,13 @@ static void process_queue(uv_async_t *const async) {
 }
 
 static void task_timed_out(void *const ctx, const int64_t id, void *const expired_item) {
-    (void) ctx;
+    assert(ctx && expired_item);
 
-    assert(expired_item);
+    struct dicey_task_loop *const tloop = ctx;
 
     struct dicey_task_request *const task = expired_item;
 
-    assert(task->at_end);
-
-    struct dicey_task_error *const err = dicey_task_error_new(DICEY_ETIMEDOUT, "task timed out");
-
-    task->at_end(id, err, task->ctx);
-
-    free(err);
+    fail_task(tloop, id, task, dicey_task_error_new(DICEY_ETIMEDOUT, "task timed out"));
 }
 
 static void check_timeout(uv_timer_t *const timer) {
@@ -261,7 +255,7 @@ static void check_timeout(uv_timer_t *const timer) {
 
     assert(tloop);
 
-    dicey_task_list_prune(tloop->pending_tasks, &task_timed_out, NULL);
+    dicey_task_list_prune(tloop->pending_tasks, &task_timed_out, tloop);
 }
 
 struct loop_checker {
@@ -511,11 +505,11 @@ void dicey_task_loop_advance(struct dicey_task_loop *const tloop, const int64_t 
 }
 
 void dicey_task_loop_delete(struct dicey_task_loop *const tloop) {
-    assert(tloop);
+    if (tloop) {
+        dicey_task_loop_stop_and_wait(tloop);
 
-    dicey_task_loop_stop_and_wait(tloop);
-
-    free(tloop);
+        free(tloop);
+    }
 }
 
 void dicey_task_loop_fail(
@@ -579,6 +573,7 @@ enum dicey_error dicey_task_loop_new(struct dicey_task_loop **const dest, struct
 
     if (args) {
         tloop->global_at_end = args->global_at_end;
+        tloop->global_stopped = args->global_stopped;
     }
 
     *dest = tloop;
@@ -644,8 +639,6 @@ void dicey_task_loop_stop_and_wait(struct dicey_task_loop *const tloop) {
         dicey_task_loop_stop(tloop);
 
         uv_thread_join(&tloop->thread);
-
-        *tloop = (struct dicey_task_loop) { 0 };
     }
 }
 

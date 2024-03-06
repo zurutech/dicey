@@ -968,11 +968,14 @@ static void reset_state(void *const ctx) {
     client->next_seq = 0U;
     client->pipe = (uv_pipe_t) { 0 };
 
-    dicey_waiting_list_clear(client->waiting_tasks);
-    dicey_chunk_clear(client->recv_chunk);
+    free(client->waiting_tasks);
+    client->waiting_tasks = NULL;
 
-    dicey_task_loop_delete(client->tloop);
-    client->tloop = NULL;
+    free(client->recv_chunk);
+    client->recv_chunk = NULL;
+
+    // note: we don't reset the loop because it would cause horrible race conditions. The loop will reset itself and/or
+    // when the client is reused
 }
 
 enum dicey_error dicey_client_new(struct dicey_client **const dest, const struct dicey_client_args *const args) {
@@ -1004,6 +1007,7 @@ enum dicey_error dicey_client_connect(struct dicey_client *const client, const s
     enum dicey_error conn_err = dicey_client_connect_async(client, addr, &unlock_after_connect, &data);
     if (conn_err) {
         uv_sem_destroy(&data.sem);
+
         return conn_err;
     }
 
@@ -1025,10 +1029,16 @@ enum dicey_error dicey_client_connect_async(
         return DICEY_EINVAL;
     }
 
-    assert(!client->tloop);
+    if (client->tloop) {
+        dicey_task_loop_delete(client->tloop);
+
+        client->tloop = NULL;
+    }
+
+    struct dicey_task_loop *tloop = NULL;
 
     enum dicey_error err = dicey_task_loop_new(
-        &client->tloop,
+        &tloop,
         &(struct dicey_task_loop_args) {
             .global_at_end = &clean_up_task,
             .global_stopped = &reset_state,
@@ -1041,12 +1051,14 @@ enum dicey_error dicey_client_connect_async(
         return err;
     }
 
-    dicey_task_loop_set_context(client->tloop, client);
+    dicey_task_loop_set_context(tloop, client);
 
-    err = dicey_task_loop_start(client->tloop);
+    err = dicey_task_loop_start(tloop);
     if (err) {
         return err;
     }
+
+    client->tloop = tloop;
 
     return client_issue_connect(client, addr, cb, data);
 }
