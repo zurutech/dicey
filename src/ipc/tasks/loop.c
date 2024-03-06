@@ -435,6 +435,10 @@ deinit_loop:
 
     if (tloop) {
         tloop->running = false;
+
+        if (tloop->global_stopped) {
+            tloop->global_stopped(dicey_task_loop_get_context(tloop));
+        }
     }
 }
 

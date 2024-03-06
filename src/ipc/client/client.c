@@ -468,7 +468,7 @@ static struct dicey_task_result send_first_hello(
         return dicey_task_fail_with(queue_err);
     }
 
-    client_event(client, DICEY_CLIENT_EVENT_HANDSHAKE_START);
+    client_event(client, DICEY_CLIENT_EVENT_HANDSHAKE_START, DICEY_PROTO_VERSION_CURRENT);
 
     return dicey_task_continue();
 }
