@@ -16,6 +16,9 @@
 #include <dicey/core/packet.h>
 #include <dicey/ipc/server.h>
 
+#include "sup/assume.h"
+#include "sup/trace.h"
+
 #include "ipc/chunk.h"
 #include "ipc/queue.h"
 #include "ipc/uvtools.h"
@@ -107,19 +110,23 @@ static enum dicey_error server_sendpkt(
     assert(server && client && dicey_packet_is_valid(packet));
 
     if (packet.nbytes > UINT_MAX) {
-        return DICEY_EOVERFLOW;
+        return TRACE(DICEY_EOVERFLOW);
     }
 
-    struct dicey_message msg = { 0 };
-    if (!dicey_packet_as_message(packet, &msg) && !is_server_msg(msg.type)) {
-        return DICEY_EINVAL;
+    if (dicey_packet_get_kind(packet) == DICEY_PACKET_KIND_MESSAGE) {
+        struct dicey_message msg = { 0 };
+        DICEY_ASSUME(dicey_packet_as_message(packet, &msg));
+
+        if (!is_server_msg(msg.type)) {
+            return TRACE(DICEY_EINVAL);
+        }
     }
 
     enum dicey_error err = DICEY_OK;
 
     struct write_request *const req = malloc(sizeof *req);
     if (!req) {
-        err = DICEY_ENOMEM;
+        err = TRACE(DICEY_ENOMEM);
 
         goto fail;
     }
@@ -158,18 +165,18 @@ static ptrdiff_t server_add_client(struct dicey_server *const server, struct dic
     size_t id = 0U;
 
     if (!dicey_client_list_new_bucket(&server->clients, &client_bucket, &id)) {
-        return DICEY_ENOMEM;
+        return TRACE(DICEY_ENOMEM);
     }
 
     struct dicey_client_data *const client = *client_bucket = dicey_client_data_new(server, id);
     if (!client) {
-        return DICEY_ENOMEM;
+        return TRACE(DICEY_ENOMEM);
     }
 
     if (uv_pipe_init(&server->loop, &client->pipe, 0)) {
         free(client);
 
-        return DICEY_EUV_UNKNOWN;
+        return TRACE(DICEY_EUV_UNKNOWN);
     }
 
     *dest = client;
@@ -186,7 +193,7 @@ static enum dicey_error server_kick_client(
 
     struct dicey_client_data *const client = dicey_client_list_get_client(server->clients, id);
     if (!client) {
-        return DICEY_EINVAL;
+        return TRACE(DICEY_EINVAL);
     }
 
     struct dicey_packet packet = { 0 };
@@ -200,13 +207,13 @@ static enum dicey_error server_kick_client(
 
 static enum dicey_error server_remove_client(struct dicey_server *const server, const size_t index) {
     if (!server) {
-        return DICEY_EINVAL;
+        return TRACE(DICEY_EINVAL);
     }
 
     struct dicey_client_data *const bucket = dicey_client_list_drop_client(server->clients, index);
 
     if (!bucket) {
-        return DICEY_EINVAL;
+        return TRACE(DICEY_EINVAL);
     }
 
     uv_close((uv_handle_t *) bucket, &on_client_end);
@@ -235,7 +242,7 @@ static ptrdiff_t client_got_hello(
     assert(server);
 
     if (client->state != CLIENT_STATE_CONNECTED) {
-        return DICEY_EINVAL;
+        return TRACE(DICEY_EINVAL);
     }
 
     if (seq) {
@@ -243,11 +250,11 @@ static ptrdiff_t client_got_hello(
             server, DICEY_EINVAL, &client->info, "unexpected seq number %" PRIu32 "in hello packet, must be 0", seq
         );
 
-        return DICEY_EINVAL;
+        return TRACE(DICEY_EINVAL);
     }
 
     if (dicey_version_cmp(hello.version, DICEY_PROTO_VERSION_CURRENT) < 0) {
-        return DICEY_ECLIENT_TOO_OLD;
+        return TRACE(DICEY_ECLIENT_TOO_OLD);
     }
 
     struct dicey_packet hello_repl = { 0 };
@@ -271,11 +278,11 @@ static ptrdiff_t client_got_message(struct dicey_client_data *client, const stru
 
     struct dicey_message message = { 0 };
     if (dicey_packet_as_message(packet, &message) != DICEY_OK || is_server_msg(message.type)) {
-        return DICEY_EINVAL;
+        return TRACE(DICEY_EINVAL);
     }
 
     if (client->state != CLIENT_STATE_RUNNING) {
-        return DICEY_EINVAL;
+        return TRACE(DICEY_EINVAL);
     }
 
     if (server->on_message) {
@@ -286,7 +293,7 @@ static ptrdiff_t client_got_message(struct dicey_client_data *client, const stru
 }
 
 static enum dicey_error client_raised_error(struct dicey_client_data *client, const enum dicey_error err) {
-    assert(client && client->state != CLIENT_STATE_CONNECTED);
+    assert(client && client->state == CLIENT_STATE_CONNECTED);
 
     struct dicey_server *const server = client->parent;
     assert(server);
@@ -301,7 +308,7 @@ static enum dicey_error client_raised_error(struct dicey_client_data *client, co
 static enum dicey_error client_got_packet(struct dicey_client_data *client, struct dicey_packet packet) {
     assert(client && dicey_packet_is_valid(packet));
 
-    enum dicey_error err = DICEY_OK;
+    ptrdiff_t err = DICEY_OK;
 
     switch (dicey_packet_get_kind(packet)) {
     case DICEY_PACKET_KIND_HELLO:
@@ -312,13 +319,23 @@ static enum dicey_error client_got_packet(struct dicey_client_data *client, stru
                 break;
             }
 
-            err = client_got_hello(client, seq, *(struct dicey_hello *) packet.payload);
+            struct dicey_hello hello = { 0 };
+
+            DICEY_ASSUME(dicey_packet_as_hello(packet, &hello));
+
+            err = client_got_hello(client, seq, hello);
             break;
         }
 
     case DICEY_PACKET_KIND_BYE:
-        err = client_got_bye(client, *(struct dicey_bye *) packet.payload);
-        break;
+        {
+            struct dicey_bye bye = { 0 };
+
+            DICEY_ASSUME(dicey_packet_as_bye(packet, &bye));
+
+            err = client_got_bye(client, bye);
+            break;
+        }
 
     case DICEY_PACKET_KIND_MESSAGE:
         err = client_got_message(client, packet);
@@ -328,7 +345,12 @@ static enum dicey_error client_got_packet(struct dicey_client_data *client, stru
         abort(); // unreachable, dicey_packet_is_valid guarantees a valid packet
     }
 
-    return err ? client_raised_error(client, err) : DICEY_OK;
+    if (err < 0) {
+        return client_raised_error(client, err);
+    } else {
+        client->state = (enum dicey_client_state) err;
+        return DICEY_OK;
+    }
 }
 
 static void on_write(uv_write_t *const req, const int status) {
@@ -396,6 +418,9 @@ static void on_read(uv_stream_t *const stream, const ssize_t nread, const uv_buf
     }
 
     struct dicey_chunk *const chunk = client->chunk;
+
+    // mark the first nread bytes of the chunk as taken
+    chunk->len += (size_t) nread;
 
     const void *base = chunk->bytes;
     size_t remainder = chunk->len;
@@ -557,7 +582,7 @@ enum dicey_error dicey_server_new(struct dicey_server **const dest, const struct
 
     struct dicey_server *const server = malloc(sizeof *server);
     if (!server) {
-        return DICEY_ENOMEM;
+        return TRACE(DICEY_ENOMEM);
     }
 
     enum dicey_error err = DICEY_OK;
@@ -639,12 +664,12 @@ enum dicey_error dicey_server_send(
     assert(server);
 
     if (!packet.nbytes || !packet.payload) {
-        return DICEY_EINVAL;
+        return TRACE(DICEY_EINVAL);
     }
 
     struct send_request *const req = malloc(sizeof *req);
     if (!req) {
-        return DICEY_ENOMEM;
+        return TRACE(DICEY_ENOMEM);
     }
 
     *req = (struct send_request) {
