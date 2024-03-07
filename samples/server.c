@@ -67,8 +67,6 @@ static void on_client_error(
     fputc('\n', stderr);
 
     va_end(args);
-
-    exit(EXIT_FAILURE);
 }
 
 static void on_packet_received(
