@@ -24,10 +24,6 @@ struct task_cookie {
     int64_t task_id;
 };
 
-struct close_op {
-    struct task_cookie cookie;
-};
-
 struct connect_op {
     uv_connect_t conn;
 
@@ -55,12 +51,12 @@ static void unlock_task(const struct task_cookie tinfo, const int status) {
 }
 
 static void on_close(uv_handle_t *const handle) {
-    struct close_op *const context = (struct close_op *) handle;
+    struct task_cookie *const context = handle->data;
     assert(context);
 
-    unlock_task(context->cookie, 0);
+    unlock_task(*context, 0);
 
-    free(handle);
+    free(context);
 }
 
 static void on_connect(uv_connect_t *const conn, const int status) {
@@ -114,13 +110,13 @@ struct dicey_task_error *dicey_task_op_close(
     const int64_t id,
     uv_handle_t *const handle
 ) {
-    assert(tloop && handle);
+    assert(tloop && handle && !handle->data);
 
-    struct close_op *const close = malloc(sizeof(*close));
+    struct task_cookie *const tcookie = malloc(sizeof *tcookie);
 
-    *close = (struct close_op) {
-        .cookie = {tloop, id},
-    };
+    *tcookie = (struct task_cookie) { tloop, id };
+
+    handle->data = tcookie;
 
     uv_close(handle, &on_close);
 

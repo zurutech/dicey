@@ -1,5 +1,6 @@
 // Copyright (c) 2014-2024 Zuru Tech HK Limited, All rights reserved.
 
+#include <stddef.h>
 #if !defined(JRUPPTCCIV_TASK_LOOP_H)
 #define JRUPPTCCIV_TASK_LOOP_H
 
@@ -65,6 +66,11 @@ struct dicey_task_result dicey_task_continue(void);
 struct dicey_task_result dicey_task_fail(enum dicey_error error, const char *fmt, ...);
 struct dicey_task_result dicey_task_fail_with(struct dicey_task_error *err);
 struct dicey_task_result dicey_task_retry(void);
+
+/**
+ * @brief A work function that does nothing except returning a continue result.
+ */
+struct dicey_task_result dicey_task_no_work(struct dicey_task_loop *tloop, int64_t id, void *ctx, void *input);
 
 enum dicey_error dicey_task_loop_new(struct dicey_task_loop **dest, struct dicey_task_loop_args *args);
 void dicey_task_loop_delete(struct dicey_task_loop *tloop);
