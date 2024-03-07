@@ -78,7 +78,7 @@ static void on_packet_received(
 
     printf("info: received packet from client %zu\n", cln->id);
 
-    struct util_dumper dumper = { 0 };
+    struct util_dumper dumper = util_dumper_for(stdout);
 
     util_dumper_dump_packet(&dumper, packet);
 }
