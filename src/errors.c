@@ -22,6 +22,8 @@ static const struct dicey_error_def error_info[] = {
     ERROR_INFO_FOR(DICEY_ETIMEDOUT, "TimedOut", "timed out"),
     ERROR_INFO_FOR(DICEY_ECANCELLED, "Cancelled", "operation cancelled"),
     ERROR_INFO_FOR(DICEY_EALREADY, "Already", "already in progress"),
+    ERROR_INFO_FOR(DICEY_EPIPE, "BrokenPipe", "broken pipe"),
+    ERROR_INFO_FOR(DICEY_ECONNRESET, "ConnectionReset", "connection reset by peer"),
     ERROR_INFO_FOR(DICEY_EPATH_TOO_LONG, "PathTooLong", "path too long"),
     ERROR_INFO_FOR(DICEY_ETUPLE_TOO_LONG, "TupleTooLong", "tuple too long"),
     ERROR_INFO_FOR(DICEY_EARRAY_TOO_LONG, "ArrayTooLong", "array too long"),
@@ -56,6 +58,9 @@ bool dicey_error_is_valid(enum dicey_error errnum) {
     case DICEY_ECONNREFUSED:
     case DICEY_ETIMEDOUT:
     case DICEY_ECANCELLED:
+    case DICEY_EALREADY:
+    case DICEY_EPIPE:
+    case DICEY_ECONNRESET:
     case DICEY_EPATH_TOO_LONG:
     case DICEY_ETUPLE_TOO_LONG:
     case DICEY_EARRAY_TOO_LONG:
@@ -73,8 +78,9 @@ bool dicey_error_is_valid(enum dicey_error errnum) {
 
 const char *dicey_error_name(const enum dicey_error errnum) {
     const struct dicey_error_def *const def = dicey_error_info(errnum);
+    assert(def);
 
-    return def ? def->name : "UnknownError";
+    return def ? def->name : "Unknown";
 }
 
 const char *dicey_error_msg(const enum dicey_error errnum) {

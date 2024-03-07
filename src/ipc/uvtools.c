@@ -4,36 +4,44 @@
 
 #include <dicey/core/errors.h>
 
+#include "sup/trace.h"
+
 enum dicey_error dicey_error_from_uv(const int uv_error) {
     switch (uv_error) {
     case 0:
         return DICEY_OK;
 
     case UV_EAGAIN:
-        return DICEY_EAGAIN;
+        return TRACE(DICEY_EAGAIN);
 
     case UV_ENOENT:
-        return DICEY_ENOENT;
+        return TRACE(DICEY_ENOENT);
 
     case UV_ENOMEM:
-        return DICEY_ENOMEM;
+        return TRACE(DICEY_ENOMEM);
 
     case UV_EINVAL:
-        return DICEY_EINVAL;
+        return TRACE(DICEY_EINVAL);
+
+    case UV_EPIPE:
+        return TRACE(DICEY_EPIPE);
 
     case UV_ENODATA:
-        return DICEY_ENODATA;
+        return TRACE(DICEY_ENODATA);
 
     case UV_EOVERFLOW:
-        return DICEY_EOVERFLOW;
+        return TRACE(DICEY_EOVERFLOW);
+
+    case UV_ECONNRESET:
+        return TRACE(DICEY_ECONNRESET);
 
     case UV_ETIMEDOUT:
-        return DICEY_ETIMEDOUT;
+        return TRACE(DICEY_ETIMEDOUT);
 
     case UV_ECONNREFUSED:
-        return DICEY_ECONNREFUSED;
+        return TRACE(DICEY_ECONNREFUSED);
 
     default:
-        return DICEY_EUV_UNKNOWN;
+        return TRACE(DICEY_EUV_UNKNOWN);
     }
 }
