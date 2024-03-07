@@ -133,17 +133,16 @@ static int do_send(char *addr, struct dicey_packet packet) {
     util_dumper_dump_packet(&dumper, packet);
 
     err = dicey_client_request(client, packet, &packet, 3000); // 3 seconds
-    if (err) {
-        dicey_client_delete(client);
-        dicey_packet_deinit(&packet);
-
-        return err;
+    if (!err) {
+        util_dumper_printlnf(&dumper, "received packet:");
+        util_dumper_dump_packet(&dumper, packet);
     }
 
-    util_dumper_printlnf(&dumper, "received packet:");
-    util_dumper_dump_packet(&dumper, packet);
+    (void) dicey_client_disconnect(client);
+    dicey_client_delete(client);
+    dicey_packet_deinit(&packet);
 
-    return DICEY_OK;
+    return err;
 }
 
 static void print_xml_errors(const struct util_xml_errors *const errs) {
