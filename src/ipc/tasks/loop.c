@@ -320,6 +320,99 @@ static void cancel_all_pending(struct dicey_task_loop *const tloop) {
     free(free_ctx.err);
 }
 
+static enum dicey_error init_loop(
+    struct dicey_task_loop *tloop,
+    uv_async_t *const jobs_async,
+    uv_async_t *const halt_async,
+    uv_loop_t *const loop,
+    uv_timer_t *const timer,
+    struct loop_checker *const up_check,
+    uv_sem_t *const unlock_sem
+) {
+    assert(tloop && jobs_async && halt_async && loop && timer && up_check && unlock_sem);
+
+    enum dicey_error err = dicey_error_from_uv(uv_loop_init(loop));
+    if (err) {
+        goto deinit_loop;
+    }
+
+    err = dicey_error_from_uv(uv_async_init(loop, jobs_async, &process_queue));
+    if (err) {
+        goto deinit_jobs_async;
+    }
+
+    jobs_async->data = tloop;
+
+    err = dicey_error_from_uv(uv_async_init(loop, halt_async, &halt_loop));
+    if (err) {
+        goto deinit_halt_async;
+    }
+
+    halt_async->data = tloop;
+
+    err = dicey_error_from_uv(uv_timer_init(loop, timer));
+    if (err) {
+        goto deinit_timer;
+    }
+
+    timer->data = tloop;
+
+    err = dicey_error_from_uv(uv_idle_init(loop, &up_check->idle));
+    if (err) {
+        goto deinit_idle;
+    }
+
+    up_check->tloop = tloop;
+    up_check->sem = unlock_sem;
+
+    tloop->loop = loop;
+    tloop->jobs_async = jobs_async;
+    tloop->halt_async = halt_async;
+    tloop->timer = timer;
+
+    err = dicey_queue_init(&tloop->queue);
+    if (err) {
+        goto deinit_idle;
+    }
+
+    tloop->pending_tasks = NULL;
+
+    err = dicey_error_from_uv(uv_idle_start(&up_check->idle, &notify_running));
+    if (err) {
+        goto clear_all;
+    }
+
+    err = dicey_error_from_uv(uv_timer_start(timer, &check_timeout, TIMEOUT_CHECK_MS, TIMEOUT_CHECK_MS));
+    if (err) {
+        goto clear_all;
+    }
+
+    return DICEY_OK;
+
+clear_all:
+deinit_idle:
+    uv_close((uv_handle_t *) &up_check->idle, NULL);
+
+deinit_timer:
+    uv_close((uv_handle_t *) timer, NULL);
+
+deinit_halt_async:
+    uv_close((uv_handle_t *) halt_async, NULL);
+
+deinit_jobs_async:
+    uv_close((uv_handle_t *) jobs_async, NULL);
+
+deinit_loop:
+    {
+        const int uverr = uv_loop_close(loop);
+        assert(uverr != UV_EBUSY);
+
+        (void) uverr;
+    }
+
+    return err;
+}
+
 static void loop_thread(void *const arg) {
     assert(arg);
 
@@ -327,99 +420,26 @@ static void loop_thread(void *const arg) {
     uv_loop_t loop = { 0 };
     uv_timer_t timer = { 0 };
     struct loop_checker up_check = { 0 };
-    struct dicey_task_loop *tloop = NULL;
-
     struct thread_init_req *const req = arg;
+
     assert(req->sem && req->tloop);
 
-    req->err = dicey_error_from_uv(uv_loop_init(&loop));
-    if (req->err) {
-        goto deinit_loop;
-    }
+    struct dicey_task_loop *tloop = req->tloop;
 
-    req->err = dicey_error_from_uv(uv_async_init(&loop, &jobs_async, &process_queue));
-    if (req->err) {
-        goto deinit_jobs_async;
-    }
-
-    jobs_async.data = req->tloop;
-
-    req->err = dicey_error_from_uv(uv_async_init(&loop, &halt_async, &halt_loop));
-    if (req->err) {
-        goto deinit_halt_async;
-    }
-
-    halt_async.data = req->tloop;
-
-    req->err = dicey_error_from_uv(uv_timer_init(&loop, &timer));
-    if (req->err) {
-        goto deinit_timer;
-    }
-
-    timer.data = req->tloop;
-
-    req->err = dicey_error_from_uv(uv_idle_init(&loop, &up_check.idle));
-    if (req->err) {
-        goto deinit_idle;
-    }
-
-    up_check.tloop = req->tloop;
-    up_check.sem = req->sem;
-
-    tloop = req->tloop;
-    tloop->loop = &loop;
-    tloop->jobs_async = &jobs_async;
-    tloop->halt_async = &halt_async;
-    tloop->timer = &timer;
-
-    req->err = dicey_queue_init(&req->tloop->queue);
-    if (req->err) {
-        goto deinit_queue;
-    }
-
-    tloop->pending_tasks = NULL;
-
-    req->err = dicey_error_from_uv(uv_idle_start(&up_check.idle, &notify_running));
-    if (req->err) {
-        goto clear_all;
-    }
-
-    req->err = dicey_error_from_uv(uv_timer_start(&timer, &check_timeout, TIMEOUT_CHECK_MS, TIMEOUT_CHECK_MS));
+    req->err = init_loop(tloop, &jobs_async, &halt_async, &loop, &timer, &up_check, req->sem);
     if (req->err) {
         goto clear_all;
     }
 
     const enum dicey_error loop_err = dicey_error_from_uv(uv_run(&loop, UV_RUN_DEFAULT));
     if (loop_err && !tloop->running) {
+        // if running is false, it means the loop never ran, so req is still valid and `start` is still waiting
+        // for the semaphore
         req->err = loop_err;
-        uv_sem_post(up_check.sem);
+        uv_sem_post(req->sem);
     }
 
 clear_all:
-deinit_queue:
-    cancel_all_pending(tloop);
-
-deinit_idle:
-    if (!uv_is_closing((uv_handle_t *) &up_check.idle)) {
-        uv_close((uv_handle_t *) &up_check.idle, NULL);
-    }
-
-deinit_timer:
-    if (!uv_is_closing((uv_handle_t *) &timer)) {
-        uv_close((uv_handle_t *) &timer, NULL);
-    }
-
-deinit_halt_async:
-    if (!uv_is_closing((uv_handle_t *) &halt_async)) {
-        uv_close((uv_handle_t *) &halt_async, NULL);
-    }
-
-deinit_jobs_async:
-    if (!uv_is_closing((uv_handle_t *) &jobs_async)) {
-        uv_close((uv_handle_t *) &jobs_async, NULL);
-    }
-
-deinit_loop:
     {
         const int uverr = uv_loop_close(&loop);
         assert(uverr != UV_EBUSY);
@@ -428,6 +448,8 @@ deinit_loop:
     }
 
     if (tloop) {
+        cancel_all_pending(tloop);
+
         tloop->running = false;
 
         if (tloop->global_stopped) {
@@ -613,13 +635,14 @@ enum dicey_error dicey_task_loop_start(struct dicey_task_loop *const tloop) {
     }
 
     uv_sem_wait(&sem);
-    uv_sem_destroy(&sem);
 
     if (req.err) {
         uv_thread_join(&tloop->thread);
 
         return req.err;
     }
+
+    uv_sem_destroy(&sem);
 
     return DICEY_OK;
 }

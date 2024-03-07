@@ -544,7 +544,9 @@ void dicey_server_delete(struct dicey_server *const state) {
 
     dicey_queue_deinit(&state->queue, &free_request, NULL);
 
-    uv_loop_close(&state->loop);
+    const int uverr = uv_loop_close(&state->loop);
+    assert(uverr != UV_EBUSY);
+    (void) uverr;
 
     free(state->clients);
     free(state);
