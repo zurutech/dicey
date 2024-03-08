@@ -9,7 +9,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "hashtable.h"
+#include <dicey/core/hashtable.h>
 
 #if defined(_MSC_VER)
 #pragma warning(disable : 4200) // borked C11 flex array
@@ -190,7 +190,7 @@ static struct dicey_hashtable *hash_new(const int32_t *const primes_list, const 
     return table;
 }
 
-static enum dicey_hashtable_set_result hash_set(
+static enum dicey_hash_set_result hash_set(
     struct dicey_hashtable **table_ptr,
     const struct maybe_owned_str key,
     void *const value,
@@ -224,10 +224,10 @@ static bool hash_rehash_and_set_new(
 
         struct maybe_owned_str stolen_key = { .str = it->key, .owned = true };
 
-        const enum dicey_hashtable_set_result res = hash_set(&new_table, stolen_key, it->value, NULL);
+        const enum dicey_hash_set_result res = hash_set(&new_table, stolen_key, it->value, NULL);
 
         // this is impossible, keys are unique
-        assert(res != DICEY_HASHTABLE_SET_UPDATED);
+        assert(res != DICEY_HASH_SET_UPDATED);
 
         if (!res) {
             // free the new table - without deleting anything. The keys are all still in place in the old one.
@@ -241,7 +241,7 @@ static bool hash_rehash_and_set_new(
 
     // set the last value
     void *old_value;
-    const enum dicey_hashtable_set_result res = hash_set(&new_table, key, value, &old_value);
+    const enum dicey_hash_set_result res = hash_set(&new_table, key, value, &old_value);
     if (!res) {
         free(new_table);
         maybe_free(key);
@@ -331,7 +331,7 @@ static uint32_t load_factor(const uint32_t len, const uint32_t buckets_no) {
     return len * 100 / buckets_no;
 }
 
-enum dicey_hashtable_set_result hash_set(
+enum dicey_hash_set_result hash_set(
     struct dicey_hashtable **table_ptr,
     struct maybe_owned_str key,
     void *const value,
@@ -346,13 +346,13 @@ enum dicey_hashtable_set_result hash_set(
     size_t bucket_end = 0;
     struct table_entry *const existing = hash_get_entry_for_set(table, key.str, &first_free, &bucket_end);
 
-    enum dicey_hashtable_set_result res = DICEY_HASHTABLE_SET_FAILED;
+    enum dicey_hash_set_result res = DICEY_HASH_SET_FAILED;
 
     if (existing) {
         *old_value = existing->value;
         existing->value = value;
 
-        res = DICEY_HASHTABLE_SET_UPDATED;
+        res = DICEY_HASH_SET_UPDATED;
 
         goto finish;
     }
@@ -365,7 +365,7 @@ enum dicey_hashtable_set_result hash_set(
 
     if (load_factor(new_len, (uint32_t) *table->buckets_no) >= REHASH_THRESHOLD) {
         if (!hash_rehash_and_set_new(&table, maybe_move(&key), value)) {
-            res = DICEY_HASHTABLE_SET_FAILED;
+            res = DICEY_HASH_SET_FAILED;
             goto finish;
         }
 
@@ -373,7 +373,7 @@ enum dicey_hashtable_set_result hash_set(
 
         *table_ptr = table;
 
-        res = DICEY_HASHTABLE_SET_ADDED;
+        res = DICEY_HASH_SET_ADDED;
 
         goto finish;
     }
@@ -381,22 +381,22 @@ enum dicey_hashtable_set_result hash_set(
     if (first_free) {
         first_free->key = maybe_take(&key);
         if (!first_free->key) {
-            return DICEY_HASHTABLE_SET_FAILED;
+            return DICEY_HASH_SET_FAILED;
         }
 
         first_free->value = value;
 
         table->len = new_len;
 
-        res = DICEY_HASHTABLE_SET_ADDED;
+        res = DICEY_HASH_SET_ADDED;
 
         goto finish;
     }
 
     // if we reached this point then the bucket has no holes and we need to add a new entry at the end
     assert(bucket_end);
-    res = hash_bucket_append(table_ptr, bucket_end, maybe_move(&key), value) ? DICEY_HASHTABLE_SET_ADDED
-                                                                             : DICEY_HASHTABLE_SET_FAILED;
+    res = hash_bucket_append(table_ptr, bucket_end, maybe_move(&key), value) ? DICEY_HASH_SET_ADDED
+                                                                             : DICEY_HASH_SET_FAILED;
 
 finish:
     maybe_free(key);
@@ -410,7 +410,7 @@ struct dicey_hashtable *dicey_hashtable_new(void) {
     return hash_new(primes, 0U);
 }
 
-void dicey_hashtable_delete(struct dicey_hashtable *const table) {
+void dicey_hashtable_delete(struct dicey_hashtable *const table, dicey_hashtable_free_fn *const free_fn) {
     if (!table) {
         return;
     }
@@ -419,7 +419,11 @@ void dicey_hashtable_delete(struct dicey_hashtable *const table) {
 
     for (struct table_entry *entry = table->entries; entry < end; ++entry) {
         free((void *) entry->key); // all these strings are malloc'd
-        // values are not owned by the table
+
+        if (free_fn) {
+            // values are not owned by the table
+            free_fn(entry->value);
+        }
     }
 
     free(table);
@@ -504,7 +508,7 @@ void *dicey_hashtable_remove(struct dicey_hashtable *table, const char *const ke
     return value;
 }
 
-enum dicey_hashtable_set_result dicey_hashtable_set(
+enum dicey_hash_set_result dicey_hashtable_set(
     struct dicey_hashtable **table_ptr,
     const char *const key,
     void *const value,
