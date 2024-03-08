@@ -165,6 +165,8 @@ set(CORE_SOURCES
     # sup
     
     src/sup/assume.h
+    src/sup/hashtable.c
+    src/sup/hashtable.h
     src/sup/trace.c
     src/sup/trace.h
     src/sup/unsafe.c
