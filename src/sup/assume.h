@@ -9,9 +9,9 @@
 
 #define DICEY_ASSUME(EXPR)                                                                                             \
     do {                                                                                                               \
-        const enum dicey_error err = (EXPR);                                                                           \
-        assert(err == DICEY_OK);                                                                                       \
-        (void) err;                                                                                                    \
+        const enum dicey_error dicey__internal_err = (EXPR);                                                           \
+        assert(dicey__internal_err == DICEY_OK);                                                                       \
+        (void) dicey__internal_err;                                                                                    \
     } while (0)
 
 #endif // BCSTIODIIH_ASSUME_H
