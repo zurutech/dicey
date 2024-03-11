@@ -96,7 +96,7 @@ bool dicey_waiting_list_remove_seq(struct dicey_waiting_list *const list, const 
     for (size_t i = 0; i < list->len; ++i) {
         if (list->waiting[i].packet_seq == seq) {
             if (task_id) {
-                *task_id = list->waiting[i].packet_seq;
+                *task_id = list->waiting[i].task_id;
             }
 
             waiting_list_erase(list, i);
