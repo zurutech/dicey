@@ -108,26 +108,48 @@ static bool is_server_msg(const enum dicey_op op) {
 
 static enum dicey_error make_error(
     struct dicey_packet *const dest,
-    const uint32_t seq,
+    const struct dicey_packet src,
     const enum dicey_error msg_err
 ) {
     assert(dest && msg_err);
 
+    uint32_t seq = UINT32_MAX;
+    enum dicey_error err = dicey_packet_get_seq(src, &seq);
+    if (err) {
+        return err;
+    }
+
+    struct dicey_message msg = { 0 };
+    err = dicey_packet_as_message(src, &msg);
+    if (err) {
+        return err;
+    }
+
     struct dicey_message_builder builder = { 0 };
 
-    enum dicey_error err = dicey_message_builder_init(&builder);
+    err = dicey_message_builder_init(&builder);
     if (err) {
         return err;
     }
 
     err = dicey_message_builder_begin(&builder, DICEY_OP_RESPONSE);
     if (err) {
-        return err;
+        goto fail;
     }
 
     err = dicey_message_builder_set_seq(&builder, seq);
     if (err) {
-        return err;
+        goto fail;
+    }
+
+    err = dicey_message_builder_set_path(&builder, msg.path);
+    if (err) {
+        goto fail;
+    }
+
+    err = dicey_message_builder_set_selector(&builder, msg.selector);
+    if (err) {
+        goto fail;
     }
 
     err = dicey_message_builder_set_value(&builder, (struct dicey_arg) {
@@ -139,10 +161,15 @@ static enum dicey_error make_error(
     });
 
     if (err) {
-        return err;
+        goto fail;
     }
 
     return dicey_message_builder_build(&builder, dest);
+
+fail:
+    dicey_message_builder_discard(&builder);
+
+    return err;
 }
 
 static enum dicey_error server_sendpkt(
@@ -267,14 +294,14 @@ static enum dicey_error server_remove_client(struct dicey_server *const server, 
 static enum dicey_error server_report_error(
     struct dicey_server *const server,
     struct dicey_client_data *const client,
-    const uint32_t seq,
+    const struct dicey_packet req,
     const enum dicey_error err
 ) {
     assert(server && client);
 
     struct dicey_packet packet = { 0 };
 
-    enum dicey_error build_err = make_error(&packet, seq, err);
+    enum dicey_error build_err = make_error(&packet, req, err);
     if (build_err) {
         return build_err;
     }
@@ -354,7 +381,7 @@ static ptrdiff_t client_got_message(struct dicey_client_data *client, const stru
     const struct dicey_element *elem =
         dicey_registry_get_element_from_sel(&server->registry, message.path, message.selector);
     if (!elem) {
-        const enum dicey_error repl_err = server_report_error(server, client, seq, DICEY_EELEMENT_NOT_FOUND);
+        const enum dicey_error repl_err = server_report_error(server, client, packet, DICEY_EELEMENT_NOT_FOUND);
         if (repl_err) {
             return repl_err;
         }
