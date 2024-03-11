@@ -129,7 +129,8 @@ static struct dicey_task_error *client_task_send_oneshot(
 static struct dicey_task_error *client_task_send_and_queue(
     struct dicey_client *const client,
     struct dicey_task_loop *const tloop,
-    const int64_t id,
+    const uint64_t id,
+    const uint32_t seq,
     struct dicey_packet packet
 ) {
     assert(packet.payload && packet.nbytes < UINT_MAX);
@@ -142,8 +143,8 @@ static struct dicey_task_error *client_task_send_and_queue(
         return task_err;
     }
 
-    // register that we expect a response on this task for sequence number 0
-    if (!dicey_waiting_list_append(&client->waiting_tasks, 0U, id)) {
+    // register that we expect a response on this task for sequence number `seq`
+    if (!dicey_waiting_list_append(&client->waiting_tasks, seq, id)) {
         return dicey_task_error_new(DICEY_ENOMEM, "failed to register hello packet for response");
     }
 
@@ -404,7 +405,7 @@ static void client_on_read(uv_stream_t *stream, const ssize_t nread, const struc
     const enum dicey_error err = dicey_packet_load(&packet, &base, &remainder);
     switch (err) {
     case DICEY_OK:
-        (void) client_got_packet(client, packet);
+        client_got_packet(client, packet);
 
         dicey_chunk_clear(chunk);
 
@@ -490,7 +491,7 @@ static struct dicey_task_result send_first_hello(
 
     client_reset_seq(client);
 
-    struct dicey_task_error *const queue_err = client_task_send_and_queue(client, tloop, id, ctx->hello);
+    struct dicey_task_error *const queue_err = client_task_send_and_queue(client, tloop, id, 0U, ctx->hello);
     if (queue_err) {
         // packet is cleared by finalizer, don't worry about it
 
@@ -631,7 +632,7 @@ static struct dicey_task_result issue_request(
     void *const input
 ) {
     (void) input;
-    assert(tloop && !input); // no input expected, we get the packet from the context
+    assert(tloop && !input && id >= 0); // no input expected, we get the packet from the context
 
     struct request_context *const ctx = data;
     assert(ctx && ctx->client);
@@ -649,7 +650,7 @@ static struct dicey_task_result issue_request(
         return dicey_task_fail(seq_err, "failed to set sequence number on request packet");
     }
 
-    struct dicey_task_error *const err = client_task_send_and_queue(client, tloop, id, packet);
+    struct dicey_task_error *const err = client_task_send_and_queue(client, tloop, id, seq_no, packet);
 
     return err ? dicey_task_fail_with(err) : dicey_task_continue();
 }
@@ -667,8 +668,12 @@ static struct dicey_task_result check_response(
     struct request_context *const ctx = data;
     assert(ctx && ctx->client);
 
-    ctx->response = *(struct dicey_packet *) input;
-    assert(dicey_packet_is_valid(ctx->response));
+    struct dicey_packet *const resp_ptr = input;
+    assert(dicey_packet_is_valid(*resp_ptr));
+
+    // steal the packet: we will use it outselves, and got_packet doesn't need it anymore
+    ctx->response = *resp_ptr;
+    *resp_ptr = (struct dicey_packet) { 0 };
 
     return dicey_task_continue();
 }
@@ -689,7 +694,7 @@ static void request_end(const int64_t id, struct dicey_task_error *const err, vo
 
     assert(req_ctx->cb);
 
-    req_ctx->cb(client, req_ctx->cb_data, errcode, req_ctx->response);
+    req_ctx->cb(client, req_ctx->cb_data, errcode, &req_ctx->response);
 
     dicey_packet_deinit(&req_ctx->request);
     dicey_packet_deinit(&req_ctx->response);
@@ -960,16 +965,19 @@ static void unlock_after_request(
     struct dicey_client *const client,
     void *const data,
     const enum dicey_error err,
-    const struct dicey_packet response
+    struct dicey_packet *const response
 ) {
     (void) client;
 
-    assert(data);
+    assert(data && response);
 
     struct sync_req_data *const sync_data = data;
 
     sync_data->err = err;
-    sync_data->response = response;
+
+    // steal the response
+    sync_data->response = *response;
+    *response = (struct dicey_packet) { 0 };
 
     uv_sem_post(&sync_data->sem); // unlock the waiting thread
 }

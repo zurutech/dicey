@@ -53,7 +53,7 @@ typedef void dicey_client_on_reply_fn(
     struct dicey_client *client,
     void *ctx,
     enum dicey_error status,
-    struct dicey_packet packet
+    struct dicey_packet *packet // this is a pointer, so the caller can steal the value, if it so desires
 );
 
 typedef void dicey_client_event_fn(struct dicey_client *client, void *ctx, struct dicey_packet packet);
