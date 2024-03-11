@@ -222,7 +222,7 @@ enum dicey_error dicey_registry_add_object(struct dicey_registry *const registry
 enum dicey_error dicey_registry_add_object_with_trait_list(
     struct dicey_registry *const registry,
     const char *const path,
-    const char *trait
+    const char *const *traits
 ) {
     assert(registry && path);
 
@@ -239,7 +239,8 @@ enum dicey_error dicey_registry_add_object_with_trait_list(
         return DICEY_ENOMEM;
     }
 
-    for (; trait; ++trait) {
+    for (; traits; ++traits) {
+        const char *const trait = *traits;
         if (!registry_trait_exists(registry, trait)) {
             object_free(object);
 

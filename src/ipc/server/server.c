@@ -12,9 +12,12 @@
 
 #include <uv.h>
 
+#include <dicey/core/builders.h>
 #include <dicey/core/errors.h>
 #include <dicey/core/packet.h>
+#include <dicey/ipc/registry.h>
 #include <dicey/ipc/server.h>
+#include <dicey/ipc/traits.h>
 
 #include "sup/assume.h"
 #include "sup/trace.h"
@@ -74,7 +77,7 @@ struct dicey_server {
     // first member is the uv_pipe_t to allow for type punning
     uv_pipe_t pipe;
 
-    enum server_state state;
+    _Atomic enum server_state state;
 
     uv_loop_t loop;
     uv_async_t async;
@@ -84,9 +87,10 @@ struct dicey_server {
     dicey_server_on_connect_fn *on_connect;
     dicey_server_on_disconnect_fn *on_disconnect;
     dicey_server_on_error_fn *on_error;
-    dicey_server_on_message_fn *on_message;
+    dicey_server_on_request_fn *on_request;
 
     struct dicey_client_list *clients;
+    struct dicey_registry registry;
 };
 
 static void on_write(uv_write_t *req, int status);
@@ -100,6 +104,45 @@ static bool is_server_msg(const enum dicey_op op) {
     default:
         return false;
     }
+}
+
+static enum dicey_error make_error(
+    struct dicey_packet *const dest,
+    const uint32_t seq,
+    const enum dicey_error msg_err
+) {
+    assert(dest && msg_err);
+
+    struct dicey_message_builder builder = { 0 };
+
+    enum dicey_error err = dicey_message_builder_init(&builder);
+    if (err) {
+        return err;
+    }
+
+    err = dicey_message_builder_begin(&builder, DICEY_OP_RESPONSE);
+    if (err) {
+        return err;
+    }
+
+    err = dicey_message_builder_set_seq(&builder, seq);
+    if (err) {
+        return err;
+    }
+
+    err = dicey_message_builder_set_value(&builder, (struct dicey_arg) {
+        .type = DICEY_TYPE_ERROR,
+        .error = {
+            .code = (uint16_t) msg_err,
+            .message = dicey_error_msg(msg_err),
+        },
+    });
+
+    if (err) {
+        return err;
+    }
+
+    return dicey_message_builder_build(&builder, dest);
 }
 
 static enum dicey_error server_sendpkt(
@@ -221,6 +264,24 @@ static enum dicey_error server_remove_client(struct dicey_server *const server, 
     return DICEY_OK;
 }
 
+static enum dicey_error server_report_error(
+    struct dicey_server *const server,
+    struct dicey_client_data *const client,
+    const uint32_t seq,
+    const enum dicey_error err
+) {
+    assert(server && client);
+
+    struct dicey_packet packet = { 0 };
+
+    enum dicey_error build_err = make_error(&packet, seq, err);
+    if (build_err) {
+        return build_err;
+    }
+
+    return server_sendpkt(server, client, packet);
+}
+
 static ptrdiff_t client_got_bye(struct dicey_client_data *client, const struct dicey_bye bye) {
     (void) bye; // unused
 
@@ -276,6 +337,11 @@ static ptrdiff_t client_got_message(struct dicey_client_data *client, const stru
     struct dicey_server *const server = client->parent;
     assert(server);
 
+    uint32_t seq = UINT32_MAX;
+    if (dicey_packet_get_seq(packet, &seq) != DICEY_OK) {
+        return TRACE(DICEY_EINVAL);
+    }
+
     struct dicey_message message = { 0 };
     if (dicey_packet_as_message(packet, &message) != DICEY_OK || is_server_msg(message.type)) {
         return TRACE(DICEY_EINVAL);
@@ -285,8 +351,22 @@ static ptrdiff_t client_got_message(struct dicey_client_data *client, const stru
         return TRACE(DICEY_EINVAL);
     }
 
-    if (server->on_message) {
-        server->on_message(server, &client->info, packet);
+    const struct dicey_element *elem =
+        dicey_registry_get_element_from_sel(&server->registry, message.path, message.selector);
+    if (!elem) {
+        const enum dicey_error repl_err = server_report_error(server, client, seq, DICEY_EELEMENT_NOT_FOUND);
+        if (repl_err) {
+            return repl_err;
+        }
+
+        // shortcircuit: the element was not found, so we've already sent an error response
+        return CLIENT_STATE_RUNNING;
+    }
+
+    // TODO: check the signature of the element
+
+    if (server->on_request) {
+        server->on_request(server, &client->info, seq, message.path, message.selector, packet);
     }
 
     return CLIENT_STATE_RUNNING;
@@ -551,30 +631,30 @@ static void dummy_error_handler(
     (void) msg;
 }
 
-void dicey_server_delete(struct dicey_server *const state) {
-    if (!state) {
+void dicey_server_delete(struct dicey_server *const server) {
+    if (!server) {
         return;
     }
 
-    struct dicey_client_data *const *const end = dicey_client_list_end(state->clients);
+    struct dicey_client_data *const *const end = dicey_client_list_end(server->clients);
 
-    for (struct dicey_client_data *const *client = dicey_client_list_begin(state->clients); client < end; ++client) {
+    for (struct dicey_client_data *const *client = dicey_client_list_begin(server->clients); client < end; ++client) {
         uv_close((uv_handle_t *) *client, NULL);
 
         free(*client);
     }
 
-    uv_close((uv_handle_t *) &state->pipe, NULL);
-    uv_close((uv_handle_t *) &state->async, NULL);
+    uv_close((uv_handle_t *) &server->pipe, NULL);
+    uv_close((uv_handle_t *) &server->async, NULL);
 
-    dicey_queue_deinit(&state->queue, &free_request, NULL);
+    dicey_queue_deinit(&server->queue, &free_request, NULL);
 
-    const int uverr = uv_loop_close(&state->loop);
+    const int uverr = uv_loop_close(&server->loop);
     assert(uverr != UV_EBUSY);
     (void) uverr;
 
-    free(state->clients);
-    free(state);
+    free(server->clients);
+    free(server);
 }
 
 enum dicey_error dicey_server_new(struct dicey_server **const dest, const struct dicey_server_args *const args) {
@@ -585,8 +665,6 @@ enum dicey_error dicey_server_new(struct dicey_server **const dest, const struct
         return TRACE(DICEY_ENOMEM);
     }
 
-    enum dicey_error err = DICEY_OK;
-
     *server = (struct dicey_server) {
         .state = SERVER_STATE_INIT,
 
@@ -595,10 +673,17 @@ enum dicey_error dicey_server_new(struct dicey_server **const dest, const struct
         .clients = NULL,
     };
 
+    enum dicey_error err = dicey_registry_init(&server->registry);
+    if (err) {
+        free(server);
+
+        return err;
+    }
+
     if (args) {
         server->on_connect = args->on_connect;
         server->on_disconnect = args->on_disconnect;
-        server->on_message = args->on_message;
+        server->on_request = args->on_request;
 
         if (args->on_error) {
             server->on_error = args->on_error;
@@ -651,9 +736,17 @@ free_loop:
 free_clients:
     free(server->clients);
 
+    dicey_registry_deinit(&server->registry);
     free(server);
 
     return err;
+}
+
+struct dicey_registry *dicey_server_get_registry(struct dicey_server *const server) {
+    assert(server && server->state <= SERVER_STATE_INIT);
+
+    // only allow this function to be called before the server is started
+    return server->state <= SERVER_STATE_INIT ? &server->registry : NULL;
 }
 
 enum dicey_error dicey_server_send(

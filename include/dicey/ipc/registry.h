@@ -41,8 +41,17 @@ DICEY_EXPORT enum dicey_error dicey_registry_add_object(struct dicey_registry *r
 DICEY_EXPORT enum dicey_error dicey_registry_add_object_with_trait_list(
     struct dicey_registry *registry,
     const char *path,
-    const char *trait
+    const char *const *trait
 );
+
+DICEY_EXPORT enum dicey_error dicey_registry_add_trait(struct dicey_registry *registry, const char *name, ...);
+DICEY_EXPORT enum dicey_error dicey_registry_add_trait_with_element_list(
+    struct dicey_registry *registry,
+    const char *name,
+    const struct dicey_element_entry *elems,
+    size_t count
+);
+
 DICEY_EXPORT bool dicey_registry_contains_object(const struct dicey_registry *registry, const char *path);
 DICEY_EXPORT bool dicey_registry_contains_trait(const struct dicey_registry *registry, const char *name);
 DICEY_EXPORT struct dicey_element *dicey_registry_get_element(

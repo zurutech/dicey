@@ -1,6 +1,6 @@
 // Copyright (c) 2014-2024 Zuru Tech HK Limited, All rights reserved.
 
-#include <complex.h>
+#include <inttypes.h>
 #include <stdarg.h>
 #include <stdbool.h>
 #include <stddef.h>
@@ -68,14 +68,19 @@ static void on_client_error(
     va_end(args);
 }
 
-static void on_packet_received(
+static void on_request_received(
     struct dicey_server *const server,
     const struct dicey_client_info *const cln,
+    const uint32_t seq,
+    const char *const path,
+    const struct dicey_selector sel,
     struct dicey_packet packet
 ) {
     (void) server;
 
-    printf("info: received packet from client %zu\n", cln->id);
+    printf(
+        "info: received request #%" PRIu32 " from client %zu for `%s:%s@%s`\n", seq, cln->id, sel.trait, sel.elem, path
+    );
 
     struct util_dumper dumper = util_dumper_for(stdout);
 
@@ -99,7 +104,7 @@ int main(void) {
             .on_connect = &on_client_connect,
             .on_disconnect = &on_client_disconnect,
             .on_error = &on_client_error,
-            .on_message = &on_packet_received,
+            .on_request = &on_request_received,
         }
     );
 
