@@ -126,6 +126,8 @@ set(PUBLIC_HEADERS
     "include/dicey/core/builders.h"
     "include/dicey/core/data-info.h"
     "include/dicey/core/errors.h"
+    "include/dicey/core/hashset.h"
+    "include/dicey/core/hashtable.h"
     "include/dicey/core/packet.h"
     "include/dicey/core/type.h"
     "include/dicey/core/value.h"
@@ -165,8 +167,8 @@ set(CORE_SOURCES
     # sup
     
     src/sup/assume.h
+    src/sup/hashset.c
     src/sup/hashtable.c
-    src/sup/hashtable.h
     src/sup/trace.c
     src/sup/trace.h
     src/sup/unsafe.c
@@ -191,9 +193,11 @@ set(CORE_SOURCES
     src/ipc/client/waiting-list.h
     
     # ipc/server
-    src/ipc/server/server.c
     src/ipc/server/client-data.c
     src/ipc/server/client-data.h
+    src/ipc/server/registry.c
+    src/ipc/server/server.c
+    src/ipc/server/traits.c
 
     # ipc/tasks
     src/ipc/tasks/io.c
