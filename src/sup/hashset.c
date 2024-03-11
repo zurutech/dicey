@@ -9,11 +9,11 @@
 #include <dicey/core/hashset.h>
 #include <dicey/core/hashtable.h>
 
-// note: the C standard says that "A pointer to an object or incomplete type may be converted to a pointer to a
-// different object or incomplete type. If the resulting pointer is not correctly aligned for the pointed-to type, the
-// behavior is undefined", so this whole file may potentially be full of UB. Still, we only support a handful of CPU
-// architectures and OSes and not even Minesweeper would work if you couldn't just cast stuff around willy nilly, so
-// I'll live with the consequences of my actions for the sake of a nice API, thank you very much.
+// note: the C standard says that "A pointer to an object type may be converted to a pointer to a different object type.
+// If the resulting pointer is not correctly aligned68) for the referenced type, the behavior is undefined", so this
+// whole file may potentially be full of UB. Still, we only support a handful of CPU architectures and OSes and not even
+// Minesweeper would work if you couldn't just cast stuff around willy nilly, so I'll live with the consequences of my
+// actions for the sake of a nice API, thank you very much.
 
 static_assert(
     alignof(struct dicey_hashset *) == alignof(struct dicey_hashtable *),
@@ -22,6 +22,18 @@ static_assert(
 
 // a non-null marker, helpful to distinguish non-set (NULL) from set (phony)
 static int phony = 0;
+
+enum dicey_hash_set_result dicey_hashset_add(struct dicey_hashset **const set, const char *const key) {
+    assert(set);
+
+    struct dicey_hashtable *map = (struct dicey_hashtable *) *set;
+
+    const enum dicey_hash_set_result res = dicey_hashtable_set(&map, key, &phony, &(void *) { NULL });
+
+    *set = (struct dicey_hashset *) map;
+
+    return res;
+}
 
 struct dicey_hashset *dicey_hashset_new(void) {
     return (struct dicey_hashset *) dicey_hashtable_new();
@@ -49,18 +61,6 @@ bool dicey_hashset_contains(struct dicey_hashset *const table, const char *const
 
 bool dicey_hashset_remove(struct dicey_hashset *const table, const char *const key) {
     return dicey_hashtable_remove((struct dicey_hashtable *) table, key);
-}
-
-enum dicey_hash_set_result dicey_hashset_set(struct dicey_hashset **const set, const char *const key) {
-    assert(set);
-
-    struct dicey_hashtable *map = (struct dicey_hashtable *) *set;
-
-    const enum dicey_hash_set_result res = dicey_hashtable_set(&map, key, &phony, &(void *) { NULL });
-
-    *set = (struct dicey_hashset *) map;
-
-    return res;
 }
 
 uint32_t dicey_hashset_size(struct dicey_hashset *const table) {

@@ -5,6 +5,10 @@
 
 #include "hashtable.h"
 
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
 struct dicey_hashset;
 
 struct dicey_hashset_iter {
@@ -21,8 +25,12 @@ DICEY_EXPORT bool dicey_hashset_iter_next(struct dicey_hashset_iter *iter, const
 DICEY_EXPORT bool dicey_hashset_contains(struct dicey_hashset *table, const char *key);
 DICEY_EXPORT bool dicey_hashset_remove(struct dicey_hashset *table, const char *key);
 
-DICEY_EXPORT enum dicey_hash_set_result dicey_hashset_set(struct dicey_hashset **set, const char *key);
+DICEY_EXPORT enum dicey_hash_set_result dicey_hashset_add(struct dicey_hashset **set, const char *key);
 
 DICEY_EXPORT uint32_t dicey_hashset_size(struct dicey_hashset *table);
+
+#if defined(__cplusplus)
+}
+#endif
 
 #endif // KVOFDWUXXQ_HASHSET_H
