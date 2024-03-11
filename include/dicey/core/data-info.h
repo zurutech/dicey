@@ -6,6 +6,10 @@
 #include "type.h"
 #include "views.h"
 
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
 // union used internally by dicey_value to represent a parsed value. Not intended for external use.
 union _dicey_data_info {
     dicey_bool boolean;
@@ -37,5 +41,9 @@ union _dicey_data_info {
 
     struct dicey_errmsg error;
 };
+
+#if defined(__cplusplus)
+}
+#endif
 
 #endif // VEGOWIWLXE_DATA_INFO_H
