@@ -32,18 +32,22 @@ enum dicey_error {
     DICEY_EALREADY = -0x010B,     /**< Operation already in progress. */
     DICEY_EPIPE = -0x010C,        /**< Broken pipe. */
     DICEY_ECONNRESET = -0x010D,   /**< Connection reset. */
+    DICEY_EEXIST = -0x010E,       /**< Object exists. */
 
-    DICEY_EPATH_TOO_LONG = -0x020E,  /**< A path is too long. */
-    DICEY_ETUPLE_TOO_LONG = -0x020F, /**< Tuple too long. (currently unused) */
-    DICEY_EARRAY_TOO_LONG = -0x0210, /**< Array too long. (currently unused) */
+    DICEY_EPATH_TOO_LONG = -0x020F,  /**< A path is too long. */
+    DICEY_ETUPLE_TOO_LONG = -0x0210, /**< Tuple too long. (currently unused) */
+    DICEY_EARRAY_TOO_LONG = -0x0211, /**< Array too long. (currently unused) */
 
-    DICEY_EVALUE_TYPE_MISMATCH = -0x0311, /**< Value type mismatch. */
+    DICEY_EVALUE_TYPE_MISMATCH = -0x0312, /**< Value type mismatch. */
 
-    DICEY_ENOT_SUPPORTED = -0x0412,  /**< Operation not supported. */
-    DICEY_ECLIENT_TOO_OLD = -0x0413, /**< Client is too old. */
-    DICEY_ESERVER_TOO_OLD = -0x0414, /**< Client is too old. */
+    DICEY_ENOT_SUPPORTED = -0x0413,   /**< Operation not supported. */
+    DICEY_ECLIENT_TOO_OLD = -0x0414,  /**< Client is too old. */
+    DICEY_ESERVER_TOO_OLD = -0x0415,  /**< Client is too old. */
+    DICEY_EPATH_NOT_FOUND = -0x0416,  /**< Path not found. */
+    DICEY_EPATH_MALFORMED = -0x0417,  /**< Path is malformed */
+    DICEY_ETRAIT_NOT_FOUND = -0x0418, /**< Trait not found. */
 
-    DICEY_EUV_UNKNOWN = -0x0515 /**< Unknown libuv error. */
+    DICEY_EUV_UNKNOWN = -0x0519 /**< Unknown libuv error. */
 };
 
 /**

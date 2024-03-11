@@ -24,6 +24,7 @@ static const struct dicey_error_def error_info[] = {
     ERROR_INFO_FOR(DICEY_EALREADY, "Already", "already in progress"),
     ERROR_INFO_FOR(DICEY_EPIPE, "BrokenPipe", "broken pipe"),
     ERROR_INFO_FOR(DICEY_ECONNRESET, "ConnectionReset", "connection reset by peer"),
+    ERROR_INFO_FOR(DICEY_EEXIST, "ObjectExists", "objects or file already exists"),
     ERROR_INFO_FOR(DICEY_EPATH_TOO_LONG, "PathTooLong", "path too long"),
     ERROR_INFO_FOR(DICEY_ETUPLE_TOO_LONG, "TupleTooLong", "tuple too long"),
     ERROR_INFO_FOR(DICEY_EARRAY_TOO_LONG, "ArrayTooLong", "array too long"),
@@ -31,6 +32,9 @@ static const struct dicey_error_def error_info[] = {
     ERROR_INFO_FOR(DICEY_ENOT_SUPPORTED, "NotSupported", "unsupported operation"),
     ERROR_INFO_FOR(DICEY_ECLIENT_TOO_OLD, "ClientTooOld", "client too old"),
     ERROR_INFO_FOR(DICEY_ESERVER_TOO_OLD, "ServerTooOld", "server too old"),
+    ERROR_INFO_FOR(DICEY_EPATH_NOT_FOUND, "PathNotFound", "path not found"),
+    ERROR_INFO_FOR(DICEY_EPATH_MALFORMED, "MalformedPath", "malformed path"),
+    ERROR_INFO_FOR(DICEY_ETRAIT_NOT_FOUND, "TraitNotFound", "trait not found"),
     ERROR_INFO_FOR(DICEY_EUV_UNKNOWN, "UnknownUVError", "unknown libuv error"),
 };
 
@@ -61,6 +65,7 @@ bool dicey_error_is_valid(enum dicey_error errnum) {
     case DICEY_EALREADY:
     case DICEY_EPIPE:
     case DICEY_ECONNRESET:
+    case DICEY_EEXIST:
     case DICEY_EPATH_TOO_LONG:
     case DICEY_ETUPLE_TOO_LONG:
     case DICEY_EARRAY_TOO_LONG:
@@ -68,6 +73,7 @@ bool dicey_error_is_valid(enum dicey_error errnum) {
     case DICEY_ENOT_SUPPORTED:
     case DICEY_ECLIENT_TOO_OLD:
     case DICEY_ESERVER_TOO_OLD:
+    case DICEY_EPATH_NOT_FOUND:
     case DICEY_EUV_UNKNOWN:
         return true;
 
