@@ -1131,13 +1131,11 @@ enum dicey_error dicey_client_disconnect_async(
     switch ((int) client->state) {
     case CLIENT_STATE_RUNNING:
     case CLIENT_STATE_DEAD:
-        break;
+        return client_issue_disconnect(client, cb, data);
 
     default:
         return DICEY_EINVAL;
     }
-
-    return client_issue_disconnect(client, cb, data);
 }
 
 enum dicey_error dicey_client_request(
