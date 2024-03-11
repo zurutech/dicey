@@ -24,6 +24,13 @@ struct dicey_object {
 
 DICEY_EXPORT bool dicey_object_implements(struct dicey_object *object, const char *trait);
 
+struct dicey_element_entry {
+    enum dicey_element_type type;
+
+    const char *name;
+    const char *signature;
+};
+
 struct dicey_registry {
     // note: While the paths are technically hierarchical, this has zero to no effect on the actual implementation.
     //       The paths are simply used as a way to identify objects and traits, and "directory-style" access is not

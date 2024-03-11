@@ -11,6 +11,8 @@
 #include <dicey/core/hashtable.h>
 #include <dicey/ipc/traits.h>
 
+#include "traits.h"
+
 static struct dicey_element *elem_dup(const struct dicey_element *const elem) {
     if (!elem) {
         return NULL;
@@ -77,7 +79,7 @@ enum dicey_error dicey_trait_add_element(
     return DICEY_OK;
 }
 
-void dicey_trait_deinit(struct dicey_trait *const trait) {
+void dicey_trait_delete(struct dicey_trait *const trait) {
     if (trait) {
         assert(trait->elems);
 
@@ -101,19 +103,27 @@ struct dicey_element *dicey_trait_get_element(const struct dicey_trait *const tr
     return dicey_hashtable_get(trait->elems, name);
 }
 
-bool dicey_trait_init(struct dicey_trait *const trait, const char *const name) {
-    assert(trait && name && *name);
+struct dicey_trait *dicey_trait_new(const char *const name) {
+    assert(name && *name);
 
     char *const name_copy = strdup(name);
     if (!name_copy) {
-        return false;
+        return NULL;
     }
 
     struct dicey_hashtable *const elems = dicey_hashtable_new();
     if (!elems) {
         free(name_copy);
 
-        return false;
+        return NULL;
+    }
+
+    struct dicey_trait *const trait = malloc(sizeof *trait);
+    if (!trait) {
+        free(name_copy);
+        dicey_hashtable_delete(elems, free_elem);
+
+        return NULL;
     }
 
     *trait = (struct dicey_trait) {
@@ -121,89 +131,7 @@ bool dicey_trait_init(struct dicey_trait *const trait, const char *const name) {
         .elems = elems,
     };
 
-    return true;
-}
-
-enum dicey_error dicey_trait_init_with(struct dicey_trait *const trait, const char *const name, ...) {
-    struct dicey_trait *const new_trait = calloc(1U, sizeof *new_trait);
-    if (!new_trait) {
-        return DICEY_ENOMEM;
-    }
-
-    enum dicey_error err = dicey_trait_init(new_trait, name);
-    if (err) {
-        free(new_trait);
-
-        return err;
-    }
-
-    va_list ap;
-    va_start(ap, name);
-
-    for (;;) {
-        const char *const elem_name = va_arg(ap, const char *);
-        if (!elem_name) {
-            break;
-        }
-
-        err = dicey_trait_add_element(new_trait, elem_name, va_arg(ap, struct dicey_element));
-        if (err) {
-            dicey_trait_deinit(new_trait);
-            free(new_trait);
-
-            return err;
-        }
-    }
-
-    va_end(ap);
-
-    *trait = *new_trait;
-
-    return DICEY_OK;
-}
-
-enum dicey_error dicey_trait_init_with_list(
-    struct dicey_trait *const trait,
-    const char *const name,
-    const struct dicey_element_entry *const elems,
-    const size_t count
-) {
-    assert(trait && name && ((elems != NULL) == (count != 0)));
-
-    struct dicey_trait *const new_trait = calloc(1U, sizeof *new_trait);
-    if (!new_trait) {
-        return DICEY_ENOMEM;
-    }
-
-    enum dicey_error err = dicey_trait_init(new_trait, name);
-    if (err) {
-        free(new_trait);
-
-        return err;
-    }
-
-    const struct dicey_element_entry *const end = elems + count;
-    for (const struct dicey_element_entry *entry = elems; entry < end; ++entry) {
-        err = dicey_trait_add_element(
-            new_trait,
-            entry->name,
-            (struct dicey_element) {
-                .signature = entry->signature,
-                .type = entry->type,
-            }
-        );
-
-        if (err) {
-            dicey_trait_deinit(new_trait);
-            free(new_trait);
-
-            return err;
-        }
-    }
-
-    *trait = *new_trait;
-
-    return DICEY_OK;
+    return trait;
 }
 
 struct dicey_trait_iter dicey_trait_iter_start(struct dicey_trait *const trait) {

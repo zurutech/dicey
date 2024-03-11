@@ -26,13 +26,6 @@ struct dicey_element {
     const char *signature;
 };
 
-struct dicey_element_entry {
-    enum dicey_element_type type;
-
-    const char *name;
-    const char *signature;
-};
-
 struct dicey_trait_iter {
     struct dicey_hashtable_iter _inner;
 };
@@ -44,27 +37,13 @@ struct dicey_trait {
 };
 
 DICEY_EXPORT struct dicey_trait_iter dicey_trait_iter_start(struct dicey_trait *trait);
+
 DICEY_EXPORT bool dicey_trait_iter_next(
     struct dicey_trait_iter *iter,
     const char **elem_name,
     struct dicey_element *elem
 );
 
-DICEY_EXPORT void dicey_trait_deinit(struct dicey_trait *trait);
-DICEY_EXPORT bool dicey_trait_init(struct dicey_trait *trait, const char *name);
-DICEY_EXPORT enum dicey_error dicey_trait_init_with(struct dicey_trait *trait, const char *name, ...);
-DICEY_EXPORT enum dicey_error dicey_trait_init_with_list(
-    struct dicey_trait *trait,
-    const char *name,
-    const struct dicey_element_entry *elems,
-    size_t count
-);
-
-DICEY_EXPORT enum dicey_error dicey_trait_add_element(
-    struct dicey_trait *trait,
-    const char *name,
-    struct dicey_element elem
-);
 DICEY_EXPORT bool dicey_trait_contains_element(const struct dicey_trait *trait, const char *name);
 DICEY_EXPORT struct dicey_element *dicey_trait_get_element(const struct dicey_trait *trait, const char *name);
 

@@ -1,5 +1,6 @@
 // Copyright (c) 2014-2024 Zuru Tech HK Limited, All rights reserved.
 
+#include "dicey/core/errors.h"
 #include <assert.h>
 #include <ctype.h>
 #include <stdarg.h>
@@ -12,6 +13,8 @@
 #include <dicey/core/hashtable.h>
 #include <dicey/ipc/registry.h>
 #include <dicey/ipc/traits.h>
+
+#include "traits.h"
 
 static void object_free(void *const ptr) {
     struct dicey_object *const object = ptr;
@@ -46,8 +49,7 @@ static void trait_free(void *const trait_ptr) {
     if (trait_ptr) {
         struct dicey_trait *const trait = (struct dicey_trait *) trait_ptr;
 
-        dicey_trait_deinit(trait);
-        free(trait);
+        dicey_trait_delete(trait);
     }
 }
 
@@ -104,6 +106,28 @@ static enum dicey_error registry_add_object(
 ) {
     void *old_value = NULL;
     switch (dicey_hashtable_set(&registry->_paths, path, object, &old_value)) {
+    case DICEY_HASH_SET_FAILED:
+        return DICEY_ENOMEM;
+
+    case DICEY_HASH_SET_UPDATED:
+        assert(false); // should never be reached
+        break;
+
+    case DICEY_HASH_SET_ADDED:
+        assert(!old_value);
+        break;
+    }
+
+    return DICEY_OK;
+}
+
+static enum dicey_error registry_add_trait(
+    struct dicey_registry *const registry,
+    const char *const path,
+    struct dicey_trait *const trait
+) {
+    void *old_value = NULL;
+    switch (dicey_hashtable_set(&registry->_traits, path, trait, &old_value)) {
     case DICEY_HASH_SET_FAILED:
         return DICEY_ENOMEM;
 
@@ -266,6 +290,78 @@ enum dicey_error dicey_registry_add_object_with_trait_list(
     const enum dicey_error err = registry_add_object(registry, path, object);
     if (err) {
         object_free(object);
+    }
+
+    return err;
+}
+
+enum dicey_error dicey_registry_add_trait(struct dicey_registry *const registry, const char *const name, ...) {
+    struct dicey_trait *const trait = dicey_trait_new(name);
+    if (!trait) {
+        return DICEY_ENOMEM;
+    }
+
+    va_list ap;
+    va_start(ap, name);
+
+    for (;;) {
+        const char *const elem_name = va_arg(ap, const char *);
+        if (!elem_name) {
+            break;
+        }
+
+        enum dicey_error add_err = dicey_trait_add_element(trait, elem_name, va_arg(ap, struct dicey_element));
+        if (add_err) {
+            dicey_trait_delete(trait);
+
+            return add_err;
+        }
+    }
+
+    va_end(ap);
+
+    const enum dicey_error err = registry_add_trait(registry, name, trait);
+    if (err) {
+        dicey_trait_delete(trait);
+    }
+
+    return DICEY_OK;
+}
+
+enum dicey_error dicey_registry_add_trait_with_element_list(
+    struct dicey_registry *registry,
+    const char *name,
+    const struct dicey_element_entry *elems,
+    size_t count
+) {
+    assert(name && ((elems != NULL) == (count != 0)));
+
+    struct dicey_trait *const trait = dicey_trait_new(name);
+    if (!trait) {
+        return DICEY_ENOMEM;
+    }
+
+    const struct dicey_element_entry *const end = elems + count;
+    for (const struct dicey_element_entry *entry = elems; entry < end; ++entry) {
+        const enum dicey_error add_err = dicey_trait_add_element(
+            trait,
+            entry->name,
+            (struct dicey_element) {
+                .signature = entry->signature,
+                .type = entry->type,
+            }
+        );
+
+        if (add_err) {
+            dicey_trait_delete(trait);
+
+            return add_err;
+        }
+    }
+
+    const enum dicey_error err = registry_add_trait(registry, name, trait);
+    if (err) {
+        dicey_trait_delete(trait);
     }
 
     return err;
