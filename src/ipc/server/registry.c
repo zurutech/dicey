@@ -176,10 +176,13 @@ enum dicey_error dicey_registry_add_object(struct dicey_registry *const registry
     va_list traits;
     va_start(traits, path);
 
-    const char *trait = NULL;
-
     enum dicey_error err = DICEY_OK;
-    while (!err && (trait = va_arg(traits, const char *))) {
+    while (!err) {
+        const char *const trait = va_arg(traits, const char *);
+        if (!trait) {
+            break;
+        }
+
         if (!registry_trait_exists(registry, trait)) {
             err = DICEY_ETRAIT_NOT_FOUND;
 

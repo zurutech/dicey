@@ -66,12 +66,15 @@ enum dicey_error dicey_trait_add_element(
 
     case DICEY_HASH_SET_UPDATED:
         assert(false); // should never be reached
+        return DICEY_EINVAL;
 
     case DICEY_HASH_SET_ADDED:
         assert(!old_val);
 
-        return DICEY_OK;
+        break;
     }
+
+    return DICEY_OK;
 }
 
 void dicey_trait_deinit(struct dicey_trait *const trait) {
@@ -127,7 +130,7 @@ enum dicey_error dicey_trait_init_with(struct dicey_trait *const trait, const ch
         return DICEY_ENOMEM;
     }
 
-    const enum dicey_error err = dicey_trait_init(new_trait, name);
+    enum dicey_error err = dicey_trait_init(new_trait, name);
     if (err) {
         free(new_trait);
 
@@ -138,12 +141,12 @@ enum dicey_error dicey_trait_init_with(struct dicey_trait *const trait, const ch
     va_start(ap, name);
 
     for (;;) {
-        const char *const name = va_arg(ap, const char *);
-        if (!name) {
+        const char *const elem_name = va_arg(ap, const char *);
+        if (!elem_name) {
             break;
         }
 
-        const enum dicey_error err = dicey_trait_add_element(new_trait, name, va_arg(ap, struct dicey_element));
+        err = dicey_trait_add_element(new_trait, elem_name, va_arg(ap, struct dicey_element));
         if (err) {
             dicey_trait_deinit(new_trait);
             free(new_trait);
@@ -165,14 +168,14 @@ enum dicey_error dicey_trait_init_with_list(
     const struct dicey_element_entry *const elems,
     const size_t count
 ) {
-    assert(trait && name && ((bool) elems == (bool) count));
+    assert(trait && name && ((elems != NULL) == (count != 0)));
 
     struct dicey_trait *const new_trait = calloc(1U, sizeof *new_trait);
     if (!new_trait) {
         return DICEY_ENOMEM;
     }
 
-    const enum dicey_error err = dicey_trait_init(new_trait, name);
+    enum dicey_error err = dicey_trait_init(new_trait, name);
     if (err) {
         free(new_trait);
 
@@ -181,7 +184,7 @@ enum dicey_error dicey_trait_init_with_list(
 
     const struct dicey_element_entry *const end = elems + count;
     for (const struct dicey_element_entry *entry = elems; entry < end; ++entry) {
-        const enum dicey_error err = dicey_trait_add_element(
+        err = dicey_trait_add_element(
             new_trait,
             entry->name,
             (struct dicey_element) {
