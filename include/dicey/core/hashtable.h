@@ -8,6 +8,10 @@
 
 #include "dicey_export.h"
 
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
 struct dicey_hashtable;
 
 struct dicey_hashtable_iter {
@@ -41,5 +45,9 @@ DICEY_EXPORT enum dicey_hash_set_result dicey_hashtable_set(
 );
 
 DICEY_EXPORT uint32_t dicey_hashtable_size(struct dicey_hashtable *table);
+
+#if defined(__cplusplus)
+}
+#endif
 
 #endif // XCRGTMFDFE_HASHTABLE_H
