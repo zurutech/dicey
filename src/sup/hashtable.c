@@ -89,7 +89,7 @@ static struct table_entry *bucket_find_entry(
     struct table_entry **const first_free,
     size_t *bucket_end
 ) {
-    assert(ht && bucket_offs >= 0 && ht->buckets_no && bucket_offs < (uint32_t) *ht->buckets_no);
+    assert(ht && ht->buckets_no && bucket_offs < (uint32_t) *ht->buckets_no);
 
     struct table_entry *const cells = ht->entries;
 
