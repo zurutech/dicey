@@ -30,8 +30,18 @@ enum dtf_payload_kind {
     DTF_PAYLOAD_RESPONSE = DICEY_OP_RESPONSE,
 };
 
-static inline bool dtf_payload_kind_is_message(enum dtf_payload_kind kind) {
-    return kind >= DTF_PAYLOAD_GET;
+static inline bool dtf_payload_kind_is_message(const enum dtf_payload_kind kind) {
+    switch (kind) {
+    case DTF_PAYLOAD_GET:
+    case DTF_PAYLOAD_SET:
+    case DTF_PAYLOAD_EXEC:
+    case DTF_PAYLOAD_EVENT:
+    case DTF_PAYLOAD_RESPONSE:
+        return true;
+
+    default:
+        return false;
+    }
 }
 
 struct dtf_result {
