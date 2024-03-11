@@ -40,14 +40,15 @@ enum dicey_error {
 
     DICEY_EVALUE_TYPE_MISMATCH = -0x0312, /**< Value type mismatch. */
 
-    DICEY_ENOT_SUPPORTED = -0x0413,   /**< Operation not supported. */
-    DICEY_ECLIENT_TOO_OLD = -0x0414,  /**< Client is too old. */
-    DICEY_ESERVER_TOO_OLD = -0x0415,  /**< Client is too old. */
-    DICEY_EPATH_NOT_FOUND = -0x0416,  /**< Path not found. */
-    DICEY_EPATH_MALFORMED = -0x0417,  /**< Path is malformed */
-    DICEY_ETRAIT_NOT_FOUND = -0x0418, /**< Trait not found. */
+    DICEY_ENOT_SUPPORTED = -0x0413,     /**< Operation not supported. */
+    DICEY_ECLIENT_TOO_OLD = -0x0414,    /**< Client is too old. */
+    DICEY_ESERVER_TOO_OLD = -0x0415,    /**< Client is too old. */
+    DICEY_EPATH_NOT_FOUND = -0x0416,    /**< Path not found. */
+    DICEY_EPATH_MALFORMED = -0x0417,    /**< Path is malformed */
+    DICEY_ETRAIT_NOT_FOUND = -0x0418,   /**< Trait not found. */
+    DICEY_EELEMENT_NOT_FOUND = -0x0419, /**< Element not found. */
 
-    DICEY_EUV_UNKNOWN = -0x0519 /**< Unknown libuv error. */
+    DICEY_EUV_UNKNOWN = -0x051A /**< Unknown libuv error. */
 };
 
 /**
