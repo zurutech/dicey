@@ -1,5 +1,6 @@
 // Copyright (c) 2014-2024 Zuru Tech HK Limited, All rights reserved.
 
+#include <assert.h>
 #include <inttypes.h>
 #include <stdarg.h>
 #include <stdbool.h>
@@ -26,6 +27,34 @@
 #define PIPE_NEEDS_CLEANUP true
 #define PIPE_NAME "/tmp/.uvsock"
 #endif
+
+#define DUMMY_PATH "/foo/bar"
+#define DUMMY_TRAIT "a.street.trait.named.Bob"
+#define DUMMY_ELEMENT "Bobbable"
+#define DUMMY_SIGNATURE "([b]bfeec${sv})"
+
+static enum dicey_error registry_fill(struct dicey_registry *const registry) {
+    assert(registry);
+
+    enum dicey_error err = dicey_registry_add_trait(
+        registry,
+        DUMMY_TRAIT,
+        DUMMY_ELEMENT,
+        (struct dicey_element) { .type = DICEY_ELEMENT_TYPE_PROPERTY, .signature = DUMMY_SIGNATURE },
+        NULL
+    );
+
+    if (err) {
+        return err;
+    }
+
+    err = dicey_registry_add_object(registry, DUMMY_PATH, DUMMY_TRAIT, NULL);
+    if (err) {
+        return err;
+    }
+
+    return DICEY_OK;
+}
 
 static bool on_client_connect(struct dicey_server *const server, const size_t id, void **const user_data) {
     (void) server;
@@ -68,6 +97,30 @@ static void on_client_error(
     va_end(args);
 }
 
+static enum dicey_error send_reply(
+    struct dicey_server *const server,
+    const struct dicey_client_info *const cln,
+    const uint32_t seq,
+    const char *const path,
+    const struct dicey_selector sel,
+    struct dicey_arg payload
+) {
+
+    struct dicey_packet packet = { 0 };
+    enum dicey_error err = dicey_packet_message(&packet, seq, DICEY_OP_RESPONSE, path, sel, payload);
+    if (err) {
+        return err;
+    }
+
+    err = dicey_server_send(server, cln->id, packet);
+    if (err) {
+        dicey_packet_deinit(&packet);
+        return err;
+    }
+
+    return DICEY_OK;
+}
+
 static void on_request_received(
     struct dicey_server *const server,
     const struct dicey_client_info *const cln,
@@ -85,6 +138,14 @@ static void on_request_received(
     struct util_dumper dumper = util_dumper_for(stdout);
 
     util_dumper_dump_packet(&dumper, packet);
+
+    if (!strcmp(path, DUMMY_PATH) && !strcmp(sel.trait, DUMMY_TRAIT) && !strcmp(sel.elem, DUMMY_ELEMENT)) {
+        const enum dicey_error err =
+            send_reply(server, cln, seq, path, sel, (struct dicey_arg) { .type = DICEY_TYPE_BOOL, .boolean = true });
+        if (err) {
+            fprintf(stderr, "error: %s\n", dicey_error_name(err));
+        }
+    }
 }
 
 #if PIPE_NEEDS_CLEANUP
@@ -110,6 +171,13 @@ int main(void) {
 
     if (err) {
         fprintf(stderr, "dicey_server_init: %s\n", dicey_error_name(err));
+
+        goto quit;
+    }
+
+    err = registry_fill(dicey_server_get_registry(server));
+    if (err) {
+        fprintf(stderr, "registry_init: %s\n", dicey_error_name(err));
 
         goto quit;
     }
