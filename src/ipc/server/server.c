@@ -91,9 +91,34 @@ struct dicey_server {
 
     struct dicey_client_list *clients;
     struct dicey_registry registry;
+
+    void *ctx;
 };
 
 static void on_write(uv_write_t *req, int status);
+
+static enum dicey_error chech_op_valid_on(const enum dicey_op op, const struct dicey_element elem) {
+    switch (op) {
+    case DICEY_OP_GET:
+        return elem.type == DICEY_ELEMENT_TYPE_PROPERTY ? DICEY_OK : DICEY_EINVAL;
+
+    case DICEY_OP_SET:
+        if (elem.type != DICEY_ELEMENT_TYPE_PROPERTY) {
+            return DICEY_EINVAL;
+        }
+
+        return elem.readonly ? DICEY_EPROPERTY_READ_ONLY : DICEY_OK;
+
+    case DICEY_OP_EXEC:
+        return elem.type == DICEY_ELEMENT_TYPE_OPERATION ? DICEY_OK : DICEY_EINVAL;
+
+    case DICEY_OP_EVENT:
+        return elem.type == DICEY_ELEMENT_TYPE_SIGNAL ? DICEY_OK : DICEY_EINVAL;
+
+    default:
+        return false;
+    }
+}
 
 static bool is_server_msg(const enum dicey_op op) {
     switch (op) {
@@ -105,7 +130,6 @@ static bool is_server_msg(const enum dicey_op op) {
         return false;
     }
 }
-
 static enum dicey_error make_error(
     struct dicey_packet *const dest,
     const struct dicey_packet src,
@@ -358,7 +382,7 @@ static ptrdiff_t client_got_hello(
     return CLIENT_STATE_RUNNING;
 }
 
-static ptrdiff_t client_got_message(struct dicey_client_data *client, const struct dicey_packet packet) {
+static ptrdiff_t client_got_message(struct dicey_client_data *const client, const struct dicey_packet packet) {
     assert(client);
 
     struct dicey_server *const server = client->parent;
@@ -390,8 +414,9 @@ static ptrdiff_t client_got_message(struct dicey_client_data *client, const stru
         return CLIENT_STATE_RUNNING;
     }
 
-    if (message.type == DICEY_OP_SET && elem->readonly) {
-        const enum dicey_error repl_err = server_report_error(server, client, packet, DICEY_EPROPERTY_READ_ONLY);
+    const enum dicey_error op_err = chech_op_valid_on(message.type, *elem);
+    if (op_err) {
+        const enum dicey_error repl_err = server_report_error(server, client, packet, op_err);
         if (repl_err) {
             return repl_err;
         }
@@ -403,7 +428,7 @@ static ptrdiff_t client_got_message(struct dicey_client_data *client, const stru
     // TODO: check the signature of the element
 
     if (server->on_request) {
-        server->on_request(server, &client->info, seq, message.path, message.selector, packet);
+        server->on_request(server, &client->info, seq, packet);
     }
 
     return CLIENT_STATE_RUNNING;
@@ -788,6 +813,10 @@ free_clients:
     return err;
 }
 
+void *dicey_server_get_context(struct dicey_server *const server) {
+    return server ? server->ctx : NULL;
+}
+
 struct dicey_registry *dicey_server_get_registry(struct dicey_server *const server) {
     assert(server && server->state <= SERVER_STATE_INIT);
 
@@ -822,6 +851,15 @@ enum dicey_error dicey_server_send(
     (void) success; // suppress unused variable warning with NDEBUG and MSVC
 
     return dicey_error_from_uv(uv_async_send(&server->async));
+}
+
+void *dicey_server_set_context(struct dicey_server *const server, void *const new_context) {
+    assert(server);
+
+    void *const old_context = server->ctx;
+    server->ctx = new_context;
+
+    return old_context;
 }
 
 enum dicey_error dicey_server_start(struct dicey_server *const server, const char *const name, const size_t len) {

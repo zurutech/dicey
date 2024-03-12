@@ -40,8 +40,6 @@ typedef void dicey_server_on_request_fn(
     struct dicey_server *server,
     const struct dicey_client_info *cln,
     uint32_t seq,
-    const char *const path,
-    struct dicey_selector sel,
     struct dicey_packet packet
 );
 
@@ -55,8 +53,10 @@ struct dicey_server_args {
 DICEY_EXPORT void dicey_server_delete(struct dicey_server *state);
 DICEY_EXPORT enum dicey_error dicey_server_new(struct dicey_server **const dest, const struct dicey_server_args *args);
 
+DICEY_EXPORT void *dicey_server_get_context(struct dicey_server *server);
 DICEY_EXPORT struct dicey_registry *dicey_server_get_registry(struct dicey_server *server);
 DICEY_EXPORT enum dicey_error dicey_server_send(struct dicey_server *server, size_t id, struct dicey_packet packet);
+DICEY_EXPORT void *dicey_server_set_context(struct dicey_server *server, void *new_context);
 DICEY_EXPORT enum dicey_error dicey_server_start(struct dicey_server *server, const char *name, size_t len);
 
 #if defined(__cplusplus)
