@@ -314,6 +314,10 @@ bool dicey_value_is(const struct dicey_value *const value, const enum dicey_type
     return value->_type == type;
 }
 
+bool dicey_value_is_unit(const struct dicey_value *const value) {
+    return dicey_value_is(value, DICEY_TYPE_UNIT);
+}
+
 bool dicey_value_is_valid(const struct dicey_value *const value) {
     return dicey_type_is_valid(value->_type);
 }

@@ -296,6 +296,13 @@ DICEY_EXPORT enum dicey_error dicey_value_get_u64(const struct dicey_value *valu
 DICEY_EXPORT bool dicey_value_is(const struct dicey_value *value, enum dicey_type type);
 
 /**
+ * @brief Returns true if the value is unit. Equivalent to dicey_value_is(value, DICEY_UNIT).
+ * @param value The value to check.
+ * @return true if the value is of the specified type, false otherwise.
+ */
+DICEY_EXPORT bool dicey_value_is_unit(const struct dicey_value *value);
+
+/**
  * @brief Checks if the value is valid. Currently, this means that the value is not NULL and has a valid type.
  * @param value The value to check.
  * @return true if the value is valid, false otherwise.

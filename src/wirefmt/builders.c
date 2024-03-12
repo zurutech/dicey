@@ -325,7 +325,10 @@ enum dicey_error dicey_packet_message(
     struct dicey_selector selector,
     struct dicey_arg value
 ) {
-    assert(dest && path && dicey_selector_is_valid(selector) && value.type != DICEY_TYPE_INVALID);
+    assert(
+        dest && path && dicey_selector_is_valid(selector) &&
+        ((op == DICEY_OP_GET) != (value.type != DICEY_TYPE_INVALID))
+    );
 
     struct dicey_message_builder builder = { 0 };
 
@@ -354,9 +357,11 @@ enum dicey_error dicey_packet_message(
         goto fail;
     }
 
-    err = dicey_message_builder_set_value(&builder, value);
-    if (err) {
-        goto fail;
+    if (op != DICEY_OP_GET) {
+        err = dicey_message_builder_set_value(&builder, value);
+        if (err) {
+            goto fail;
+        }
     }
 
     return dicey_message_builder_build(&builder, dest);
