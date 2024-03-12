@@ -317,6 +317,56 @@ enum dicey_error dicey_message_builder_value_end(
     return DICEY_OK;
 }
 
+enum dicey_error dicey_packet_message(
+    struct dicey_packet *dest,
+    uint32_t seq,
+    enum dicey_op op,
+    const char *path,
+    struct dicey_selector selector,
+    struct dicey_arg value
+) {
+    assert(dest && path && dicey_selector_is_valid(selector) && value.type != DICEY_TYPE_INVALID);
+
+    struct dicey_message_builder builder = { 0 };
+
+    enum dicey_error err = dicey_message_builder_init(&builder);
+    if (err) {
+        return err;
+    }
+
+    err = dicey_message_builder_begin(&builder, op);
+    if (err) {
+        goto fail;
+    }
+
+    err = dicey_message_builder_set_seq(&builder, seq);
+    if (err) {
+        goto fail;
+    }
+
+    err = dicey_message_builder_set_path(&builder, path);
+    if (err) {
+        goto fail;
+    }
+
+    err = dicey_message_builder_set_selector(&builder, selector);
+    if (err) {
+        goto fail;
+    }
+
+    err = dicey_message_builder_set_value(&builder, value);
+    if (err) {
+        goto fail;
+    }
+
+    return dicey_message_builder_build(&builder, dest);
+
+fail:
+    dicey_message_builder_discard(&builder);
+
+    return err;
+}
+
 enum dicey_error dicey_value_builder_array_start(
     struct dicey_value_builder *const builder,
     const enum dicey_type type

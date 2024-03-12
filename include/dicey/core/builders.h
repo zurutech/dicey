@@ -347,6 +347,30 @@ DICEY_EXPORT enum dicey_error dicey_value_builder_tuple_start(struct dicey_value
  */
 DICEY_EXPORT enum dicey_error dicey_value_builder_tuple_end(struct dicey_value_builder *builder);
 
+/**
+ * @brief Creates a "message" packet, oneshot, without going through the message builder directly.
+ * @note  This is generally useful for short packages, such as replies, with simple types. Use builders for more complex
+ *        messages, which tend to be vastly more efficient and safer to use.
+ * @param dest The destination packet.
+ * @param seq The sequence number.
+ * @param op The operation represented by the message.
+ * @param path The path of the target object
+ * @param selector The selector for the element to target
+ *
+ * @return The error code indicating the success or failure of the operation. Possible errors are:
+ *         - OK: the packet was successfully created
+ *         - EINVAL: the arguments are invalid
+ *         - ENOMEM: the packet could not be created because of insufficient memory
+ */
+DICEY_EXPORT enum dicey_error dicey_packet_message(
+    struct dicey_packet *dest,
+    uint32_t seq,
+    enum dicey_op op,
+    const char *path,
+    struct dicey_selector selector,
+    struct dicey_arg value
+);
+
 #if defined(__cplusplus)
 }
 #endif
