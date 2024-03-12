@@ -16,6 +16,8 @@
 #include <util/dumper.h>
 #include <util/packet-dump.h>
 
+#include "sval.h"
+
 #if defined(__linux__) || defined(_WIN32)
 #define PIPE_NEEDS_CLEANUP false
 #if defined(_WIN32)
@@ -48,7 +50,20 @@ static enum dicey_error registry_fill(struct dicey_registry *const registry) {
         return err;
     }
 
+    err = dicey_registry_add_trait(
+        registry,
+        SVAL_TRAIT,
+        SVAL_PROP,
+        (struct dicey_element) { .type = DICEY_ELEMENT_TYPE_PROPERTY, .signature = SVAL_SIG },
+        NULL
+    );
+
     err = dicey_registry_add_object(registry, DUMMY_PATH, DUMMY_TRAIT, NULL);
+    if (err) {
+        return err;
+    }
+
+    err = dicey_registry_add_object(registry, SVAL_PATH, SVAL_TRAIT, NULL);
     if (err) {
         return err;
     }
@@ -121,30 +136,103 @@ static enum dicey_error send_reply(
     return DICEY_OK;
 }
 
+static enum dicey_error on_sval_req(
+    struct dicey_server *const server,
+    const struct dicey_client_info *const cln,
+    const uint32_t seq,
+    const struct dicey_message req
+) {
+    assert(server && cln);
+
+    switch (req.type) {
+    case DICEY_OP_GET:
+        {
+            const char *const sval = dicey_server_get_context(server);
+
+            return send_reply(
+                server,
+                cln,
+                seq,
+                req.path,
+                req.selector,
+                (struct dicey_arg) { .type = DICEY_TYPE_STR, .str = sval ? sval : "" }
+            );
+        }
+
+    case DICEY_OP_SET:
+        {
+            const char *str = NULL;
+            const enum dicey_error err = dicey_value_get_str(&req.value, &str);
+            if (err) {
+                (void) send_reply(server, cln, seq, req.path, req.selector, (struct dicey_arg) { .type = DICEY_TYPE_ERROR, .error = {
+                    .code = err,
+                    .message = dicey_error_msg(err),
+                } });
+
+                return err;
+            }
+
+            char *const sval = strdup(str);
+            if (!sval) {
+                return DICEY_ENOMEM;
+            }
+
+            free(dicey_server_set_context(server, sval));
+
+            return send_reply(server, cln, seq, req.path, req.selector, (struct dicey_arg) { .type = DICEY_TYPE_UNIT });
+        }
+
+    default:
+        abort();
+    }
+}
+
 static void on_request_received(
     struct dicey_server *const server,
     const struct dicey_client_info *const cln,
     const uint32_t seq,
-    const char *const path,
-    const struct dicey_selector sel,
     struct dicey_packet packet
 ) {
-    (void) server;
+    struct dicey_message msg = { 0 };
+    enum dicey_error err = dicey_packet_as_message(packet, &msg);
+    if (err) {
+        fprintf(stderr, "error: malformed message: %s\n", dicey_error_name(err));
+        return;
+    }
 
     printf(
-        "info: received request #%" PRIu32 " from client %zu for `%s:%s@%s`\n", seq, cln->id, sel.trait, sel.elem, path
+        "info: received request #%" PRIu32 " from client %zu for `%s:%s@%s`\n",
+        seq,
+        cln->id,
+        msg.selector.trait,
+        msg.selector.elem,
+        msg.path
     );
 
     struct util_dumper dumper = util_dumper_for(stdout);
 
     util_dumper_dump_packet(&dumper, packet);
 
-    if (!strcmp(path, DUMMY_PATH) && !strcmp(sel.trait, DUMMY_TRAIT) && !strcmp(sel.elem, DUMMY_ELEMENT)) {
-        const enum dicey_error err =
-            send_reply(server, cln, seq, path, sel, (struct dicey_arg) { .type = DICEY_TYPE_BOOL, .boolean = true });
+    if (!strcmp(msg.path, DUMMY_PATH) && !strcmp(msg.selector.trait, DUMMY_TRAIT) &&
+        !strcmp(msg.selector.elem, DUMMY_ELEMENT)) {
+        err = send_reply(
+            server, cln, seq, msg.path, msg.selector, (struct dicey_arg) { .type = DICEY_TYPE_BOOL, .boolean = true }
+        );
         if (err) {
             fprintf(stderr, "error: %s\n", dicey_error_name(err));
         }
+
+        return;
+    }
+
+    if (!strcmp(msg.path, SVAL_PATH) && !strcmp(msg.selector.trait, SVAL_TRAIT) &&
+        !strcmp(msg.selector.elem, SVAL_PROP)) {
+        err = on_sval_req(server, cln, seq, msg);
+        if (err) {
+            fprintf(stderr, "error: %s\n", dicey_error_name(err));
+        }
+
+        return;
     }
 }
 
@@ -201,6 +289,9 @@ int main(void) {
     uv_fs_unlink(NULL, &(uv_fs_t) { 0 }, PIPE_NAME, NULL);
 
 quit:
+    // free any dummy string
+    free(dicey_server_get_context(server));
+
     dicey_server_delete(server);
 
     return err == DICEY_OK ? EXIT_SUCCESS : EXIT_FAILURE;
