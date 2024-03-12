@@ -145,15 +145,14 @@ set(CORE_SOURCES
     src/errors.c
     src/version.c
 
-    # wirefmt
-    
+    # wirefmt    
     src/wirefmt/builders.c 
     src/wirefmt/packet-args.c
     src/wirefmt/packet-args.h
     src/wirefmt/packet.c
-    src/wirefmt/typedescr.c
-    src/wirefmt/typedescr.h
     src/wirefmt/value.c
+
+    # wirefmt/dtf
     src/wirefmt/dtf/dtf.h
     src/wirefmt/dtf/payload.c
     src/wirefmt/dtf/payload.h
@@ -164,8 +163,7 @@ set(CORE_SOURCES
     src/wirefmt/dtf/writer.c
     src/wirefmt/dtf/writer.h
     
-    # sup
-    
+    # sup    
     src/sup/assume.h
     src/sup/hashset.c
     src/sup/hashtable.c
@@ -184,6 +182,8 @@ set(CORE_SOURCES
     src/ipc/chunk.h
     src/ipc/queue.c
     src/ipc/queue.h
+    src/ipc/typedescr.c
+    src/ipc/typedescr.h
     src/ipc/uvtools.c
     src/ipc/uvtools.h
     
