@@ -24,6 +24,8 @@ struct dicey_element {
     enum dicey_element_type type;
 
     const char *signature;
+
+    bool readonly;
 };
 
 struct dicey_trait_iter {
