@@ -292,8 +292,6 @@ static void free_incoming_task(void *const ctx, void *const data) {
     struct dicey_task_request *const req = data;
 
     complete_task(free_ctx->tloop, -1, req, free_ctx->err);
-
-    free(req);
 }
 
 static void cancel_all_pending(struct dicey_task_loop *const tloop) {
