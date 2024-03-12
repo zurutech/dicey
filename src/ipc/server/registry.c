@@ -155,6 +155,8 @@ void dicey_registry_deinit(struct dicey_registry *const registry) {
     if (registry) {
         dicey_hashtable_delete(registry->_paths, &object_free);
         dicey_hashtable_delete(registry->_traits, &trait_free);
+
+        *registry = (struct dicey_registry) { 0 };
     }
 }
 
@@ -229,7 +231,7 @@ enum dicey_error dicey_registry_add_object(struct dicey_registry *const registry
 
     va_end(traits);
 
-    if (!err) {
+    if (err) {
         object_free(object);
 
         return err;

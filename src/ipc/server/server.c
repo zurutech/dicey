@@ -390,6 +390,16 @@ static ptrdiff_t client_got_message(struct dicey_client_data *client, const stru
         return CLIENT_STATE_RUNNING;
     }
 
+    if (message.type == DICEY_OP_SET && elem->readonly) {
+        const enum dicey_error repl_err = server_report_error(server, client, packet, DICEY_EPROPERTY_READ_ONLY);
+        if (repl_err) {
+            return repl_err;
+        }
+
+        // shortcircuit: the element is read-only, so we've already sent an error response
+        return CLIENT_STATE_RUNNING;
+    }
+
     // TODO: check the signature of the element
 
     if (server->on_request) {
@@ -577,18 +587,22 @@ static void data_available(uv_async_t *const async) {
                 continue;
             }
 
-            uv_write_t *const write_req = malloc(sizeof *write_req);
+            struct write_request *const write_req = malloc(sizeof *write_req);
             if (!write_req) {
                 dicey_packet_deinit(&req.packet);
 
                 continue;
             }
 
+            *write_req = (struct write_request) {
+                .server = server,
+                .client_id = client->info.id,
+                .packet = req.packet,
+            };
+
             uv_buf_t buf = uv_buf_init(req.packet.payload, (unsigned int) req.packet.nbytes);
 
-            write_req->data = req.packet.payload;
-
-            const int err = uv_write(write_req, (uv_stream_t *) &client->pipe, &buf, 1, &on_write);
+            const int err = uv_write((uv_write_t *) write_req, (uv_stream_t *) client, &buf, 1, &on_write);
             if (err) {
                 server->on_error(server, dicey_error_from_uv(err), &client->info, "uv_write: %s", uv_strerror(err));
 
@@ -674,11 +688,16 @@ void dicey_server_delete(struct dicey_server *const server) {
     uv_close((uv_handle_t *) &server->pipe, NULL);
     uv_close((uv_handle_t *) &server->async, NULL);
 
+    // give the callbacks time to be run
+    uv_run(&server->loop, UV_RUN_ONCE);
+
     dicey_queue_deinit(&server->queue, &free_request, NULL);
 
     const int uverr = uv_loop_close(&server->loop);
     assert(uverr != UV_EBUSY);
     (void) uverr;
+
+    dicey_registry_deinit(&server->registry);
 
     free(server->clients);
     free(server);

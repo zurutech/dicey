@@ -11,6 +11,8 @@
 #include <dicey/core/hashtable.h>
 #include <dicey/ipc/traits.h>
 
+#include "ipc/typedescr.h"
+
 #include "traits.h"
 
 static struct dicey_element *elem_dup(const struct dicey_element *const elem) {
@@ -38,8 +40,11 @@ static struct dicey_element *elem_dup(const struct dicey_element *const elem) {
 static void free_elem(void *const elem) {
     struct dicey_element *const elem_cast = (struct dicey_element *) elem;
 
-    // originally strdup'd
-    free((char *) elem_cast->signature);
+    if (elem) {
+        // originally strdup'd
+        free((char *) elem_cast->signature);
+        free(elem_cast);
+    }
 }
 
 enum dicey_error dicey_trait_add_element(
@@ -48,6 +53,10 @@ enum dicey_error dicey_trait_add_element(
     const struct dicey_element elem
 ) {
     assert(trait && trait->elems && elem.signature && *elem.signature && elem.type != DICEY_ELEMENT_TYPE_INVALID);
+
+    if (!dicey_typedescr_is_valid(elem.signature)) {
+        return DICEY_ESIGNATURE_MALFORMED;
+    }
 
     // todo: optimise this by implementing an "add-or-fail" function in hashtable
     if (dicey_hashtable_contains(trait->elems, name)) {
@@ -86,8 +95,7 @@ void dicey_trait_delete(struct dicey_trait *const trait) {
         dicey_hashtable_delete(trait->elems, free_elem);
 
         free((char *) trait->name); // cast away const, this originated from strdup
-
-        *trait = (struct dicey_trait) { 0 };
+        free(trait);
     }
 }
 
