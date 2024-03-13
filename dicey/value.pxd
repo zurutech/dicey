@@ -46,3 +46,5 @@ cdef extern from "dicey/dicey.h":
 
     bint dicey_value_is(const dicey_value *value, dicey_type type)
     bint dicey_value_is_valid(const dicey_value *value)
+
+cdef pythonize_value(const dicey_value *value, object value_hook=*, type array_cls=*, bint pair_lists_as_dict=*)

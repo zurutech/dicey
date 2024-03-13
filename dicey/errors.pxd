@@ -10,3 +10,5 @@ cdef extern from "dicey/dicey.h":
         const char *message
 
     void dicey_error_infos(const dicey_error_def **defs, size_t *count)
+
+cdef void _check(const dicey_error error)

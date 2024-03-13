@@ -25,7 +25,7 @@ cdef extern from "dicey/dicey.h":
     cdef bint dicey_selector_is_valid(dicey_selector selector)
     cdef ptrdiff_t dicey_selector_size(dicey_selector sel)
 
-    ctypedef enum dicey_type:
+    cdef enum dicey_type:
         DICEY_TYPE_INVALID
         DICEY_TYPE_UNIT
         DICEY_TYPE_BOOL
@@ -45,6 +45,8 @@ cdef extern from "dicey/dicey.h":
         DICEY_TYPE_PATH
         DICEY_TYPE_SELECTOR
         DICEY_TYPE_ERROR
+
+    cdef int16_t DICEY_VARIANT_ID
 
     cdef bint dicey_type_is_container(dicey_type type)
     cdef bint dicey_type_is_valid(dicey_type type)

@@ -5,9 +5,15 @@ from .errors cimport dicey_error, dicey_error_def, dicey_error_infos
 class DiceyError(Exception):
     pass
 
-_errors = {}
+class BadVersionStrError(DiceyError):
+    def __init__(self, str badstr):
+        self.bad_string = badstr
 
-cdef generate_all_errors():
+        super().__init__(f'Bad version string: {badstr}')
+
+_cerrors = {}
+
+cdef generate_c_errors():
     cdef const dicey_error_def *error_defs = NULL
     cdef size_t nerrors = 0
 
@@ -19,7 +25,7 @@ cdef generate_all_errors():
         if info.errnum == 0:
             continue
         
-        name = info.name.decode('ASCII')
+        name = info.name.decode('ASCII') + 'Error'
         message = info.message.decode('ASCII')
 
         error = type(
@@ -32,12 +38,12 @@ cdef generate_all_errors():
         )
 
         setattr(current_module, name, error)
-        _errors[info.errnum] = error
+        _cerrors[info.errnum] = error
 
-def _check(error: int):
+cdef void _check(const dicey_error error):
     if error != 0:
-        error = _errors.get(error, None) 
+        err_cls = _cerrors.get(error, None) 
 
-        raise error() if error else ValueError(f'Unknown error code: {error}')
+        raise err_cls() if err_cls else ValueError(f'Unknown error code: {error}')
 
-generate_all_errors()
+generate_c_errors()
