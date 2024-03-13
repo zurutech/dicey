@@ -23,6 +23,7 @@ set(CMAKE_C_STANDARD 17)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 
 option(BUILD_SHARED_LIBS "Build using shared libraries" ON)
+option(BUILD_LIBXML2 "Always build libxml2 from source" OFF)
 option(BUILD_UV "Always build libuv from source" OFF)
 
 add_library(${PROJECT_NAME})
@@ -84,10 +85,14 @@ if (NOT LibUV_FOUND)
     target_link_libraries(${PROJECT_NAME} PUBLIC uv)
 endif()
 
-find_package(LibXml2 QUIET)
-if (LibXml2_FOUND)
-    target_link_libraries(${PROJECT_NAME} PUBLIC LibXml2::LibXml2)
-else()
+if (NOT BUILD_LIBXML2)
+    find_package(LibXml2 QUIET)
+    if (LibXml2_FOUND)
+        target_link_libraries(${PROJECT_NAME} PUBLIC LibXml2::LibXml2)
+    endif()
+endif()
+
+if (NOT LibXml2_FOUND)
     include(FetchContent)
 
     set(LIBXML2_WITH_ICONV OFF)
