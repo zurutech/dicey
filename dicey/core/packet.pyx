@@ -156,7 +156,9 @@ cdef class Bye(Packet):
 cdef class Hello(Packet):
     cdef object _version
 
-    def __init__(self, version: Version):
+    def __init__(self, version: Version, seq: int = 0):
+        super().__init__(seq)
+
         self._version = version
 
     @property
@@ -192,7 +194,9 @@ cdef class Message(Packet):
 
     _op: Operation
 
-    def __init__(self, path: str, selector: Selector, value: _Any):
+    def __init__(self, path: str, selector: Selector, value: _Any, seq: int = 0):
+        super().__init__(seq)
+
         self._path = path
         self._selector = selector
         self._value = value
