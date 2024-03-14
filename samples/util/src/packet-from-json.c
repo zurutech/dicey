@@ -349,7 +349,7 @@ static enum dicey_error json_to_message(struct dicey_packet *const dest, const c
     return dicey_message_builder_build(&msgbuild, dest);
 
 fail:
-    dicey_message_builder_destroy(&msgbuild);
+    dicey_message_builder_discard(&msgbuild);
     return err;
 }
 

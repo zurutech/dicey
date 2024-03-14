@@ -11,11 +11,14 @@ set(utils_INCLUDES
 set(utils_SRC
     "src/base64.c"
     "src/dumper.c"
-    "src/getopt.c"
     "src/packet-dump.c"
     "src/packet-from-json.c"
     "src/packet-from-xml.c"
 )
+
+if (WIN32)
+    list(APPEND utils_SRC "src/getopt.c")
+endif()
 
 function(embed_resources target)
     set(script_path "${CMAKE_CURRENT_BINARY_DIR}/anything_to_c.cmake")

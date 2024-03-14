@@ -1,11 +1,12 @@
 // Copyright (c) 2014-2024 Zuru Tech HK Limited, All rights reserved.
 
-#define _CRT_SECURE_NO_WARNINGS
+#define _CRT_SECURE_NO_WARNINGS 1
 
 #include <stdbool.h>
 
-#include <dicey/errors.h>
 #include <uv.h>
+
+#include <dicey/core/errors.h>
 
 #include "trace.h"
 

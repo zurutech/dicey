@@ -7,12 +7,11 @@
 #include <stdint.h>
 #include <stdlib.h>
 
-#include <dicey/errors.h>
-#include <dicey/internal/views.h>
-#include <dicey/packet.h>
-#include <dicey/type.h>
-
-#include <dicey/internal/data-info.h>
+#include <dicey/core/data-info.h>
+#include <dicey/core/errors.h>
+#include <dicey/core/packet.h>
+#include <dicey/core/type.h>
+#include <dicey/core/views.h>
 
 #include "dtf/dtf.h"
 
@@ -451,6 +450,19 @@ enum dicey_error dicey_packet_get_seq(const struct dicey_packet packet, uint32_t
     *seq = (uint32_t) seq_val;
 
     return DICEY_OK;
+}
+
+enum dicey_error dicey_packet_set_seq(const struct dicey_packet packet, const uint32_t seq) {
+    assert(dicey_packet_is_valid(packet));
+
+    const ptrdiff_t set_seq_res = dtf_payload_set_seq(
+        (union dtf_payload) {
+            .header = packet.payload,
+        },
+        seq
+    );
+
+    return set_seq_res < 0 ? set_seq_res : DICEY_OK;
 }
 
 enum dicey_error dicey_packet_hello(

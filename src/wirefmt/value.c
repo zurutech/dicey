@@ -6,12 +6,11 @@
 #include <stdint.h>
 #include <string.h>
 
-#include <dicey/errors.h>
-#include <dicey/internal/views.h>
-#include <dicey/type.h>
-#include <dicey/value.h>
-
-#include <dicey/internal/data-info.h>
+#include <dicey/core/data-info.h>
+#include <dicey/core/errors.h>
+#include <dicey/core/type.h>
+#include <dicey/core/value.h>
+#include <dicey/core/views.h>
 
 #include "dtf/dtf.h"
 
@@ -313,6 +312,10 @@ DICEY_VALUE_GET_IMPL_TRIVIAL(u64, uint64_t, DICEY_TYPE_UINT64, u64)
 
 bool dicey_value_is(const struct dicey_value *const value, const enum dicey_type type) {
     return value->_type == type;
+}
+
+bool dicey_value_is_unit(const struct dicey_value *const value) {
+    return dicey_value_is(value, DICEY_TYPE_UNIT);
 }
 
 bool dicey_value_is_valid(const struct dicey_value *const value) {

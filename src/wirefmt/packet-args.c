@@ -7,7 +7,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include <dicey/builders.h>
+#include <dicey/core/builders.h>
 
 #include "packet-args.h"
 

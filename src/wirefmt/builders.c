@@ -6,12 +6,12 @@
 #include <stdint.h>
 #include <stdlib.h>
 
-#include <dicey/builders.h>
-#include <dicey/errors.h>
-#include <dicey/internal/views.h>
-#include <dicey/packet.h>
-#include <dicey/type.h>
-#include <dicey/value.h>
+#include <dicey/core/builders.h>
+#include <dicey/core/errors.h>
+#include <dicey/core/packet.h>
+#include <dicey/core/type.h>
+#include <dicey/core/value.h>
+#include <dicey/core/views.h>
 
 #include "dtf/dtf.h"
 
@@ -197,24 +197,12 @@ enum dicey_error dicey_message_builder_build(
     return DICEY_OK;
 }
 
-enum dicey_error dicey_message_builder_destroy(struct dicey_message_builder *const builder) {
+void dicey_message_builder_discard(struct dicey_message_builder *const builder) {
     assert(builder);
 
     dicey_arg_free(builder->_root);
 
     *builder = (struct dicey_message_builder) { 0 };
-
-    return DICEY_OK;
-}
-
-void dicey_message_builder_discard(struct dicey_message_builder *const builder) {
-    assert(builder);
-
-    if (builder_state_get(builder) != BUILDER_STATE_IDLE) {
-        dicey_arg_free(builder->_root);
-
-        *builder = (struct dicey_message_builder) { 0 };
-    }
 }
 
 enum dicey_error dicey_message_builder_set_path(struct dicey_message_builder *const builder, const char *const path) {
@@ -327,6 +315,61 @@ enum dicey_error dicey_message_builder_value_end(
     builder->_state = BUILDER_STATE_PENDING;
 
     return DICEY_OK;
+}
+
+enum dicey_error dicey_packet_message(
+    struct dicey_packet *dest,
+    uint32_t seq,
+    enum dicey_op op,
+    const char *path,
+    struct dicey_selector selector,
+    struct dicey_arg value
+) {
+    assert(
+        dest && path && dicey_selector_is_valid(selector) &&
+        ((op == DICEY_OP_GET) != (value.type != DICEY_TYPE_INVALID))
+    );
+
+    struct dicey_message_builder builder = { 0 };
+
+    enum dicey_error err = dicey_message_builder_init(&builder);
+    if (err) {
+        return err;
+    }
+
+    err = dicey_message_builder_begin(&builder, op);
+    if (err) {
+        goto fail;
+    }
+
+    err = dicey_message_builder_set_seq(&builder, seq);
+    if (err) {
+        goto fail;
+    }
+
+    err = dicey_message_builder_set_path(&builder, path);
+    if (err) {
+        goto fail;
+    }
+
+    err = dicey_message_builder_set_selector(&builder, selector);
+    if (err) {
+        goto fail;
+    }
+
+    if (op != DICEY_OP_GET) {
+        err = dicey_message_builder_set_value(&builder, value);
+        if (err) {
+            goto fail;
+        }
+    }
+
+    return dicey_message_builder_build(&builder, dest);
+
+fail:
+    dicey_message_builder_discard(&builder);
+
+    return err;
 }
 
 enum dicey_error dicey_value_builder_array_start(

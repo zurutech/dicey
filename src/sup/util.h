@@ -7,9 +7,21 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#include <dicey/internal/views.h>
+#include <dicey/core/views.h>
 
 #define DICEY_UNUSED(X) ((void) (X))
+
+/**
+ * @brief Get a pointer to a member of a struct
+ * @note This macro is designed to be used to write or read a member of a struct from a byte array. The returned pointer
+ *       is meant to be used in conjunction with the memcpy, memcmp or memmove functions and should never be
+ * dereferenced.
+ * @param STRUCT The type of the struct
+ * @param NAME The name of the member
+ * @param BASE A pointer to the base of the struct
+ * @return A uint8_t* pointer to the member, which can be used with memcmp, memcpy or memmove
+ */
+#define MEMBER_PTR(STRUCT, NAME, BASE) ((uint8_t *) (BASE) + offsetof(STRUCT, NAME))
 
 #if defined(__GNUC__) || defined(__clang__)
 #define SAFE_ADD(DEST, A, B) (!__builtin_add_overflow((A), (B), (DEST)))

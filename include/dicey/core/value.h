@@ -11,8 +11,8 @@
 #include "errors.h"
 #include "type.h"
 
-#include "internal/data-info.h"
-#include "internal/views.h"
+#include "data-info.h"
+#include "views.h"
 
 #if defined(__cplusplus)
 extern "C" {
@@ -131,7 +131,8 @@ DICEY_EXPORT enum dicey_error dicey_value_get_byte(const struct dicey_value *val
 /**
  * @brief Gets the bytes value from the given value.
  * @param value The value to get the bytes from.
- * @param dest The destination to store the bytes value.
+ * @param dest The destination to store the bytes pointer. Note that this is a borrowed pointer and should not be freed
+ *             by the caller
  * @param nbytes The number of bytes in the bytes value.
  * @return The error code indicating the success or failure of the operation.
  *        Possible errors include:
@@ -202,7 +203,8 @@ DICEY_EXPORT enum dicey_error dicey_value_get_i64(const struct dicey_value *valu
 /**
  * @brief Gets the pair value from the given value.
  * @param value The value to get the pair from.
- * @param dest The destination to store the pair value.
+ * @param dest The destination to store the pair value.. Note that this is a borrowed pointer and should
+ *             not be freed by the caller.
  * @return The error code indicating the success or failure of the operation.
  *        Possible errors include:
  *        - OK: The operation was successful.
@@ -224,7 +226,8 @@ DICEY_EXPORT enum dicey_error dicey_value_get_path(const struct dicey_value *val
 /**
  * @brief Gets the selector value from the given value.
  * @param value The value to get the selector from.
- * @param dest The destination to store the selector value.
+ * @param dest The destination to store the selector value. Note that this is comprised of borrowed pointers which
+ *             should not be freed by the caller.
  * @return The error code indicating the success or failure of the operation.
  *        Possible errors include:
  *        - OK: The operation was successful.
@@ -235,7 +238,8 @@ DICEY_EXPORT enum dicey_error dicey_value_get_selector(const struct dicey_value 
 /**
  * @brief Gets the string value from the given value.
  * @param value The value to get the string from.
- * @param dest The destination to store the string value.
+ * @param dest The destination to store a pointer to the string value. Note that this is a borrowed pointer and should
+ *             not be freed by the caller.
  * @return The error code indicating the success or failure of the operation.
  *        Possible errors include:
  *        - OK: The operation was successful.
@@ -294,6 +298,13 @@ DICEY_EXPORT enum dicey_error dicey_value_get_u64(const struct dicey_value *valu
  * @return true if the value is of the specified type, false otherwise.
  */
 DICEY_EXPORT bool dicey_value_is(const struct dicey_value *value, enum dicey_type type);
+
+/**
+ * @brief Returns true if the value is unit. Equivalent to dicey_value_is(value, DICEY_UNIT).
+ * @param value The value to check.
+ * @return true if the value is of the specified type, false otherwise.
+ */
+DICEY_EXPORT bool dicey_value_is_unit(const struct dicey_value *value);
 
 /**
  * @brief Checks if the value is valid. Currently, this means that the value is not NULL and has a valid type.

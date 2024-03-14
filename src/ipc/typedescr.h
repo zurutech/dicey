@@ -5,7 +5,7 @@
 
 #include <stdbool.h>
 
-#include <dicey/errors.h>
+#include <dicey/core/errors.h>
 
 bool dicey_typedescr_is_valid(const char *typedescr);
 

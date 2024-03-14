@@ -3,7 +3,7 @@
 #if !defined(FWHTOKWVTU_PACKET_ARGS_H)
 #define FWHTOKWVTU_PACKET_ARGS_H
 
-#include <dicey/packet.h>
+#include <dicey/core/packet.h>
 
 /**
  * @brief Duplicates a dicey_arg structure.

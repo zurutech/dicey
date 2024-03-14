@@ -20,19 +20,38 @@ enum dicey_error {
     /**< Resource temporarily unavailable, or not enough data for a given operation */
     DICEY_EAGAIN = -0x0101,
 
-    DICEY_ENOMEM = -0x0102,    /**< Out of memory. */
-    DICEY_EINVAL = -0x0103,    /**< Invalid argument(s). */
-    DICEY_ENODATA = -0x0104,   /**< No data available. */
-    DICEY_EBADMSG = -0x0105,   /**< Bad message format. */
-    DICEY_EOVERFLOW = -0x0106, /**< Value or buffer overflow. */
+    DICEY_ENOENT = -0x0102,       /**< No such file or directory. */
+    DICEY_ENOMEM = -0x0103,       /**< Out of memory. */
+    DICEY_EINVAL = -0x0104,       /**< Invalid argument(s). */
+    DICEY_ENODATA = -0x0105,      /**< No data available. */
+    DICEY_EBADMSG = -0x0106,      /**< Bad message format. */
+    DICEY_EOVERFLOW = -0x0107,    /**< Value or buffer overflow. */
+    DICEY_ECONNREFUSED = -0x0108, /**< Connection refused. */
+    DICEY_ETIMEDOUT = -0x0109,    /**< Operation timed out. */
+    DICEY_ECANCELLED = -0x010A,   /**< Operation cancelled. */
+    DICEY_EALREADY = -0x010B,     /**< Operation already in progress. */
+    DICEY_EPIPE = -0x010C,        /**< Broken pipe. */
+    DICEY_ECONNRESET = -0x010D,   /**< Connection reset. */
+    DICEY_EEXIST = -0x010E,       /**< Object exists. */
 
-    DICEY_EPATH_TOO_LONG = -0x0207,  /**< A path is too long. */
-    DICEY_ETUPLE_TOO_LONG = -0x0208, /**< Tuple too long. (currently unused) */
-    DICEY_EARRAY_TOO_LONG = -0x0209, /**< Array too long. (currently unused) */
+    DICEY_EPATH_TOO_LONG = -0x020F,  /**< A path is too long. */
+    DICEY_ETUPLE_TOO_LONG = -0x0210, /**< Tuple too long. (currently unused) */
+    DICEY_EARRAY_TOO_LONG = -0x0211, /**< Array too long. (currently unused) */
 
-    DICEY_EVALUE_TYPE_MISMATCH = -0x030A, /**< Value type mismatch. */
+    DICEY_EVALUE_TYPE_MISMATCH = -0x0312, /**< Value type mismatch. */
 
-    DICEY_ENOT_SUPPORTED = -0x040B, /**< Operation not supported. */
+    DICEY_ENOT_SUPPORTED = -0x0413,       /**< Operation not supported. */
+    DICEY_ECLIENT_TOO_OLD = -0x0414,      /**< Client is too old. */
+    DICEY_ESERVER_TOO_OLD = -0x0415,      /**< Client is too old. */
+    DICEY_EPATH_NOT_FOUND = -0x0416,      /**< Path not found. */
+    DICEY_EPATH_MALFORMED = -0x0417,      /**< Path is malformed */
+    DICEY_ETRAIT_NOT_FOUND = -0x0418,     /**< Trait not found. */
+    DICEY_EELEMENT_NOT_FOUND = -0x0419,   /**< Element not found. */
+    DICEY_ESIGNATURE_MALFORMED = -0x041A, /**< Signature is malformed. */
+    DICEY_ESIGNATURE_MISMATCH = -0x041B,  /**< Signature is mismatched. */
+    DICEY_EPROPERTY_READ_ONLY = -0x041C,  /**< Property is read-only. */
+
+    DICEY_EUV_UNKNOWN = -0x051D /**< Unknown libuv error. */
 };
 
 /**

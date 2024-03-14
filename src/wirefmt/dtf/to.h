@@ -7,7 +7,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#include <dicey/value.h>
+#include <dicey/core/value.h>
 
 #if defined(_MSC_VER)
 #pragma warning(disable : 4200)

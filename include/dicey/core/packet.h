@@ -246,6 +246,17 @@ DICEY_EXPORT enum dicey_packet_kind dicey_packet_get_kind(struct dicey_packet pa
 DICEY_EXPORT enum dicey_error dicey_packet_get_seq(struct dicey_packet packet, uint32_t *seq);
 
 /**
+ * @brief Sets the sequence number of a packet. This is rarely useful, as the sequence number is usually set by the
+ *        server or client before sending a packet.
+ * @param packet The packet.
+ * @param seq The sequence number.
+ * @return The error code indicating the success or failure of the operation. Possible errors are:
+ *         - OK: the sequence number was successfully set
+ *         - EINVAL: the packet is invalid
+ */
+DICEY_EXPORT enum dicey_error dicey_packet_set_seq(struct dicey_packet packet, uint32_t seq);
+
+/**
  * @brief Checks if a packet is valid.
  * @param packet The packet.
  * @return True if the packet is valid, false otherwise.

@@ -23,27 +23,48 @@ set(CMAKE_C_STANDARD 17)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 
 option(BUILD_SHARED_LIBS "Build using shared libraries" ON)
+option(BUILD_LIBXML2 "Always build libxml2 from source" OFF)
+option(BUILD_UV "Always build libuv from source" OFF)
 
 add_library(${PROJECT_NAME})
 
 if (MSVC)
     target_compile_options(${PROJECT_NAME} PRIVATE /W4 /WX)
+
+    include(CheckCSourceCompiles)
+    set(C11_ATOMICS_TEST "int main(void) { _Atomic int x = 2; x += 1; return x; }")
+
+    check_c_source_compiles("${C11_ATOMICS_TEST}" DICEY_MSVC_HAS_C11_ATOMICS)
+
+    if (NOT DICEY_MSVC_HAS_C11_ATOMICS)
+        set(CMAKE_REQUIRED_FLAGS /experimental:c11atomics)
+
+        check_c_source_compiles("${C11_ATOMICS_TEST}" DICEY_MSVC_HAS_C11_EXPERIMENTAL_ATOMICS)
+
+        if (DICEY_MSVC_HAS_C11_EXPERIMENTAL_ATOMICS)
+            target_compile_options(${PROJECT_NAME} PRIVATE /experimental:c11atomics)
+        else()
+            message(FATAL_ERROR "MSVC is too old - no C11 atomics support")
+        endif()
+    endif()
 else()
     target_compile_options(${PROJECT_NAME} PRIVATE -Wall -Wextra -pedantic -Werror)
 endif()
 
-if (DEFINED UV_INCLUDE_DIRS AND DEFINED UV_LIBS)
-    target_include_directories(${PROJECT_NAME} PUBLIC ${UV_INCLUDE_DIRS})
-    target_link_libraries(${PROJECT_NAME} PUBLIC ${UV_LIBS})
-    set(LibUV_FOUND TRUE)
-elseif (NOT DEFINED RAW_CROSS)
-    find_package(PkgConfig QUIET)
+if (NOT BUILD_UV)
+    if (DEFINED UV_INCLUDE_DIRS AND DEFINED UV_LIBS)
+        target_include_directories(${PROJECT_NAME} PUBLIC ${UV_INCLUDE_DIRS})
+        target_link_libraries(${PROJECT_NAME} PUBLIC ${UV_LIBS})
+        set(LibUV_FOUND TRUE)
+    elseif (NOT DEFINED RAW_CROSS)
+        find_package(PkgConfig QUIET)
 
-    if (PkgConfig_FOUND)
-        pkg_check_modules(LibUV QUIET IMPORTED_TARGET libuv)
+        if (PkgConfig_FOUND)
+            pkg_check_modules(LibUV QUIET IMPORTED_TARGET libuv)
 
-        if (LibUV_FOUND)
-            target_link_libraries(${PROJECT_NAME} PUBLIC PkgConfig::LibUV)
+            if (LibUV_FOUND)
+                target_link_libraries(${PROJECT_NAME} PUBLIC PkgConfig::LibUV)
+            endif()
         endif()
     endif()
 endif()
@@ -64,10 +85,14 @@ if (NOT LibUV_FOUND)
     target_link_libraries(${PROJECT_NAME} PUBLIC uv)
 endif()
 
-find_package(LibXml2 QUIET)
-if (LibXml2_FOUND)
-    target_link_libraries(${PROJECT_NAME} PUBLIC LibXml2::LibXml2)
-else()
+if (NOT BUILD_LIBXML2)
+    find_package(LibXml2 QUIET)
+    if (LibXml2_FOUND)
+        target_link_libraries(${PROJECT_NAME} PUBLIC LibXml2::LibXml2)
+    endif()
+endif()
+
+if (NOT LibXml2_FOUND)
     include(FetchContent)
 
     set(LIBXML2_WITH_ICONV OFF)
@@ -97,32 +122,42 @@ endif()
 generate_export_header(${PROJECT_NAME})
 
 set(PUBLIC_HEADERS
-    "include/dicey/builders.h"
     "include/dicey/dicey.h"
-    "include/dicey/errors.h"
-    "include/dicey/packet.h"
-    "include/dicey/type.h"
-    "include/dicey/value.h"
-    "include/dicey/version.h"
+
     
     # internal but public
-    "include/dicey/internal/data-info.h"
-    "include/dicey/internal/views.h"
+
+    # core
+    "include/dicey/core/builders.h"
+    "include/dicey/core/data-info.h"
+    "include/dicey/core/errors.h"
+    "include/dicey/core/hashset.h"
+    "include/dicey/core/hashtable.h"
+    "include/dicey/core/packet.h"
+    "include/dicey/core/type.h"
+    "include/dicey/core/value.h"
+    "include/dicey/core/version.h"
+    "include/dicey/core/views.h"
+
+    # ipc
+    "include/dicey/ipc/address.h"
+    "include/dicey/ipc/client.h"
+    "include/dicey/ipc/server.h"
 )
 
 set(CORE_SOURCES
     # common
     src/errors.c
+    src/version.c
 
-    # wirefmt
-    
+    # wirefmt    
     src/wirefmt/builders.c 
     src/wirefmt/packet-args.c
     src/wirefmt/packet-args.h
     src/wirefmt/packet.c
-    src/wirefmt/typedescr.c
-    src/wirefmt/typedescr.h
     src/wirefmt/value.c
+
+    # wirefmt/dtf
     src/wirefmt/dtf/dtf.h
     src/wirefmt/dtf/payload.c
     src/wirefmt/dtf/payload.h
@@ -132,10 +167,11 @@ set(CORE_SOURCES
     src/wirefmt/dtf/value.h
     src/wirefmt/dtf/writer.c
     src/wirefmt/dtf/writer.h
-
-
-    # sup
-
+    
+    # sup    
+    src/sup/assume.h
+    src/sup/hashset.c
+    src/sup/hashtable.c
     src/sup/trace.c
     src/sup/trace.h
     src/sup/unsafe.c
@@ -144,7 +180,42 @@ set(CORE_SOURCES
     src/sup/util.h
     src/sup/view-ops.c
     src/sup/view-ops.h
+
+    # ipc
+    src/ipc/address.c
+    src/ipc/chunk.c
+    src/ipc/chunk.h
+    src/ipc/queue.c
+    src/ipc/queue.h
+    src/ipc/typedescr.c
+    src/ipc/typedescr.h
+    src/ipc/uvtools.c
+    src/ipc/uvtools.h
+    
+    # ipc/client
+    src/ipc/client/client.c
+    src/ipc/client/waiting-list.c
+    src/ipc/client/waiting-list.h
+    
+    # ipc/server
+    src/ipc/server/client-data.c
+    src/ipc/server/client-data.h
+    src/ipc/server/registry.c
+    src/ipc/server/server.c
+    src/ipc/server/traits.c
+
+    # ipc/tasks
+    src/ipc/tasks/io.c
+    src/ipc/tasks/io.h
+    src/ipc/tasks/list.c
+    src/ipc/tasks/list.h
+    src/ipc/tasks/loop.c
+    src/ipc/tasks/loop.h
 )
+
+if (WIN32)
+    list(APPEND CORE_SOURCES src/sup/asprintf.c)
+endif()
 
 target_sources(
     ${PROJECT_NAME}
