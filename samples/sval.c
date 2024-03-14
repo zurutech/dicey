@@ -34,6 +34,29 @@ enum sval_op {
     SVAL_GET,
 };
 
+struct sval_estimate {
+    double nreq;
+    const char *base;
+};
+
+static struct sval_estimate estimate(const int64_t reqtime_us) {
+    const double req_s = 1000000. / reqtime_us;
+
+    if (req_s > 1000000000.) {
+        return (struct sval_estimate) { .nreq = req_s / 1000000000., .base = "G" };
+    }
+
+    if (req_s > 1000000.) {
+        return (struct sval_estimate) { .nreq = req_s / 1000000., .base = "M" };
+    }
+
+    if (req_s > 1000.) {
+        return (struct sval_estimate) { .nreq = req_s / 1000., .base = "k" };
+    }
+
+    return (struct sval_estimate) { .nreq = req_s, .base = "" };
+}
+
 static void inspector(struct dicey_client *const client, void *const ctx, struct dicey_client_event event) {
     (void) client;
     (void) ctx;
@@ -163,9 +186,10 @@ static int do_op(const char *const addr, const char *const value, const enum req
     uv_clock_gettime(UV_CLOCK_MONOTONIC, &end);
 
     if (show_time == REQTIME_SHOW) {
-        printf(
-            "reqtime: %" PRIu64 "us\n", (end.tv_sec - start.tv_sec) * 1000000L + (end.tv_nsec - start.tv_nsec) / 1000L
-        );
+        const int64_t reqtime_us = (end.tv_sec - start.tv_sec) * 1000000L + (end.tv_nsec - start.tv_nsec) / 1000L;
+        const struct sval_estimate est = estimate(reqtime_us);
+
+        printf("reqtime: %" PRIu64 "us (%2f %sreq/s)\n", reqtime_us, est.nreq, est.base);
     }
 
     (void) dicey_client_disconnect(client);
