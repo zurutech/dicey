@@ -17,10 +17,6 @@ from .packet cimport dicey_bye, dicey_bye_reason, dicey_packet, dicey_packet_as_
 
 from .value cimport pythonize_value
 
-class ByeReason(_Enum):
-    SHUTDOWN = dicey_bye_reason.DICEY_BYE_REASON_SHUTDOWN
-    ERROR = dicey_bye_reason.DICEY_BYE_REASON_ERROR
-
 cdef class _PacketWrapper:
     cdef dicey_packet packet
 
@@ -34,8 +30,33 @@ cdef class _PacketWrapper:
     def __deinit__(self):
         dicey_packet_deinit(&self.packet)
 
+class ByeReason(_Enum):
+    SHUTDOWN = dicey_bye_reason.DICEY_BYE_REASON_SHUTDOWN
+    ERROR = dicey_bye_reason.DICEY_BYE_REASON_ERROR
+
+@_dataclass
+class Version:
+    major: int
+    revision: int
+
+    _matcher: _ClassVar = _re.compile(r"(\d+)r([1-9]\d*)")
+
+    def __str__(self) -> str:
+        return f"{self.major}r{self.revision}"
+
+    @staticmethod
+    def from_string(str version) -> Version:
+        match = Version._matcher.match(version)
+        if match is None:
+            raise BadVersionStrError(version)
+
+        return Version(int(match[1]), int(match[2]))
+
 cdef class Bye:
     cdef object _reason
+
+    def __init__(self, reason: ByeReason):
+        self._reason = reason
 
     @property
     def reason(self) -> ByeReason:
@@ -49,18 +70,19 @@ cdef class Bye:
 
     @staticmethod
     cdef Bye from_cpacket(dicey_packet packet):
-        cdef Bye wrap = Bye.__new__(Bye)
-
         cdef dicey_bye bye
         _check(dicey_packet_as_bye(packet, &bye))
 
         assert bye.reason in (dicey_bye_reason.DICEY_BYE_REASON_SHUTDOWN, dicey_bye_reason.DICEY_BYE_REASON_ERROR)
-        wrap._reason = ByeReason(bye.reason)
+        reason = ByeReason(bye.reason)
 
-        return wrap
+        return Bye(reason)
 
 cdef class Hello:
     cdef object _version
+
+    def __init__(self, version: Version):
+        self._version = version
 
     @property
     def version(self) -> Version:
@@ -74,19 +96,22 @@ cdef class Hello:
 
     @staticmethod
     cdef Hello from_cpacket(dicey_packet packet):
-        cdef Hello wrap = Hello.__new__(Hello)
-
         cdef dicey_hello hello
         _check(dicey_packet_as_hello(packet, &hello))
 
-        wrap._version = Version(hello.version.major, hello.version.revision)
+        version = Version(hello.version.major, hello.version.revision)
 
-        return wrap
+        return Hello(version)
 
 cdef class Message:
     cdef str _path
     cdef object _selector
     cdef object _value
+
+    def __init__(self, path: str, selector: Selector, value: _Any):
+        self._path = path
+        self._selector = selector
+        self._value = value
 
     @property
     def path(self) -> str:
@@ -108,36 +133,16 @@ cdef class Message:
 
     @staticmethod
     cdef Message from_cpacket(dicey_packet packet):
-        cdef Message wrap = Message.__new__(Message)
-
         cdef dicey_message message
         _check(dicey_packet_as_message(packet, &message))
 
-        wrap._path = message.path.decode("ASCII")
-        wrap._selector = Selector(message.selector.trait.decode("ASCII"), message.selector.elem.decode("ASCII"))
-        wrap._value = pythonize_value(&message.value)
+        path = message.path.decode("ASCII")
+        selector = Selector(message.selector.trait.decode("ASCII"), message.selector.elem.decode("ASCII"))
+        value = pythonize_value(&message.value)
 
-        return wrap
+        return Message(path, selector, value)
 
 Packet = Bye | Hello | Message
-
-@_dataclass
-class Version:
-    major: int
-    revision: int
-
-    _matcher: _ClassVar = _re.compile(r"(\d+)r([1-9]\d*)")
-
-    def __str__(self) -> str:
-        return f"{self.major}r{self.revision}"
-
-    @staticmethod
-    def from_string(str version) -> Version:
-        match = Version._matcher.match(version)
-        if match is None:
-            raise BadVersionStrError(version)
-
-        return Version(int(match[1]), int(match[2]))
 
 cdef object _load_packet(dicey_packet packet):
     cdef dicey_packet_kind kind = dicey_packet_get_kind(packet)
