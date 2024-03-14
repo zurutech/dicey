@@ -107,3 +107,5 @@ cdef extern from "dicey/dicey.h":
         dicey_selector selector,
         dicey_arg value
     )
+
+cdef void dump_value(dicey_value_builder *value, object obj)

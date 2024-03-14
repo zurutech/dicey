@@ -4,18 +4,61 @@ import re as _re
 from typing import Any as _Any, ClassVar as _ClassVar
 
 from libc.stddef cimport size_t
-from libc.stdint cimport uint8_t
+from libc.stdint cimport uint8_t, uint32_t
 
 from .errors import BadVersionStrError
 from .types import Selector
 
+from .builders cimport dicey_message_builder, dicey_message_builder_init, dicey_message_builder_begin, \
+                       dicey_message_builder_discard, dicey_message_builder_build, dicey_message_builder_set_seq, \
+                       dicey_message_builder_set_path, dicey_message_builder_set_selector, \
+                       dicey_message_builder_set_value, dicey_message_builder_value_start, \
+                       dicey_message_builder_value_end, dicey_value_builder, \
+                       dump_value
+                    
 from .errors cimport _check
 
-from .packet cimport dicey_bye, dicey_bye_reason, dicey_packet, dicey_packet_as_bye, dicey_packet_as_hello,  \
-                     dicey_packet_as_message, dicey_packet_deinit, dicey_packet_get_kind, dicey_packet_kind, \
+from .packet cimport dicey_packet, dicey_packet_deinit, dicey_op, \
+                     dicey_bye, dicey_bye_reason, dicey_packet_as_bye, dicey_packet_bye, \
+                     dicey_packet_as_hello, dicey_packet_hello, \
+                     dicey_packet_as_message, dicey_packet_get_kind, dicey_packet_kind, \
                      dicey_packet_load
 
 from .value cimport pythonize_value
+
+cdef class _MessageBuilder:
+    cdef dicey_message_builder builder
+
+    def __cinit__(self):
+        dicey_message_builder_init(&self.builder)
+
+    def __dealloc__(self):
+        dicey_message_builder_discard(&self.builder)    
+
+    cdef dicey_packet build(self):
+        cdef dicey_packet packet
+        _check(dicey_message_builder_build(&self.builder, &packet))
+
+        return packet
+
+    cdef start(self, int seq, dicey_op op):
+        _check(dicey_message_builder_begin(&self.builder, op))
+        _check(dicey_message_builder_set_seq(&self.builder, seq))
+
+    cdef set_path(self, str path):
+        _check(dicey_message_builder_set_path(&self.builder, path.encode("ASCII")))
+
+    cdef set_selector(self, dicey_selector sel):
+        _check(dicey_message_builder_set_selector(&self.builder, sel))
+
+    cdef set_value(self, object obj):
+        cdef dicey_value_builder value
+
+        _check(dicey_message_builder_value_start(&self.builder, &value))
+
+        dump_value(&value, obj)
+
+        _check(dicey_message_builder_value_end(&self.builder, &value))
 
 cdef class _PacketWrapper:
     cdef dicey_packet packet
@@ -33,6 +76,19 @@ cdef class _PacketWrapper:
 class ByeReason(_Enum):
     SHUTDOWN = dicey_bye_reason.DICEY_BYE_REASON_SHUTDOWN
     ERROR = dicey_bye_reason.DICEY_BYE_REASON_ERROR
+
+class Operation(_Enum):
+    GET = dicey_op.DICEY_OP_GET
+    SET = dicey_op.DICEY_OP_SET
+    EXEC = dicey_op.DICEY_OP_EXEC
+    EVENT = dicey_op.DICEY_OP_EVENT
+    RESPONSE = dicey_op.DICEY_OP_RESPONSE
+
+GET = Operation.GET
+SET = Operation.SET
+EXEC = Operation.EXEC
+EVENT = Operation.EVENT
+RESPONSE = Operation.RESPONSE
 
 @_dataclass
 class Version:
@@ -52,10 +108,22 @@ class Version:
 
         return Version(int(match[1]), int(match[2]))
 
-cdef class Bye:
+cdef class Packet:
+    cdef uint32_t _seq
+
+    def __init__(self, seq: int = 0):
+        self._seq = seq
+
+    @property
+    def seq(self) -> int:
+        return self._seq
+
+cdef class Bye(Packet):
     cdef object _reason
 
-    def __init__(self, reason: ByeReason):
+    def __init__(self, reason: ByeReason, seq: int = 0):
+        super().__init__(seq)
+
         self._reason = reason
 
     @property
@@ -78,7 +146,14 @@ cdef class Bye:
 
         return Bye(reason)
 
-cdef class Hello:
+    cdef dicey_packet to_cpacket(self):
+        cdef dicey_packet packet
+
+        _check(dicey_packet_bye(&packet, 0, self.reason.value))
+
+        return packet
+
+cdef class Hello(Packet):
     cdef object _version
 
     def __init__(self, version: Version):
@@ -103,15 +178,28 @@ cdef class Hello:
 
         return Hello(version)
 
-cdef class Message:
+    cdef dicey_packet to_cpacket(self):
+        cdef dicey_packet packet
+
+        _check(dicey_packet_hello(&packet, 0, dicey_version(self.version.major, self.version.revision)))
+
+        return packet
+
+cdef class Message(Packet):
     cdef str _path
     cdef object _selector
     cdef object _value
+
+    _op: Operation
 
     def __init__(self, path: str, selector: Selector, value: _Any):
         self._path = path
         self._selector = selector
         self._value = value
+
+    @property
+    def op(self) -> Operation:
+        return self._op
 
     @property
     def path(self) -> str:
@@ -142,7 +230,18 @@ cdef class Message:
 
         return Message(path, selector, value)
 
-Packet = Bye | Hello | Message
+    cdef dicey_packet to_cpacket(self):
+        cdef dicey_packet packet
+
+cdef dicey_packet _dump_packet(object packet):
+    if isinstance(packet, Bye):
+        return Bye.to_cpacket(packet)
+    elif isinstance(packet, Hello):
+        return Hello.to_cpacket(packet)
+    elif isinstance(packet, Message):
+        return Message.to_cpacket(packet)
+    else:
+        assert False, "Unknown packet kind"
 
 cdef object _load_packet(dicey_packet packet):
     cdef dicey_packet_kind kind = dicey_packet_get_kind(packet)
@@ -155,6 +254,21 @@ cdef object _load_packet(dicey_packet packet):
         return Message.from_cpacket(packet)
     else:
         assert False, "Unknown packet kind"
+
+def dump(object packet not None: Packet, fp):
+    data = dumps(packet)
+
+    fp.write(data)
+
+def dumps(object packet not None: Packet) -> bytes:
+    cdef dicey_packet cpacket = _dump_packet(packet)
+    
+    return bytes((<uint8_t*> cpacket.payload)[:cpacket.nbytes])
+
+def load(object fp not None: _Any) -> Packet:
+    data = fp.read() # dumbest implementation ever
+
+    return loads(data)
 
 def loads(bytes data not None: bytes) -> Packet:
     cdef const void *data_ptr = <uint8_t*> data
