@@ -30,6 +30,7 @@ cdef struct _type_assoc:
     dicey_type type
     object (*_to_python)(const dicey_value *value, object args)
 
+# note: cython is dumb and doesn't allow for unbound arrays, so I have to hardcode the length here
 cdef _type_assoc[19] _assoc_list = [
     _type_assoc(dicey_type.DICEY_TYPE_INVALID, &_to_invalid),
     _type_assoc(dicey_type.DICEY_TYPE_UNIT, &_to_unit),
