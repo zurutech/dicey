@@ -4,7 +4,9 @@ from Cython.Build import cythonize
 
 setup(
     ext_modules = cythonize(
-        [Extension("*", [ "dicey/*.pyx"],
+        [Extension("*", [
+                "dicey/core/*.pyx",
+            ],
             libraries=["dicey"],
             library_dirs=["."],
         )],
