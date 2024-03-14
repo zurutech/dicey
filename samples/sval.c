@@ -24,6 +24,11 @@
 
 #include "sval.h"
 
+enum reqtime_mode {
+    REQTIME_NONE,
+    REQTIME_SHOW,
+};
+
 enum sval_op {
     SVAL_SET,
     SVAL_GET,
@@ -57,7 +62,7 @@ static void on_client_event(struct dicey_client *const client, void *const ctx, 
     util_dumper_dump_packet(&dumper, packet);
 }
 
-static int do_op(const char *const addr, const char *const value) {
+static int do_op(const char *const addr, const char *const value, const enum reqtime_mode show_time) {
     const enum sval_op op = value ? SVAL_SET : SVAL_GET;
 
     struct dicey_client *client = NULL;
@@ -110,6 +115,9 @@ static int do_op(const char *const addr, const char *const value) {
         return err;
     }
 
+    uv_timespec64_t start = { 0 }, end = { 0 };
+    uv_clock_gettime(UV_CLOCK_MONOTONIC, &start);
+
     err = dicey_client_request(client, packet, &packet, 3000); // 3 seconds
     if (!err) {
         struct dicey_message msg = { 0 };
@@ -152,6 +160,14 @@ static int do_op(const char *const addr, const char *const value) {
         }
     }
 
+    uv_clock_gettime(UV_CLOCK_MONOTONIC, &end);
+
+    if (show_time == REQTIME_SHOW) {
+        printf(
+            "reqtime: %" PRIu64 "us\n", (end.tv_sec - start.tv_sec) * 1000000L + (end.tv_nsec - start.tv_nsec) / 1000L
+        );
+    }
+
     (void) dicey_client_disconnect(client);
     dicey_client_delete(client);
     dicey_packet_deinit(&packet);
@@ -162,6 +178,7 @@ static int do_op(const char *const addr, const char *const value) {
 #define HELP_MSG                                                                                                       \
     "Usage: %s [options...] SOCKET [VALUE]\n"                                                                          \
     "  -h  print this help message and exit\n"                                                                         \
+    "  -t  show request time\n"                                                                                        \
     "\n"                                                                                                               \
     "If VALUE is not specified, a GET is performed, otherwise VALUE is used as an argument to SET.\n"
 
@@ -175,14 +192,19 @@ int main(const int argc, char *const *argv) {
     const char *const progname = argv[0];
     const char *val = NULL;
     char *socket = NULL;
+    enum reqtime_mode show_time = REQTIME_NONE;
 
     int opt = 0;
 
-    while ((opt = getopt(argc, argv, "h")) != -1) {
+    while ((opt = getopt(argc, argv, "ht")) != -1) {
         switch (opt) {
         case 'h':
             print_help(progname, stdout);
             return EXIT_SUCCESS;
+
+        case 't':
+            show_time = REQTIME_SHOW;
+            break;
 
         case '?':
             if (optopt == 'o') {
@@ -220,7 +242,7 @@ int main(const int argc, char *const *argv) {
         return EXIT_FAILURE;
     }
 
-    enum dicey_error err = do_op(socket, val);
+    enum dicey_error err = do_op(socket, val, show_time);
     if (err) {
         fprintf(stderr, "error: %s\n", dicey_error_msg(err));
         return EXIT_FAILURE;
