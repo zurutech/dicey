@@ -145,7 +145,7 @@ static struct dicey_task_error *client_task_send_and_queue(
 
     // register that we expect a response on this task for sequence number `seq`
     if (!dicey_waiting_list_append(&client->waiting_tasks, seq, id)) {
-        return dicey_task_error_new(DICEY_ENOMEM, "failed to register hello packet for response");
+        return dicey_task_error_new(DICEY_ENOMEM, "Failed to register outbound request in waiting list");
     }
 
     return NULL;

@@ -1,6 +1,5 @@
 // Copyright (c) 2014-2024 Zuru Tech HK Limited, All rights reserved.
 
-#include <stddef.h>
 #if !defined(JRUPPTCCIV_TASK_LOOP_H)
 #define JRUPPTCCIV_TASK_LOOP_H
 
