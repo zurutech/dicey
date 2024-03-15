@@ -78,8 +78,8 @@ static bool task_list_grow_if_needed(struct dicey_task_list **const list_ptr) {
 
     struct dicey_task_list *list = *list_ptr;
 
-    const size_t len = list ? list->len : 0U;
-    if ((uintmax_t) len >= (uintmax_t) INT64_MAX) {
+    const uintmax_t len = list ? list->len : 0U;
+    if ((uintmax_t) len > (uintmax_t) INT64_MAX) {
         return false; // ids go up to int64_t and are positive
     }
 
