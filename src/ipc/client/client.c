@@ -8,8 +8,8 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
-#include <stdlib.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 #include <uv.h>
 
@@ -903,10 +903,6 @@ static bool client_process_event(
 }
 
 static bool client_event(struct dicey_client *const client, const int event, ...) {
-    if (!client->inspect_func) {
-        return false;
-    }
-
     va_list args;
     va_start(args, event);
 
@@ -915,7 +911,7 @@ static bool client_event(struct dicey_client *const client, const int event, ...
 
     va_end(args);
 
-    if (res) {
+    if (res && client->inspect_func) {
         client->inspect_func(client, dicey_client_get_context(client), ev);
     }
 
