@@ -85,3 +85,4 @@ cdef class _PacketWrapper:
 
     @staticmethod
     cdef _PacketWrapper wrap(dicey_packet packet)
+    

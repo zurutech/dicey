@@ -77,7 +77,7 @@ cdef class _PacketWrapper:
 
         return wrap
 
-    def __deinit__(self):
+    def __dealloc__(self):
         dicey_packet_deinit(&self.packet)
 
 class ByeReason(_Enum):
