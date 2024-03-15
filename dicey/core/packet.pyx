@@ -29,8 +29,13 @@ from .value cimport pythonize_value
 cdef class _MessageBuilder:
     cdef dicey_message_builder builder
 
+    cdef list obj_cache
+
     def __cinit__(self):
         dicey_message_builder_init(&self.builder)
+
+    def __init__(self):
+        self.obj_cache = []
 
     def __dealloc__(self):
         dicey_message_builder_discard(&self.builder)    
@@ -46,6 +51,10 @@ cdef class _MessageBuilder:
         _check(dicey_message_builder_set_seq(&self.builder, seq))
 
     cdef set_path(self, str path):
+        pbytes = path.encode("ASCII")
+
+        self.obj_cache.append(pbytes)
+
         _check(dicey_message_builder_set_path(&self.builder, path.encode("ASCII")))
 
     cdef set_selector(self, dicey_selector sel):
@@ -56,7 +65,7 @@ cdef class _MessageBuilder:
 
         _check(dicey_message_builder_value_start(&self.builder, &value))
 
-        dump_value(&value, obj)
+        dump_value(&value, obj, self.obj_cache)
 
         _check(dicey_message_builder_value_end(&self.builder, &value))
 
@@ -194,9 +203,10 @@ cdef class Message(Packet):
 
     _op: Operation
 
-    def __init__(self, path: str, selector: Selector, value: _Any, seq: int = 0):
+    def __init__(self, op: Operation, path: str, selector: Selector, value: _Any, seq: int = 0):
         super().__init__(seq)
 
+        self._op = op
         self._path = path
         self._selector = selector
         self._value = value
@@ -228,14 +238,25 @@ cdef class Message(Packet):
         cdef dicey_message message
         _check(dicey_packet_as_message(packet, &message))
 
+        op = Operation(message.type)
         path = message.path.decode("ASCII")
         selector = Selector(message.selector.trait.decode("ASCII"), message.selector.elem.decode("ASCII"))
         value = pythonize_value(&message.value)
 
-        return Message(path, selector, value)
+        return Message(op, path, selector, value)
 
     cdef dicey_packet to_cpacket(self):
-        cdef dicey_packet packet
+        builder = _MessageBuilder()
+
+        trait = self.selector.trait.encode("ASCII")
+        elem = self.selector.elem.encode("ASCII")
+
+        builder.start(self.seq, self.op.value)
+        builder.set_path(self.path)
+        builder.set_selector(dicey_selector(trait, elem))
+        builder.set_value(self.value)
+
+        return builder.build()
 
 cdef dicey_packet _dump_packet(object packet):
     if isinstance(packet, Bye):

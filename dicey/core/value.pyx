@@ -7,7 +7,7 @@ from libc.stdint cimport uint8_t
 from libcpp cimport bool as c_bool
 
 from .errors import InvalidDataError
-from .types  import ErrorMessage, Path, Selector
+from .types import Array, Byte, ErrorMessage, Int16, Int32, Int64, Pair, Path, Selector, UInt16, UInt32, UInt64
 
 from .errors cimport _check
 from .type   cimport dicey_type, dicey_selector, DICEY_VARIANT_ID
@@ -75,7 +75,9 @@ cdef _to_array(const dicey_value *const value, object args):
     if array_type == dicey_type.DICEY_TYPE_PAIR and args.pair_lists_as_dict:
         return _to_dict(&lst, args)
     else:
-        return _to_list(&lst, args)
+        l = _to_list(&lst, args)
+
+        return Array(type=l[0].__class__ if l else type(None), values=l)
     
 cdef _to_bool(const dicey_value *const value, object args):
     cdef c_bool dest = 0
@@ -89,7 +91,7 @@ cdef _to_byte(const dicey_value *const value, object args):
 
     _check(dicey_value_get_byte(value, &dest))
 
-    return dest
+    return Byte(dest)
     
 cdef _to_bytes(const dicey_value *const value, object args):
     cdef const uint8_t *bys = NULL
@@ -140,21 +142,21 @@ cdef _to_int16(const dicey_value *const value, object args):
 
     _check(dicey_value_get_i16(value, &dest))
 
-    return dest
+    return Int16(dest)
 
 cdef _to_int32(const dicey_value *const value, object args):
     cdef int32_t dest = 0
 
     _check(dicey_value_get_i32(value, &dest))
 
-    return dest
+    return Int32(dest)
 
 cdef _to_int64(const dicey_value *const value, object args):
     cdef int64_t dest = 0
 
     _check(dicey_value_get_i64(value, &dest))
 
-    return dest
+    return Int64(dest)
 
 cdef _to_invalid(const dicey_value *value, object args):
     raise InvalidDataError()
@@ -218,21 +220,21 @@ cdef _to_uint16(const dicey_value *const value, object args):
 
     _check(dicey_value_get_u16(value, &dest))
 
-    return dest
+    return UInt16(dest)
 
 cdef _to_uint32(const dicey_value *const value, object args):
     cdef uint32_t dest = 0
 
     _check(dicey_value_get_u32(value, &dest))
 
-    return dest
+    return UInt32(dest)
 
 cdef _to_uint64(const dicey_value *const value, object args):
     cdef uint64_t dest = 0
 
     _check(dicey_value_get_u64(value, &dest))
 
-    return dest
+    return UInt64(dest)
 
 cdef _to_unit(const dicey_value *const value, object args):
     return None
