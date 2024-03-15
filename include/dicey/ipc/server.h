@@ -51,7 +51,7 @@ struct dicey_server_args {
 };
 
 DICEY_EXPORT void dicey_server_delete(struct dicey_server *state);
-DICEY_EXPORT enum dicey_error dicey_server_new(struct dicey_server **const dest, const struct dicey_server_args *args);
+DICEY_EXPORT enum dicey_error dicey_server_new(struct dicey_server **dest, const struct dicey_server_args *args);
 
 DICEY_EXPORT void *dicey_server_get_context(struct dicey_server *server);
 DICEY_EXPORT struct dicey_registry *dicey_server_get_registry(struct dicey_server *server);

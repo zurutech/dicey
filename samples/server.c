@@ -58,6 +58,9 @@ static enum dicey_error registry_fill(struct dicey_registry *const registry) {
         (struct dicey_element) { .type = DICEY_ELEMENT_TYPE_PROPERTY, .signature = SVAL_SIG },
         NULL
     );
+    if (err) {
+        return err;
+    }
 
     err = dicey_registry_add_object(registry, DUMMY_PATH, DUMMY_TRAIT, NULL);
     if (err) {

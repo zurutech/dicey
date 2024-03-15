@@ -97,7 +97,7 @@ static void on_client_event(struct dicey_client *const client, void *const ctx, 
     util_dumper_dump_packet(&dumper, packet);
 }
 
-static int do_send(char *addr, struct dicey_packet packet) {
+static int do_send(const char *const addr, struct dicey_packet packet) {
     struct dicey_client *client = NULL;
 
     enum dicey_error err = dicey_client_new(

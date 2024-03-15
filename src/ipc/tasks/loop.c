@@ -35,8 +35,6 @@ struct dicey_task_loop {
     dicey_task_loop_global_stopped *global_stopped;
 
     void *_Atomic ctx;
-
-    uint64_t next_id;
 };
 
 struct close_ctx {

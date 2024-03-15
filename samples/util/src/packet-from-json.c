@@ -231,6 +231,10 @@ static enum dicey_error json_to_value(struct dicey_value_builder *const dest, co
                 const cJSON *const json_item = cJSON_GetArrayItem(value, i);
 
                 err = dicey_value_builder_next(dest, &item);
+                if (err) {
+                    return err;
+                }
+
                 err = json_to_value(&item, json_item);
                 if (err) {
                     return err;

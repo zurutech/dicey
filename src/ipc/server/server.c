@@ -378,6 +378,9 @@ static ptrdiff_t client_got_hello(
     }
 
     err = server_sendpkt(server, client, hello_repl);
+    if (err) {
+        return err;
+    }
 
     return CLIENT_STATE_RUNNING;
 }

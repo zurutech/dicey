@@ -1210,7 +1210,7 @@ struct util_xml_errors util_xml_to_dicey(struct dicey_packet *const dest, const 
         goto exit;
     }
 
-    struct util_xml_error *const packet_err = xml_to_packet(dest, root);
+    const struct util_xml_error *const packet_err = xml_to_packet(dest, root);
     if (packet_err) {
         xml_errors_add(&errs, packet_err);
     }
