@@ -75,16 +75,14 @@ class Path:
     """A path is an ASCII string that identifies an object residing on the server"""
     value: str
 
-    def __init__(self, value: str):
-        if not value:
+    def __post_init__(self):
+        if not self.value:
             raise ValueError("paths can't be empty")
 
-        if not value.isascii():
+        if not self.value.isascii():
             raise ValueError("paths must be ASCII strings")
 
         # TODO: validate path format further
-
-        self.value = value
 
     def __str__(self):
         return self.value

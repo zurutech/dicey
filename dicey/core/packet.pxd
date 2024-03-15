@@ -1,6 +1,8 @@
 from libc.stddef cimport size_t
 from libc.stdint cimport uint32_t
 
+from libcpp cimport bool as c_bool
+
 from .errors cimport dicey_error
 from .value cimport dicey_value
 from .version cimport dicey_version
@@ -42,14 +44,14 @@ cdef extern from "dicey/dicey.h":
         void* payload
         size_t nbytes
 
-    bint dicey_bye_reason_is_valid(dicey_bye_reason reason)
+    c_bool dicey_bye_reason_is_valid(dicey_bye_reason reason)
     const char* dicey_bye_reason_to_string(dicey_bye_reason reason)
 
-    bint dicey_op_is_valid(dicey_op type)
-    bint dicey_op_requires_payload(dicey_op kind)
+    c_bool dicey_op_is_valid(dicey_op type)
+    c_bool dicey_op_requires_payload(dicey_op kind)
     const char* dicey_op_to_string(dicey_op type)
 
-    bint dicey_packet_kind_is_valid(dicey_packet_kind kind)
+    c_bool dicey_packet_kind_is_valid(dicey_packet_kind kind)
     const char* dicey_packet_kind_to_string(dicey_packet_kind kind)
 
     dicey_error dicey_packet_load(dicey_packet* packet, const void** data, size_t* nbytes)
@@ -60,6 +62,26 @@ cdef extern from "dicey/dicey.h":
     dicey_error dicey_packet_dump(dicey_packet packet, void** data, size_t* nbytes)
     dicey_packet_kind dicey_packet_get_kind(dicey_packet packet)
     dicey_error dicey_packet_get_seq(dicey_packet packet, uint32_t* seq)
-    bint dicey_packet_is_valid(dicey_packet packet)
+    c_bool dicey_packet_is_valid(dicey_packet packet)
     dicey_error dicey_packet_bye(dicey_packet* dest, uint32_t seq, dicey_bye_reason reason)
     dicey_error dicey_packet_hello(dicey_packet* dest, uint32_t seq, dicey_version version)
+
+cdef class Packet:
+    cdef uint32_t _seq
+
+cdef class Message(Packet):
+    cdef object _op
+    cdef object _path
+    cdef object _selector
+    cdef object _value
+    
+    @staticmethod
+    cdef Message from_cpacket(dicey_packet packet)
+    
+    cdef dicey_packet to_cpacket(self)
+
+cdef class _PacketWrapper:
+    cdef dicey_packet packet
+
+    @staticmethod
+    cdef _PacketWrapper wrap(dicey_packet packet)

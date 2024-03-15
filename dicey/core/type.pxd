@@ -1,6 +1,8 @@
 from libc.stddef cimport ptrdiff_t
 from libc.stdint cimport int8_t, int16_t, int32_t, int64_t, uint8_t, uint16_t, uint32_t, uint64_t
 
+from libcpp cimport bool as c_bool
+
 cdef extern from "dicey/dicey.h":
     ctypedef uint8_t dicey_bool
 
@@ -22,7 +24,7 @@ cdef extern from "dicey/dicey.h":
         const char *trait
         const char *elem
 
-    cdef bint dicey_selector_is_valid(dicey_selector selector)
+    cdef c_bool dicey_selector_is_valid(dicey_selector selector)
     cdef ptrdiff_t dicey_selector_size(dicey_selector sel)
 
     cdef enum dicey_type:
@@ -48,6 +50,6 @@ cdef extern from "dicey/dicey.h":
 
     cdef int16_t DICEY_VARIANT_ID
 
-    cdef bint dicey_type_is_container(dicey_type type)
-    cdef bint dicey_type_is_valid(dicey_type type)
+    cdef c_bool dicey_type_is_container(dicey_type type)
+    cdef c_bool dicey_type_is_valid(dicey_type type)
     cdef const char *dicey_type_name(dicey_type type)

@@ -7,7 +7,7 @@ from libc.stddef cimport size_t
 from libc.stdint cimport uint8_t, uint32_t
 
 from .errors import BadVersionStrError
-from .types import Selector
+from .types import Path, Selector
 
 from .builders cimport dicey_message_builder, dicey_message_builder_init, dicey_message_builder_begin, \
                        dicey_message_builder_discard, dicey_message_builder_build, dicey_message_builder_set_seq, \
@@ -70,8 +70,6 @@ cdef class _MessageBuilder:
         _check(dicey_message_builder_value_end(&self.builder, &value))
 
 cdef class _PacketWrapper:
-    cdef dicey_packet packet
-
     @staticmethod
     cdef _PacketWrapper wrap(dicey_packet packet):
         cdef _PacketWrapper wrap = _PacketWrapper.__new__(_PacketWrapper)
@@ -118,8 +116,6 @@ class Version:
         return Version(int(match[1]), int(match[2]))
 
 cdef class Packet:
-    cdef uint32_t _seq
-
     def __init__(self, seq: int = 0):
         self._seq = seq
 
@@ -197,18 +193,12 @@ cdef class Hello(Packet):
         return packet
 
 cdef class Message(Packet):
-    cdef str _path
-    cdef object _selector
-    cdef object _value
-
-    _op: Operation
-
-    def __init__(self, op: Operation, path: str, selector: Selector, value: _Any, seq: int = 0):
+    def __init__(self, op: Operation | str, path: str | Path, selector: Selector | (str, str), value: _Any = None, seq: int = 0):
         super().__init__(seq)
 
-        self._op = op
-        self._path = path
-        self._selector = selector
+        self._op = Operation[op] if isinstance(op, str) else op
+        self._path = Path(path) if isinstance(path, str) else path
+        self._selector = Selector(*selector) if isinstance(selector, tuple) else selector
         self._value = value
 
     @property
@@ -216,7 +206,7 @@ cdef class Message(Packet):
         return self._op
 
     @property
-    def path(self) -> str:
+    def path(self) -> Path:
         return self._path
 
     @property
@@ -252,9 +242,11 @@ cdef class Message(Packet):
         elem = self.selector.elem.encode("ASCII")
 
         builder.start(self.seq, self.op.value)
-        builder.set_path(self.path)
+        builder.set_path(self.path.value)
         builder.set_selector(dicey_selector(trait, elem))
-        builder.set_value(self.value)
+
+        if self.op != Operation.GET:
+            builder.set_value(self.value)
 
         return builder.build()
 
