@@ -55,7 +55,7 @@ cdef class _MessageBuilder:
 
         self.obj_cache.append(pbytes)
 
-        _check(dicey_message_builder_set_path(&self.builder, path.encode("ASCII")))
+        _check(dicey_message_builder_set_path(&self.builder, pbytes))
 
     cdef set_selector(self, dicey_selector sel):
         _check(dicey_message_builder_set_selector(&self.builder, sel))
