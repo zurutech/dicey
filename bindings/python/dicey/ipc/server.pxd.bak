@@ -1,0 +1,45 @@
+from libc.stddef cimport size_t
+from libc.stdint cimport uint32_t
+
+from dicey.core cimport dicey_error, dicey_packet
+
+cdef extern from "dicey/dicey.h":
+    cdef struct dicey_client_info:
+        size_t id
+        void *user_data
+
+    cdef struct dicey_server:
+        pass
+
+    ctypedef bint dicey_server_on_connect_fn(dicey_server *server, size_t id, void **user_data)
+    ctypedef void dicey_server_on_disconnect_fn(dicey_server *server, const dicey_client_info *cln)
+
+    ctypedef void dicey_server_on_error_fn(
+        dicey_server *server,
+        dicey_error err,
+        const dicey_client_info *cln,
+        const char *msg,
+        ...
+    )
+
+    ctypedef void dicey_server_on_request_fn(
+        dicey_server *server,
+        const dicey_client_info *cln,
+        uint32_t seq,
+        dicey_packet packet
+    )
+
+    cdef struct dicey_server_args:
+        dicey_server_on_connect_fn *on_connect
+        dicey_server_on_disconnect_fn *on_disconnect
+        dicey_server_on_error_fn *on_error
+        dicey_server_on_request_fn *on_request
+
+    void dicey_server_delete(dicey_server *state)
+    dicey_error dicey_server_new(dicey_server **dest, const dicey_server_args *args)
+
+    void *dicey_server_get_context(dicey_server *server)
+    dicey_registry *dicey_server_get_registry(dicey_server *server)
+    dicey_error dicey_server_send(dicey_server *server, size_t id, dicey_packet packet)
+    void *dicey_server_set_context(dicey_server *server, void *new_context)
+    dicey_error dicey_server_start(dicey_server *server, const char *name, size_t len)
