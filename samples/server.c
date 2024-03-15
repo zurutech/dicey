@@ -1,5 +1,6 @@
 // Copyright (c) 2014-2024 Zuru Tech HK Limited, All rights reserved.
 
+#include "dicey/core/packet.h"
 #define _CRT_NONSTDC_NO_DEPRECATE 1
 #include <assert.h>
 #include <inttypes.h>
@@ -225,19 +226,15 @@ static void on_request_received(
         if (err) {
             fprintf(stderr, "error: %s\n", dicey_error_name(err));
         }
-
-        return;
-    }
-
-    if (!strcmp(msg.path, SVAL_PATH) && !strcmp(msg.selector.trait, SVAL_TRAIT) &&
-        !strcmp(msg.selector.elem, SVAL_PROP)) {
+    } else if (!strcmp(msg.path, SVAL_PATH) && !strcmp(msg.selector.trait, SVAL_TRAIT) && !strcmp(msg.selector.elem, SVAL_PROP)) {
         err = on_sval_req(server, cln, seq, msg);
         if (err) {
             fprintf(stderr, "error: %s\n", dicey_error_name(err));
         }
-
-        return;
     }
+
+    // this function receives a copy of the packet that must be freed
+    dicey_packet_deinit(&packet);
 }
 
 #if PIPE_NEEDS_CLEANUP

@@ -385,7 +385,7 @@ static ptrdiff_t client_got_hello(
     return CLIENT_STATE_RUNNING;
 }
 
-static ptrdiff_t client_got_message(struct dicey_client_data *const client, const struct dicey_packet packet) {
+static ptrdiff_t client_got_message(struct dicey_client_data *const client, struct dicey_packet packet) {
     assert(client);
 
     struct dicey_server *const server = client->parent;
@@ -431,7 +431,10 @@ static ptrdiff_t client_got_message(struct dicey_client_data *const client, cons
     // TODO: check the signature of the element
 
     if (server->on_request) {
+        // move ownership of the packet to the callback
         server->on_request(server, &client->info, seq, packet);
+    } else {
+        dicey_packet_deinit(&packet);
     }
 
     return CLIENT_STATE_RUNNING;
