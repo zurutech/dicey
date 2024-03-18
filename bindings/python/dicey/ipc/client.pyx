@@ -39,6 +39,13 @@ cdef class Client:
 
         dicey_client_set_context(self.client, <void *> self)
 
+    def __enter__(self) -> Client:
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        if self.running:
+            self.disconnect()
+
     def __dealloc__(self):
         if self.running:
             # ignore errors if any, this is just for safety
@@ -85,3 +92,10 @@ cdef class Client:
     @property
     def on_event(self) -> EventCallback:
         return self._on_event
+
+def connect(addr: Address | str) -> Client:
+    cl = Client()
+
+    cl.connect(addr)
+
+    return cl

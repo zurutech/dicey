@@ -1,2 +1,2 @@
 from .address import Address
-from .client import Client
+from .client import Client, connect
