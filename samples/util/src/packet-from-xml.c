@@ -362,7 +362,8 @@ static struct util_xml_errors xml_validate_with_internal_schema(xmlDoc *const do
     xmlSchemaValidCtxt *const ctxt = xmlSchemaNewValidCtxt(schema);
 
     if (ctxt) {
-        xmlSchemaSetValidStructuredErrors(ctxt, &xml_validation_err_cb, &errors);
+        // the cast silences the fact that libxml2 switched a parameter to const in a recent version
+        xmlSchemaSetValidStructuredErrors(ctxt, (xmlStructuredErrorFunc) &xml_validation_err_cb, &errors);
 
         const bool fail = xmlSchemaValidateDoc(ctxt, doc);
         xmlSchemaFreeValidCtxt(ctxt);
