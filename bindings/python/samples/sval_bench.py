@@ -1,3 +1,5 @@
+import sys
+
 import dicey
 
 class Cit:
@@ -24,8 +26,13 @@ class Cit:
         return ''.join(map(lambda c: chr(ord('A') + c), reversed(self.elem)))
 
 if __name__ == '__main__':
+    if len(sys.argv) != 2:
+        print(f'error: wrong number of arguments.\nUsage: {sys.argv[0]} <count>', file=sys.stderr)
+
+        sys.exit(1)
+
     cit = Cit()
 
-    with dicey.connect('@/tmp/.uvsock') as dc:
+    with dicey.connect(sys.argv[1]) as dc:
         for i in range(80000):
             dc.set('/sval', ('sval.Sval', 'Value'), cit.next())
