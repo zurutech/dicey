@@ -558,10 +558,15 @@ static void connect_end(const int64_t id, struct dicey_task_error *const err, vo
 
     struct dicey_client *const client = connect_ctx->client;
 
-    const enum dicey_error errcode = err ? err->error : DICEY_OK;
+    enum dicey_error errcode = err ? err->error : DICEY_OK;
     const char *const errmsg = err ? err->message : NULL;
 
     if (errcode) {
+        // if the error value is ENOENT or ECONNREFUSED, it means the pipe does not exist - report a "nicer" error code
+        if (errcode == DICEY_ENOENT || errcode == DICEY_ECONNREFUSED) {
+            errcode = DICEY_EPEER_NOT_FOUND;
+        }
+
         uv_close((uv_handle_t *) &client->pipe, NULL); // cleanup the pipe
 
         client_event(client, DICEY_CLIENT_EVENT_ERROR, err->error, "%s", errmsg);
