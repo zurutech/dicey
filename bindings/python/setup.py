@@ -20,7 +20,7 @@ if os.name == 'nt':
         libraries = ['dicey']
     else:
         # assume static
-        libraries = ['dicey', 'libuv', 'ws2_32']
+        libraries = ['dicey', 'libuv', 'wsock32', 'ws2_32', 'iphlpapi', 'user32', 'advapi32', 'dbghelp', 'userenv', 'shell32', 'ole32']
 else:
     libraries = ['dicey', 'uv']
 
