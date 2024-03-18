@@ -72,6 +72,7 @@ endif()
 if (NOT LibUV_FOUND)
     include(FetchContent)
 
+    option(LIBUV_BUILD_SHARED ${BUILD_SHARED_LIBS})
     option(LIBUV_BUILD_TESTS OFF)    
 
     FetchContent_Declare(
@@ -82,7 +83,11 @@ if (NOT LibUV_FOUND)
 
     FetchContent_MakeAvailable(libuv)
 
-    target_link_libraries(${PROJECT_NAME} PUBLIC uv)
+    if (BUILD_SHARED_LIBS)
+        target_link_libraries(${PROJECT_NAME} PUBLIC uv)
+    else()
+        target_link_libraries(${PROJECT_NAME} PUBLIC uv_a)
+    endif()
 endif()
 
 if (NOT BUILD_LIBXML2)
