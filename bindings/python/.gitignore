@@ -248,3 +248,6 @@ pyrightconfig.json
 # End of https://www.toptal.com/developers/gitignore/api/visualstudiocode,cython,python,c
 *.c
 *.bin
+
+# Python bindings
+dicey.deps
