@@ -16,7 +16,7 @@ setup(
         [Extension("*", [
                 "dicey/*/*.pyx",
             ],
-            libraries=["dicey"],
+            libraries=["dicey", "uv"],
             library_dirs=[libdir],
 
             # set an absolute rpath - this is a temporary hack 
