@@ -108,3 +108,7 @@ crash-*
 # Note: I love to keep random .c test files in the root directory.
 /*.h
 /*.c
+
+# Python bindings
+bindings/python/dicey.deps
+
