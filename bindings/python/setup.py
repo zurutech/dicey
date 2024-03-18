@@ -1,7 +1,7 @@
 import os
 import sys
 
-from setuptools import Extension, setup
+from setuptools import Extension, setup, find_packages
 
 from Cython.Build import cythonize
 
@@ -38,5 +38,6 @@ setup(
         gdb_debug=True,
         compiler_directives={'language_level' : "3"},
     ),
+    packages=find_packages(),
     include_dirs=[incdir],
 )
