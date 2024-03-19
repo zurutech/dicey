@@ -250,4 +250,4 @@ pyrightconfig.json
 *.bin
 
 # Python bindings
-dicey.deps
+dicey/deps
