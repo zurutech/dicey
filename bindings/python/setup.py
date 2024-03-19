@@ -36,7 +36,10 @@ setup(
             runtime_library_dirs = [libdir] if os.name == 'posix' else None,
         )],
         gdb_debug=True,
-        compiler_directives={'language_level' : "3"},
+        compiler_directives={
+            'embedsignature' : True,
+            'language_level' : "3"
+        },
     ),
     packages=find_packages(),
     include_dirs=[incdir],
