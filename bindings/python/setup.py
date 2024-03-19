@@ -27,6 +27,11 @@ else:
 
 libdirs = [str(libdir)]
 
+if os.name == 'posix':
+    rpath = ['@loader_path/../deps/lib' if sys.platform == 'darwin' else '$ORIGIN/../deps/lib']
+else:
+    rpath = None
+
 setup(
     ext_modules = cythonize(
         [Extension("*", [
@@ -35,8 +40,7 @@ setup(
             libraries=libraries,
             library_dirs=libdirs,
 
-            # set an absolute rpath - this is a temporary hack 
-            runtime_library_dirs = libdirs if os.name == 'posix' else None,
+            runtime_library_dirs = rpath,
         )],
         gdb_debug=True,
         compiler_directives={
