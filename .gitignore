@@ -101,6 +101,7 @@ _deps
 .cache
 .clangd
 build*/
+install*/
 
 # fuzzer crashes
 crash-*
