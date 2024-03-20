@@ -265,7 +265,6 @@ else()
     endif()
 endif()
 
-    
 install(TARGETS dicey FILE_SET headers)
 install(FILES "${PROJECT_BINARY_DIR}/${PROJECT_NAME}_export.h" DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
 
