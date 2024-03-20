@@ -120,7 +120,7 @@ static enum dicey_error chech_op_valid_on(const enum dicey_op op, const struct d
     }
 }
 
-static bool is_server_msg(const enum dicey_op op) {
+static bool is_server_op(const enum dicey_op op) {
     switch (op) {
     case DICEY_OP_RESPONSE:
     case DICEY_OP_EVENT:
@@ -130,6 +130,16 @@ static bool is_server_msg(const enum dicey_op op) {
         return false;
     }
 }
+
+static bool is_server_msg(const struct dicey_packet pkt) {
+    struct dicey_message msg = { 0 };
+    if (dicey_packet_as_message(pkt, &msg) != DICEY_OK) {
+        return false;
+    }
+
+    return is_server_op(msg.type);
+}
+
 static enum dicey_error make_error(
     struct dicey_packet *const dest,
     const struct dicey_packet src,
@@ -208,10 +218,7 @@ static enum dicey_error server_sendpkt(
     }
 
     if (dicey_packet_get_kind(packet) == DICEY_PACKET_KIND_MESSAGE) {
-        struct dicey_message msg = { 0 };
-        DICEY_ASSUME(dicey_packet_as_message(packet, &msg));
-
-        if (!is_server_msg(msg.type)) {
+        if (!is_server_msg(packet)) {
             return TRACE(DICEY_EINVAL);
         }
     }
@@ -397,7 +404,7 @@ static ptrdiff_t client_got_message(struct dicey_client_data *const client, stru
     }
 
     struct dicey_message message = { 0 };
-    if (dicey_packet_as_message(packet, &message) != DICEY_OK || is_server_msg(message.type)) {
+    if (dicey_packet_as_message(packet, &message) != DICEY_OK || is_server_op(message.type)) {
         return TRACE(DICEY_EINVAL);
     }
 
@@ -838,6 +845,10 @@ enum dicey_error dicey_server_send(
     assert(server);
 
     if (!packet.nbytes || !packet.payload) {
+        return TRACE(DICEY_EINVAL);
+    }
+
+    if (!is_server_msg(packet)) {
         return TRACE(DICEY_EINVAL);
     }
 
