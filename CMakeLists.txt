@@ -72,7 +72,9 @@ endif()
 if (NOT LibUV_FOUND)
     include(FetchContent)
 
-    option(LIBUV_BUILD_SHARED ${BUILD_SHARED_LIBS})
+    # I have no tricks left in my bag, so I'll do this the stupid way
+    set(LIBUV_BUILD_SHARED ${BUILD_SHARED_LIBS} CACHE BOOL "Build libuv as a shared library" FORCE)
+
     option(LIBUV_BUILD_TESTS OFF)    
 
     FetchContent_Declare(
