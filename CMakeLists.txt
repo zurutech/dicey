@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.23.0)
+cmake_minimum_required(VERSION 3.26.0)
 
 project(dicey VERSION 0.0.1 LANGUAGES C)
 
@@ -120,8 +120,14 @@ if (NOT LibXml2_FOUND)
     target_link_libraries(${PROJECT_NAME} PUBLIC LibXml2::LibXml2)
 endif()
 
-if (WIN32 AND CMAKE_BUILD_TYPE STREQUAL "Debug")
-    target_link_libraries(${PROJECT_NAME} PUBLIC dbghelp)
+if (NOT CMAKE_BUILD_TYPE STREQUAL "Release")
+    if (WIN32)
+        target_link_libraries(${PROJECT_NAME} PUBLIC dbghelp)
+    endif()
+
+    if (DEFINED BSD)
+	target_link_libraries(${PROJECT_NAME} PUBLIC execinfo)
+    endif()
 endif()
 
 generate_export_header(${PROJECT_NAME})
