@@ -74,8 +74,7 @@ if (NOT LibUV_FOUND)
 
     # I have no tricks left in my bag, so I'll do this the stupid way
     set(LIBUV_BUILD_SHARED ${BUILD_SHARED_LIBS} CACHE BOOL "Build libuv as a shared library" FORCE)
-
-    option(LIBUV_BUILD_TESTS OFF)    
+    set(LIBUV_BUILD_TESTS OFF CACHE BOOL "Do not build libuv tests" FORCE)
 
     FetchContent_Declare(
         libuv
