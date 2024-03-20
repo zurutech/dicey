@@ -83,9 +83,11 @@ if (NOT LibUV_FOUND)
 
     FetchContent_MakeAvailable(libuv)
 
-    if (BUILD_SHARED_LIBS)
+    if (LIBUV_BUILD_SHARED)
+        message(STATUS "blallo")
         target_link_libraries(${PROJECT_NAME} PUBLIC uv)
     else()
+        message(STATUS "plallo")
         target_link_libraries(${PROJECT_NAME} PUBLIC uv_a)
     endif()
 endif()
