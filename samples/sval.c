@@ -248,6 +248,8 @@ int main(const int argc, char *const *argv) {
     switch (argc - optind) {
     case 0:
         fputs("error: missing socket or pipe name\n", stderr);
+        print_help(progname, stderr);
+
         return EXIT_FAILURE;
 
     case 2:

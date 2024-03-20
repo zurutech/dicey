@@ -47,11 +47,13 @@ struct dicey_server_args {
     dicey_server_on_connect_fn *on_connect;
     dicey_server_on_disconnect_fn *on_disconnect;
     dicey_server_on_error_fn *on_error;
+
+    // note: when set, this callback will also take ownership of the packet and must free it when done
     dicey_server_on_request_fn *on_request;
 };
 
 DICEY_EXPORT void dicey_server_delete(struct dicey_server *state);
-DICEY_EXPORT enum dicey_error dicey_server_new(struct dicey_server **const dest, const struct dicey_server_args *args);
+DICEY_EXPORT enum dicey_error dicey_server_new(struct dicey_server **dest, const struct dicey_server_args *args);
 
 DICEY_EXPORT void *dicey_server_get_context(struct dicey_server *server);
 DICEY_EXPORT struct dicey_registry *dicey_server_get_registry(struct dicey_server *server);

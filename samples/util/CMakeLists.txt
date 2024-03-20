@@ -87,7 +87,11 @@ if (NOT cJSON_FOUND)
         GIT_TAG        v1.7.17
     )
 
-    FetchContent_MakeAvailable(cJSON)
+    FetchContent_GetProperties(cJSON)
+    if(NOT cJSON_POPULATED)
+        FetchContent_Populate(cJSON)
+        add_subdirectory(${cjson_SOURCE_DIR} ${cjson_BINARY_DIR} EXCLUDE_FROM_ALL)
+    endif()
 
     set(BUILD_SHARED_LIBS ${OLD_SHARED_STATE})
 

@@ -11,7 +11,7 @@
 
 #define BUFFER_MINCAP 1024U // 1KB
 
-size_t dicey_chunk_avail(struct dicey_chunk *const cnk) {
+size_t dicey_chunk_avail(const struct dicey_chunk *const cnk) {
     return cnk ? cnk->cap - cnk->len - sizeof *cnk : 0U;
 }
 

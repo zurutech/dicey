@@ -362,7 +362,8 @@ static struct util_xml_errors xml_validate_with_internal_schema(xmlDoc *const do
     xmlSchemaValidCtxt *const ctxt = xmlSchemaNewValidCtxt(schema);
 
     if (ctxt) {
-        xmlSchemaSetValidStructuredErrors(ctxt, &xml_validation_err_cb, &errors);
+        // the cast silences the fact that libxml2 switched a parameter to const in a recent version
+        xmlSchemaSetValidStructuredErrors(ctxt, (xmlStructuredErrorFunc) &xml_validation_err_cb, &errors);
 
         const bool fail = xmlSchemaValidateDoc(ctxt, doc);
         xmlSchemaFreeValidCtxt(ctxt);
@@ -1210,7 +1211,7 @@ struct util_xml_errors util_xml_to_dicey(struct dicey_packet *const dest, const 
         goto exit;
     }
 
-    struct util_xml_error *const packet_err = xml_to_packet(dest, root);
+    const struct util_xml_error *const packet_err = xml_to_packet(dest, root);
     if (packet_err) {
         xml_errors_add(&errs, packet_err);
     }

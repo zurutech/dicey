@@ -1,6 +1,5 @@
 // Copyright (c) 2014-2024 Zuru Tech HK Limited, All rights reserved.
 
-#include "dicey/core/errors.h"
 #include <assert.h>
 #include <ctype.h>
 #include <stdarg.h>
@@ -15,6 +14,8 @@
 #include <dicey/ipc/traits.h>
 
 #include "traits.h"
+
+static_assert(sizeof(NULL) == sizeof(void *), "NULL is not a pointer");
 
 static void object_free(void *const ptr) {
     struct dicey_object *const object = ptr;
@@ -56,7 +57,7 @@ static void trait_free(void *const trait_ptr) {
 static bool path_is_valid(const char *const path) {
     assert(path);
 
-    if (!*path || *path != '/') {
+    if (*path != '/') {
         return false;
     }
 

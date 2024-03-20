@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.23.0)
+cmake_minimum_required(VERSION 3.26.0)
 
 project(dicey VERSION 0.0.1 LANGUAGES C)
 
@@ -72,7 +72,9 @@ endif()
 if (NOT LibUV_FOUND)
     include(FetchContent)
 
-    option(LIBUV_BUILD_TESTS OFF)    
+    # I have no tricks left in my bag, so I'll do this the stupid way
+    set(LIBUV_BUILD_SHARED ${BUILD_SHARED_LIBS} CACHE BOOL "Build libuv as a shared library" FORCE)
+    set(LIBUV_BUILD_TESTS OFF CACHE BOOL "Do not build libuv tests" FORCE)
 
     FetchContent_Declare(
         libuv
@@ -82,7 +84,11 @@ if (NOT LibUV_FOUND)
 
     FetchContent_MakeAvailable(libuv)
 
-    target_link_libraries(${PROJECT_NAME} PUBLIC uv)
+    if (LIBUV_BUILD_SHARED)
+        target_link_libraries(${PROJECT_NAME} PUBLIC uv)
+    else()
+        target_link_libraries(${PROJECT_NAME} PUBLIC uv_a)
+    endif()
 endif()
 
 if (NOT BUILD_LIBXML2)
@@ -115,8 +121,14 @@ if (NOT LibXml2_FOUND)
     target_link_libraries(${PROJECT_NAME} PUBLIC LibXml2::LibXml2)
 endif()
 
-if (WIN32 AND CMAKE_BUILD_TYPE STREQUAL "Debug")
-    target_link_libraries(${PROJECT_NAME} PUBLIC dbghelp)
+if (NOT CMAKE_BUILD_TYPE STREQUAL "Release")
+    if (WIN32)
+        target_link_libraries(${PROJECT_NAME} PUBLIC dbghelp)
+    endif()
+
+    if (DEFINED BSD)
+	target_link_libraries(${PROJECT_NAME} PUBLIC execinfo)
+    endif()
 endif()
 
 generate_export_header(${PROJECT_NAME})
@@ -142,7 +154,9 @@ set(PUBLIC_HEADERS
     # ipc
     "include/dicey/ipc/address.h"
     "include/dicey/ipc/client.h"
+    "include/dicey/ipc/registry.h"
     "include/dicey/ipc/server.h"
+    "include/dicey/ipc/traits.h"
 )
 
 set(CORE_SOURCES
@@ -237,8 +251,23 @@ target_include_directories(${PROJECT_NAME}
 )
     
 set_target_properties(${PROJECT_NAME} PROPERTIES POSITION_INDEPENDENT_CODE ${BUILD_SHARED_LIBS})
-    
+
+if(UNIX)
+    include(GNUInstallDirs)
+else()
+    if (WIN32)
+        set(${CMAKE_INSTALL_LIBDIR} "lib")
+        set(${CMAKE_INSTALL_DATADIR} "share")
+        set(${CMAKE_INSTALL_INCLUDEDIR} "include")
+        set(${CMAKE_INSTALL_BINDIR} "bin")
+        message(STATUS "Setting installation destination on Windows to: ${CMAKE_INSTALL_PREFIX}")
+    else()
+        message(FATAL_ERROR "System not UNIX nor WIN32 - not implemented yet")
+    endif()
+endif()
+
 install(TARGETS dicey FILE_SET headers)
+install(FILES "${PROJECT_BINARY_DIR}/${PROJECT_NAME}_export.h" DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
 
 if (BUILD_SAMPLES)
     add_subdirectory(samples)

@@ -50,8 +50,9 @@ enum dicey_error {
     DICEY_ESIGNATURE_MALFORMED = -0x041A, /**< Signature is malformed. */
     DICEY_ESIGNATURE_MISMATCH = -0x041B,  /**< Signature is mismatched. */
     DICEY_EPROPERTY_READ_ONLY = -0x041C,  /**< Property is read-only. */
+    DICEY_EPEER_NOT_FOUND = -0x041D,      /**< Peer not found. */
 
-    DICEY_EUV_UNKNOWN = -0x051D /**< Unknown libuv error. */
+    DICEY_EUV_UNKNOWN = -0x051E /**< Unknown libuv error. */
 };
 
 /**

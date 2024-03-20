@@ -17,7 +17,7 @@ struct dicey_chunk {
     char bytes[];
 };
 
-size_t dicey_chunk_avail(struct dicey_chunk *buf);
+size_t dicey_chunk_avail(const struct dicey_chunk *buf);
 void dicey_chunk_clear(struct dicey_chunk *const buffer);
 struct dicey_chunk *dicey_chunk_grow(struct dicey_chunk *buf);
 uv_buf_t dicey_chunk_get_buf(struct dicey_chunk **buf, size_t min);

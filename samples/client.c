@@ -97,7 +97,7 @@ static void on_client_event(struct dicey_client *const client, void *const ctx, 
     util_dumper_dump_packet(&dumper, packet);
 }
 
-static int do_send(char *addr, struct dicey_packet packet) {
+static int do_send(const char *const addr, struct dicey_packet packet) {
     struct dicey_client *client = NULL;
 
     enum dicey_error err = dicey_client_new(
@@ -238,6 +238,8 @@ int main(const int argc, char *const *argv) {
     switch (argc - optind) {
     case 0:
         fputs("error: missing socket or pipe name\n", stderr);
+        print_help(progname, stderr);
+
         return EXIT_FAILURE;
 
     case 2:

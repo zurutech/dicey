@@ -39,6 +39,7 @@ static const struct dicey_error_def error_info[] = {
     ERROR_INFO_FOR(DICEY_ESIGNATURE_MALFORMED, "MalformedSignature", "malformed signature"),
     ERROR_INFO_FOR(DICEY_ESIGNATURE_MISMATCH, "SignatureMismatch", "signature mismatch"),
     ERROR_INFO_FOR(DICEY_EPROPERTY_READ_ONLY, "PropertyReadOnly", "property read only"),
+    ERROR_INFO_FOR(DICEY_EPEER_NOT_FOUND, "PeerNotFound", "peer (client or server) not found"),
     ERROR_INFO_FOR(DICEY_EUV_UNKNOWN, "UnknownUVError", "unknown libuv error"),
 };
 
@@ -83,6 +84,7 @@ bool dicey_error_is_valid(enum dicey_error errnum) {
     case DICEY_ESIGNATURE_MALFORMED:
     case DICEY_ESIGNATURE_MISMATCH:
     case DICEY_EPROPERTY_READ_ONLY:
+    case DICEY_EPEER_NOT_FOUND:
     case DICEY_EUV_UNKNOWN:
         return true;
 

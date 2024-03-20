@@ -1,11 +1,14 @@
 // Copyright (c) 2014-2024 Zuru Tech HK Limited, All rights reserved.
 
+#define _GNU_SOURCE
+
 #include <assert.h>
 #include <limits.h>
 #include <stdarg.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <stdlib.h>
 
 #include <uv.h>
@@ -555,10 +558,15 @@ static void connect_end(const int64_t id, struct dicey_task_error *const err, vo
 
     struct dicey_client *const client = connect_ctx->client;
 
-    const enum dicey_error errcode = err ? err->error : DICEY_OK;
+    enum dicey_error errcode = err ? err->error : DICEY_OK;
     const char *const errmsg = err ? err->message : NULL;
 
     if (errcode) {
+        // if the error value is ENOENT or ECONNREFUSED, it means the pipe does not exist - report a "nicer" error code
+        if (errcode == DICEY_ENOENT || errcode == DICEY_ECONNREFUSED) {
+            errcode = DICEY_EPEER_NOT_FOUND;
+        }
+
         uv_close((uv_handle_t *) &client->pipe, NULL); // cleanup the pipe
 
         client_event(client, DICEY_CLIENT_EVENT_ERROR, err->error, "%s", errmsg);
@@ -900,10 +908,6 @@ static bool client_process_event(
 }
 
 static bool client_event(struct dicey_client *const client, const int event, ...) {
-    if (!client->inspect_func) {
-        return false;
-    }
-
     va_list args;
     va_start(args, event);
 
@@ -912,7 +916,7 @@ static bool client_event(struct dicey_client *const client, const int event, ...
 
     va_end(args);
 
-    if (res) {
+    if (res && client->inspect_func) {
         client->inspect_func(client, dicey_client_get_context(client), ev);
     }
 
