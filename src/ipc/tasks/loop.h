@@ -13,6 +13,7 @@
 
 enum dicey_task_result_kind {
     DICEY_TASK_CONTINUE,
+    DICEY_TASK_NEXT,
     DICEY_TASK_ERROR,
     DICEY_TASK_RETRY,
 };
@@ -64,6 +65,7 @@ struct dicey_task_result {
 struct dicey_task_result dicey_task_continue(void);
 struct dicey_task_result dicey_task_fail(enum dicey_error error, const char *fmt, ...);
 struct dicey_task_result dicey_task_fail_with(struct dicey_task_error *err);
+struct dicey_task_result dicey_task_next(void);
 struct dicey_task_result dicey_task_retry(void);
 
 /**
