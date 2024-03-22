@@ -175,7 +175,13 @@ static struct dicey_task_result send_bye(
     assert(disconn_ctx && disconn_ctx->client);
 
     struct dicey_client *const client = disconn_ctx->client;
-    assert(uv_is_active((uv_handle_t *) &client->pipe) && client->state >= CLIENT_STATE_CONNECT_START);
+    assert(client->state >= CLIENT_STATE_CONNECT_START);
+
+    if (!uv_is_active((uv_handle_t *) &client->pipe)) {
+        // the server probaly died
+
+        return dicey_task_next(); // fast forward to the next task
+    }
 
     // craft a bye packet
     enum dicey_error craft_fail =
@@ -207,7 +213,7 @@ static struct dicey_task_result issue_close(
 
     // note: this function can also be called at start of a task. Therefore, we must assert twice that the client is in
     // a valid state
-    assert(uv_is_active((uv_handle_t *) &client->pipe) && client->state >= CLIENT_STATE_CONNECT_START);
+    assert(client->state >= CLIENT_STATE_CONNECT_START);
 
     client_event(client, DICEY_CLIENT_EVENT_QUITTING);
 
