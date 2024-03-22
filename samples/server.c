@@ -1,6 +1,5 @@
 // Copyright (c) 2014-2024 Zuru Tech HK Limited, All rights reserved.
 
-#include "dicey/core/packet.h"
 #define _CRT_NONSTDC_NO_DEPRECATE 1
 #include <assert.h>
 #include <inttypes.h>
@@ -37,6 +36,59 @@
 #define DUMMY_ELEMENT "Bobbable"
 #define DUMMY_SIGNATURE "([b]bfeec${sv})"
 
+#define SELF_PATH "/dicey/sample_server"
+#define SELF_TRAIT "dicey.sample.Server"
+#define HALT_ELEMENT "Halt"
+#define HALT_SIGNATURE "u"
+
+static struct dicey_server *global_server = NULL;
+
+#if defined(_WIN32)
+
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+
+static BOOL quit_server(_In_ const DWORD dwCtrlType) {
+    (void) dwCtrlType;
+
+    if (global_server) {
+        const enum dicey_error err = dicey_server_stop(global_server);
+        assert(!err);
+        (void) err;
+    }
+
+    return TRUE;
+}
+
+static bool register_break_hook(void) {
+    return SetConsoleCtrlHandler(&quit_server, TRUE);
+}
+
+#elif defined(__unix__) || defined(__unix) || defined(unix) || (defined(__APPLE__) && defined(__MACH__))
+
+#include <unistd.h>
+
+static void quit_server(const int sig) {
+    (void) sig;
+
+    if (global_server) {
+        const enum dicey_error err = dicey_server_stop(global_server);
+        assert(!err);
+        (void) err;
+    }
+}
+
+static bool register_break_hook(void) {
+    struct sigaction sa = { 0 };
+    sa.sa_handler = &quit_server;
+    (void) sigemptyset(&sa.sa_mask);
+    sa.sa_flags = SA_RESTART;
+
+    return sigaction(SIGINT, &sa, NULL) == 0;
+}
+
+#endif
+
 static enum dicey_error registry_fill(struct dicey_registry *const registry) {
     assert(registry);
 
@@ -59,6 +111,19 @@ static enum dicey_error registry_fill(struct dicey_registry *const registry) {
         (struct dicey_element) { .type = DICEY_ELEMENT_TYPE_PROPERTY, .signature = SVAL_SIG },
         NULL
     );
+
+    if (err) {
+        return err;
+    }
+
+    err = dicey_registry_add_trait(
+        registry,
+        SELF_TRAIT,
+        HALT_ELEMENT,
+        (struct dicey_element) { .type = DICEY_ELEMENT_TYPE_OPERATION, .signature = HALT_SIGNATURE },
+        NULL
+    );
+
     if (err) {
         return err;
     }
@@ -69,6 +134,11 @@ static enum dicey_error registry_fill(struct dicey_registry *const registry) {
     }
 
     err = dicey_registry_add_object(registry, SVAL_PATH, SVAL_TRAIT, NULL);
+    if (err) {
+        return err;
+    }
+
+    err = dicey_registry_add_object(registry, SELF_PATH, SELF_TRAIT, NULL);
     if (err) {
         return err;
     }
@@ -231,6 +301,13 @@ static void on_request_received(
         if (err) {
             fprintf(stderr, "error: %s\n", dicey_error_name(err));
         }
+    } else if (!strcmp(msg.path, SELF_PATH) && !strcmp(msg.selector.trait, SELF_TRAIT) && !strcmp(msg.selector.elem, HALT_ELEMENT)) {
+        err = send_reply(server, cln, seq, msg.path, msg.selector, (struct dicey_arg) { .type = DICEY_TYPE_UNIT });
+        if (err) {
+            fprintf(stderr, "error: %s\n", dicey_error_name(err));
+        }
+
+        dicey_server_stop(server);
     }
 
     // this function receives a copy of the packet that must be freed
@@ -246,10 +323,8 @@ static enum dicey_error remove_socket_if_present(void) {
 #endif
 
 int main(void) {
-    struct dicey_server *server = NULL;
-
     enum dicey_error err = dicey_server_new(
-        &server,
+        &global_server,
         &(struct dicey_server_args) {
             .on_connect = &on_client_connect,
             .on_disconnect = &on_client_disconnect,
@@ -264,7 +339,7 @@ int main(void) {
         goto quit;
     }
 
-    err = registry_fill(dicey_server_get_registry(server));
+    err = registry_fill(dicey_server_get_registry(global_server));
     if (err) {
         fprintf(stderr, "registry_init: %s\n", dicey_error_name(err));
 
@@ -280,7 +355,11 @@ int main(void) {
     }
 #endif
 
-    err = dicey_server_start(server, PIPE_NAME, sizeof PIPE_NAME - 1U);
+    if (!register_break_hook()) {
+        fputs("warning: failed to register break hook. CTRL-C will not clean up the server properly\n", stderr);
+    }
+
+    err = dicey_server_start(global_server, PIPE_NAME, sizeof PIPE_NAME - 1U);
     if (err) {
         fprintf(stderr, "dicey_server_start: %s\n", dicey_error_name(err));
 
@@ -291,9 +370,9 @@ int main(void) {
 
 quit:
     // free any dummy string
-    free(dicey_server_get_context(server));
+    free(dicey_server_get_context(global_server));
 
-    dicey_server_delete(server);
+    dicey_server_delete(global_server);
 
     return err == DICEY_OK ? EXIT_SUCCESS : EXIT_FAILURE;
 }
