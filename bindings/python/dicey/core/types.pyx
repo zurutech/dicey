@@ -1,3 +1,5 @@
+# Copyright (c) 2014-2024 Zuru Tech HK Limited, All rights reserved.
+
 from dataclasses import dataclass as _dataclass
 
 from libc.stdint cimport INT16_MIN, INT16_MAX, INT32_MIN, INT32_MAX, INT64_MIN, INT64_MAX, \

@@ -1,3 +1,5 @@
+# Copyright (c) 2014-2024 Zuru Tech HK Limited, All rights reserved.
+
 from typing import Any as _Any, Callable as _Callable, Optional as _Optional
 
 from dicey.core import DiceyError, Operation, Path, Selector

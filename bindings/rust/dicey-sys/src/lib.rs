@@ -1,4 +1,7 @@
 #![allow(non_upper_case_globals)]
+
+// Copyright (c) 2014-2024 Zuru Tech HK Limited, All rights reserved.
+
 #![allow(non_camel_case_types)]
 #![allow(non_snake_case)]
 
