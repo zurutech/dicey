@@ -68,7 +68,7 @@ cdef class Client:
     def disconnect(self):
         _check(dicey_client_disconnect(self.client))
 
-    def exec(self, path: Path | str, selector: Selector | (str, str), arg: _Any, timeout_ms: int = DEFAULT_TIMEOUT_MS) -> _Any:
+    def exec(self, path: Path | str, selector: Selector | (str, str), arg: _Any = None, timeout_ms: int = DEFAULT_TIMEOUT_MS) -> _Any:
         return self.request(Message(Operation.EXEC, path, selector, arg), timeout_ms)
 
     def get(self, path: Path | str, selector: Selector | (str, str), timeout_ms: int = DEFAULT_TIMEOUT_MS) -> _Any:
