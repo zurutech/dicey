@@ -1,5 +1,6 @@
 // Copyright (c) 2014-2024 Zuru Tech HK Limited, All rights reserved.
 
+#include "util/packet-dump.h"
 #include <inttypes.h>
 #include <stdarg.h>
 #include <stdbool.h>
@@ -142,4 +143,14 @@ void quick_debug_dump(const void *const data, const size_t size) {
     };
 
     util_dumper_dump_hex(&dumper, data, size);
+}
+
+// unused in code, but useful when run from the GDB/LLDB shell
+void quick_pkt_dump(const struct dicey_packet pkt) {
+    struct util_dumper dumper = {
+        .dest = stdout,
+        .pad = 0U,
+    };
+
+    util_dumper_dump_packet(&dumper, pkt);
 }
