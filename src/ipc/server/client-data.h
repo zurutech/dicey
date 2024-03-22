@@ -45,9 +45,10 @@ uint32_t dicey_client_data_next_seq(struct dicey_client_data *client);
 struct dicey_client_list;
 
 struct dicey_client_data *const *dicey_client_list_begin(const struct dicey_client_list *list);
-struct dicey_client_data *const *dicey_client_list_end(const struct dicey_client_list *list);
 struct dicey_client_data *dicey_client_list_drop_client(struct dicey_client_list *list, size_t id);
+struct dicey_client_data *const *dicey_client_list_end(const struct dicey_client_list *list);
 struct dicey_client_data *dicey_client_list_get_client(const struct dicey_client_list *list, size_t id);
+bool dicey_client_list_is_empty(const struct dicey_client_list *list);
 struct dicey_client_data **dicey_client_list_new_bucket(
     struct dicey_client_list **list,
     struct dicey_client_data ***bucket_dest,
