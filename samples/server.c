@@ -276,12 +276,12 @@ static void on_request_received(
     }
 
     printf(
-        "info: received request #%" PRIu32 " from client %zu for `%s:%s@%s`\n",
+        "info: received request #%" PRIu32 " from client %zu for `%s#%s:%s`\n",
         seq,
         cln->id,
+        msg.path,
         msg.selector.trait,
-        msg.selector.elem,
-        msg.path
+        msg.selector.elem
     );
 
     struct util_dumper dumper = util_dumper_for(stdout);
