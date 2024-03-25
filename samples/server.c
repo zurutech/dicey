@@ -296,12 +296,14 @@ static void on_request_received(
         if (err) {
             fprintf(stderr, "error: %s\n", dicey_error_name(err));
         }
-    } else if (!strcmp(msg.path, SVAL_PATH) && !strcmp(msg.selector.trait, SVAL_TRAIT) && !strcmp(msg.selector.elem, SVAL_PROP)) {
+    } else if (!strcmp(msg.path, SVAL_PATH) && !strcmp(msg.selector.trait, SVAL_TRAIT) &&
+               !strcmp(msg.selector.elem, SVAL_PROP)) {
         err = on_sval_req(server, cln, seq, msg);
         if (err) {
             fprintf(stderr, "error: %s\n", dicey_error_name(err));
         }
-    } else if (!strcmp(msg.path, SELF_PATH) && !strcmp(msg.selector.trait, SELF_TRAIT) && !strcmp(msg.selector.elem, HALT_ELEMENT)) {
+    } else if (!strcmp(msg.path, SELF_PATH) && !strcmp(msg.selector.trait, SELF_TRAIT) &&
+               !strcmp(msg.selector.elem, HALT_ELEMENT)) {
         err = send_reply(server, cln, seq, msg.path, msg.selector, (struct dicey_arg) { .type = DICEY_TYPE_UNIT });
         if (err) {
             fprintf(stderr, "error: %s\n", dicey_error_name(err));
@@ -326,59 +328,60 @@ static enum dicey_error remove_socket_if_present(void) {
     default:
         return DICEY_EUV_UNKNOWN;
     }
+}
 #endif
 
-    int main(void) {
-        enum dicey_error err = dicey_server_new(
-            &global_server,
-            &(struct dicey_server_args) {
-                .on_connect = &on_client_connect,
-                .on_disconnect = &on_client_disconnect,
-                .on_error = &on_client_error,
-                .on_request = &on_request_received,
-            }
-        );
-
-        if (err) {
-            fprintf(stderr, "dicey_server_init: %s\n", dicey_error_name(err));
-
-            goto quit;
+int main(void) {
+    enum dicey_error err = dicey_server_new(
+        &global_server,
+        &(struct dicey_server_args) {
+            .on_connect = &on_client_connect,
+            .on_disconnect = &on_client_disconnect,
+            .on_error = &on_client_error,
+            .on_request = &on_request_received,
         }
+    );
 
-        err = registry_fill(dicey_server_get_registry(global_server));
-        if (err) {
-            fprintf(stderr, "registry_init: %s\n", dicey_error_name(err));
+    if (err) {
+        fprintf(stderr, "dicey_server_init: %s\n", dicey_error_name(err));
 
-            goto quit;
-        }
+        goto quit;
+    }
+
+    err = registry_fill(dicey_server_get_registry(global_server));
+    if (err) {
+        fprintf(stderr, "registry_init: %s\n", dicey_error_name(err));
+
+        goto quit;
+    }
 
 #if PIPE_NEEDS_CLEANUP
-        err = remove_socket_if_present();
-        if (err) {
-            fprintf(stderr, "uv_fs_unlink: %s\n", uv_err_name(err));
+    err = remove_socket_if_present();
+    if (err) {
+        fprintf(stderr, "uv_fs_unlink: %s\n", uv_err_name(err));
 
-            goto quit;
-        }
+        goto quit;
+    }
 #endif
 
-        if (!register_break_hook()) {
-            fputs("warning: failed to register break hook. CTRL-C will not clean up the server properly\n", stderr);
-        }
+    if (!register_break_hook()) {
+        fputs("warning: failed to register break hook. CTRL-C will not clean up the server properly\n", stderr);
+    }
 
-        err = dicey_server_start(global_server, PIPE_NAME, sizeof PIPE_NAME - 1U);
-        if (err) {
-            fprintf(stderr, "dicey_server_start: %s\n", dicey_error_name(err));
+    err = dicey_server_start(global_server, PIPE_NAME, sizeof PIPE_NAME - 1U);
+    if (err) {
+        fprintf(stderr, "dicey_server_start: %s\n", dicey_error_name(err));
 
-            goto quit;
-        }
+        goto quit;
+    }
 
-        uv_fs_unlink(NULL, &(uv_fs_t) { 0 }, PIPE_NAME, NULL);
+    uv_fs_unlink(NULL, &(uv_fs_t) { 0 }, PIPE_NAME, NULL);
 
 quit:
-        // free any dummy string
-        free(dicey_server_get_context(global_server));
+    // free any dummy string
+    free(dicey_server_get_context(global_server));
 
-        dicey_server_delete(global_server);
+    dicey_server_delete(global_server);
 
-        return err == DICEY_OK ? EXIT_SUCCESS : EXIT_FAILURE;
-    }
+    return err == DICEY_OK ? EXIT_SUCCESS : EXIT_FAILURE;
+}
