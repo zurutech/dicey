@@ -12,7 +12,7 @@ if os.name == 'nt':
     if _ldir.is_dir():
         os.add_dll_directory(_ldir)
 
-        os.environ['PATH'] += ';' + _ldir 
+        os.environ['PATH'] += ';' + str(_ldir) 
 
 from .core import *
 from .ipc  import *
