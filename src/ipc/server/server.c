@@ -49,16 +49,6 @@ struct loop_request {
     };
 };
 
-void loop_request_delete(void *const ctx, void *const ptr) {
-    (void) ctx;
-
-    struct loop_request *const req = ptr;
-    if (req) {
-        dicey_packet_deinit(&req->packet);
-        free(req);
-    }
-}
-
 enum server_state {
     SERVER_STATE_UNINIT,
     SERVER_STATE_INIT,
@@ -101,6 +91,16 @@ struct dicey_server {
 
     void *ctx;
 };
+
+static void loop_request_delete(void *const ctx, void *const ptr) {
+    (void) ctx;
+
+    struct loop_request *const req = ptr;
+    if (req) {
+        dicey_packet_deinit(&req->packet);
+        free(req);
+    }
+}
 
 static void on_write(uv_write_t *req, int status);
 

@@ -103,6 +103,32 @@ DICEY_EXPORT enum dicey_error dicey_message_builder_set_selector(
     struct dicey_selector selector
 );
 
+struct dicey_array_arg {
+    enum dicey_type type;          /**< Type of the array elements. */
+    uint16_t nitems;               /**< Number of items in the array. */
+    const struct dicey_arg *elems; /**< Children elements, which are required to be of type `type` */
+};
+
+struct dicey_bytes_arg {
+    uint32_t len;        /**< Length of the byte array. */
+    const uint8_t *data; /**< Byte array data. Note: must be alive for the entire lifetime of the argument */
+};
+
+struct dicey_error_arg {
+    uint16_t code;       /**< Error code (any value is fine, this is not defined yet)*/
+    const char *message; /**< Error message. Note: must be alive for the entire lifetime of the argument */
+};
+
+struct dicey_pair_arg {
+    const struct dicey_arg *first;  /**< First element of the pair. */
+    const struct dicey_arg *second; /**< Second element of the pair. */
+};
+
+struct dicey_tuple_arg {
+    uint16_t nitems;               /**< Number of items in the tuple. */
+    const struct dicey_arg *elems; /**< Children elements, which are represented as variants */
+};
+
 /**
  * @brief Sets the sequence number of a message builder.
  * @param builder Message builder. Must be initialised and in the correct state.
@@ -133,26 +159,13 @@ struct dicey_arg {
         dicey_u32 u32;        /**< 32-bit unsigned integer value. */
         dicey_u64 u64;        /**< 64-bit unsigned integer value. */
 
-        struct dicey_array_arg {
-            enum dicey_type type;          /**< Type of the array elements. */
-            uint16_t nitems;               /**< Number of items in the array. */
-            const struct dicey_arg *elems; /**< Children elements, which are required to be of type `type` */
-        } array;                           /**< Array value. */
+        struct dicey_array_arg array; /**< Array value. */
 
-        struct dicey_tuple_arg {
-            uint16_t nitems;               /**< Number of items in the tuple. */
-            const struct dicey_arg *elems; /**< Children elements, which are represented as variants */
-        } tuple;                           /**< Tuple value. */
+        struct dicey_tuple_arg tuple; /**< Tuple value. */
 
-        struct dicey_pair_arg {
-            const struct dicey_arg *first;  /**< First element of the pair. */
-            const struct dicey_arg *second; /**< Second element of the pair. */
-        } pair;                             /**< Pair value. Both values are represented as variants. */
+        struct dicey_pair_arg pair; /**< Pair value. Both values are represented as variants. */
 
-        struct dicey_bytes_arg {
-            uint32_t len;        /**< Length of the byte array. */
-            const uint8_t *data; /**< Byte array data. Note: must be alive for the entire lifetime of the argument */
-        } bytes;                 /**< Byte array value. */
+        struct dicey_bytes_arg bytes; /**< Byte array value. */
 
         /**< String value. Note: strings are never copied, and must be alive for the entire lifetime of the argument */
         const char *str;
@@ -162,10 +175,7 @@ struct dicey_arg {
          */
         struct dicey_selector selector;
 
-        struct dicey_error_arg {
-            uint16_t code;       /**< Error code (any value is fine, this is not defined yet)*/
-            const char *message; /**< Error message. Note: must be alive for the entire lifetime of the argument */
-        } error;                 /**< Error value. */
+        struct dicey_error_arg error; /**< Error value. */
     };
 };
 
