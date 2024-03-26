@@ -3,15 +3,37 @@
 import re
 import sys
 import argparse
+
 from argparse import ArgumentParser
+from dataclasses import astuple, dataclass
 from datetime import date
 from functools import reduce
 from operator import concat
 from pathlib import Path
+from typing import Optional
 
-NEW_NOTICE = f"// Copyright (c) 2014-{date.today().year} Zuru Tech HK Limited, All rights reserved."
-SUPPORTED_EXTENSIONS = ["h", "hh", "hpp", "c", "cc", "cpp", "cxx", "cs"]
-SKIP_STRING = "// open source, not our code"
+NOTICE_STR = f"Copyright (c) 2014-{date.today().year} Zuru Tech HK Limited, All rights reserved."
+
+NOTICES = {'c' : f'// {NOTICE_STR}', 'sh' : f'# {NOTICE_STR}'}
+
+CLIKE_EXTENSIONS = {".h", ".hh", ".hpp", ".c", ".cc", ".cpp", ".cxx", ".cs", ".rs", ".java", ".kt", ".go"}
+SHLIKE_EXTENSIONS = {".sh", ".pl", ".py", ".pyx", ".pxd", ".rb"}
+SKIP_STRINGS = {"// open source, not our code", "# open source, not our code"}
+
+PATTERNS = {
+    "c" : re.compile(r"(/\*.*?\*/)|(//[^\n]*\n)", re.S),
+    "sh" : re.compile(r"(#[^\n]*\n)", re.S),
+}
+
+
+@dataclass
+class ProbedFile:
+    tag: str
+    file: Path
+
+    def __iter__(self):
+        return iter(astuple(self))
+
 
 def get_arguments() -> argparse.Namespace:
     """CLI parser.
@@ -37,25 +59,56 @@ def get_file_list(args: list[str]) -> list[str]:
     fileList = []
     if args.folder != "-":
         root = Path(args.folder)
-        for ext in SUPPORTED_EXTENSIONS:
+        for ext in CLIKE_EXTENSIONS:
             for f in root.rglob(f"*.{ext}"):
-                fileList.append(f)
+                fileList.append(ProbedFile('c', f))
 
-    if len(args.files) > 0:
-        fileList.extend(args.files)
+        for ext in SHLIKE_EXTENSIONS:
+            for f in root.rglob(f"*.{ext}"):
+                fileList.sh.append(ProbedFile('sh', f))
+
+    fileList.extend(filter(None, map(lambda f: tag_file(Path(f)), args.files)))
 
     return fileList
+
+
+def match_comments(tag: str, content: str) -> list[str]:
+    comments = PATTERNS[tag].findall(content)
+
+    if comments and tag == "c":
+        comments = reduce(concat, [list(filter(None, x)) for x in comments])
+
+    return comments
+
+
+def should_skip(content: str) -> bool:
+    return any(skip_string in content for skip_string in SKIP_STRINGS)
+
+
+def split_shebang(content: str) -> tuple[str, str]:
+    if content.startswith("#!"):
+        shebang, content = content.split("\n", 1)
+
+        return shebang + '\n\n', content
+
+    return "", content
+
+
+def tag_file(file: Path) -> Optional[ProbedFile]:
+    if file.suffix in CLIKE_EXTENSIONS:
+        return ProbedFile("c", file)
+    elif file.suffix in SHLIKE_EXTENSIONS:
+        return ProbedFile("sh", file)
 
 
 def main() -> int:
     args = get_arguments()
     fileList = get_file_list(args)
-    pattern = re.compile(r"(/\*.*?\*/)|(//[^\n]*\n)", re.S)
 
     empty_files = []
     skipped_files = []
 
-    for f in fileList:
+    for (tag, f) in fileList:
         with open(f, "r+", encoding="utf-8") as fp:
             try:
                 original_content = content = fp.read()
@@ -67,21 +120,22 @@ def main() -> int:
                 empty_files.append(f)
                 continue
 
-            if content.startswith(SKIP_STRING):
+            if should_skip(content):
                 skipped_files.append(f)
                 continue
 
-            comments = pattern.findall(content)
+            comments = match_comments(tag, content)
             replaced = False
             if comments:
-                comments = reduce(concat, [list(filter(None, x)) for x in comments])
                 for comment in comments:
                     if "copyright" in comment.lower():
-                        content = content.replace(comment, f"{NEW_NOTICE}\n", 1)
+                        content = content.replace(comment, f"{NOTICES[tag]}\n", 1)
                         replaced = True
                         break
             if not comments or (not replaced and comments):
-                content = f"{NEW_NOTICE}\n\n" + content
+                shebang, content = split_shebang(content)
+
+                content = f"{shebang}{NOTICES[tag]}\n\n" + content
 
         # Write the new content with unix style EOL (otherwise, on windows it would be "\r\n")
         if original_content != content:

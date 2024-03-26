@@ -1,3 +1,5 @@
+# Copyright (c) 2014-2024 Zuru Tech HK Limited, All rights reserved.
+
 from libc.stddef cimport size_t
 
 from dicey.core cimport dicey_error

@@ -1,3 +1,5 @@
+# Copyright (c) 2014-2024 Zuru Tech HK Limited, All rights reserved.
+
 from typing import Any as _Any, Callable as _Callable, Optional as _Optional
 
 from dicey.core import DiceyError, Operation, Path, Selector
@@ -68,7 +70,7 @@ cdef class Client:
     def disconnect(self):
         _check(dicey_client_disconnect(self.client))
 
-    def exec(self, path: Path | str, selector: Selector | (str, str), arg: _Any, timeout_ms: int = DEFAULT_TIMEOUT_MS) -> _Any:
+    def exec(self, path: Path | str, selector: Selector | (str, str), arg: _Any = None, timeout_ms: int = DEFAULT_TIMEOUT_MS) -> _Any:
         return self.request(Message(Operation.EXEC, path, selector, arg), timeout_ms)
 
     def get(self, path: Path | str, selector: Selector | (str, str), timeout_ms: int = DEFAULT_TIMEOUT_MS) -> _Any:

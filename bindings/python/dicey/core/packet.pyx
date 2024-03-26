@@ -1,3 +1,5 @@
+# Copyright (c) 2014-2024 Zuru Tech HK Limited, All rights reserved.
+
 from dataclasses import dataclass as _dataclass
 from enum import Enum as _Enum
 import re as _re

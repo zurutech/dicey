@@ -28,29 +28,31 @@
 
 #include "client-data.h"
 
-struct send_request {
-    size_t target;
-    struct dicey_packet packet;
+enum loop_request_kind {
+    LOOP_REQ_SEND_PACKET,
+    LOOP_REQ_KICK_CLIENT,
+    LOOP_REQ_STOP_SERVER,
 };
 
-struct send_request *make_request(size_t target, struct dicey_packet packet) {
-    struct send_request *const req = malloc(sizeof *req);
-    if (!req) {
-        return NULL;
-    }
+struct loop_request {
+    enum loop_request_kind kind;
 
-    *req = (struct send_request) {
-        .target = target,
-        .packet = packet,
+    size_t target;
+
+    uv_sem_t *sem;
+    enum dicey_error err;
+
+    union {
+        enum dicey_bye_reason kick_reason;
+
+        struct dicey_packet packet;
     };
+};
 
-    return req;
-}
-
-void free_request(void *const ctx, void *const ptr) {
+void loop_request_delete(void *const ctx, void *const ptr) {
     (void) ctx;
 
-    struct send_request *const req = ptr;
+    struct loop_request *const req = ptr;
     if (req) {
         dicey_packet_deinit(&req->packet);
         free(req);
@@ -61,7 +63,7 @@ enum server_state {
     SERVER_STATE_UNINIT,
     SERVER_STATE_INIT,
     SERVER_STATE_RUNNING,
-    SERVER_STATE_DEAD,
+    SERVER_STATE_QUITTING,
 };
 
 struct write_request {
@@ -78,6 +80,11 @@ struct dicey_server {
     uv_pipe_t pipe;
 
     _Atomic enum server_state state;
+
+    // super ugly way to unlock the callers of dicey_server_stop when the server is actually stopped
+    // avoiding this would probably require to use the same task system the client uses - which is way more complex than
+    // whatever the server needs
+    uv_sem_t *shutdown_hook;
 
     uv_loop_t loop;
     uv_async_t async;
@@ -222,7 +229,6 @@ static enum dicey_error server_sendpkt(
             return TRACE(DICEY_EINVAL);
         }
     }
-
     enum dicey_error err = DICEY_OK;
 
     struct write_request *const req = malloc(sizeof *req);
@@ -285,21 +291,85 @@ static ptrdiff_t server_add_client(struct dicey_server *const server, struct dic
     return client->info.id;
 }
 
+static enum dicey_error server_submit_request(struct dicey_server *const server, struct loop_request *const req) {
+    assert(server && req);
+
+    const bool success = dicey_queue_push(&server->queue, req, DICEY_LOCKING_POLICY_BLOCKING);
+
+    assert(success);
+    (void) success; // suppress unused variable warning with NDEBUG and MSVC
+
+    return dicey_error_from_uv(uv_async_send(&server->async));
+}
+
+static enum dicey_error server_blocking_request(
+    struct dicey_server *const server,
+    struct loop_request *const req // must be malloc'd, and will be freed by this function
+) {
+    assert(server && req);
+
+    uv_sem_t sem = { 0 };
+    uv_sem_init(&sem, 0);
+
+    req->sem = &sem;
+
+    enum dicey_error err = server_submit_request(server, req);
+
+    // there is no way async send can fail, honestly, and it if does, there is no possible way to recover
+    assert(!err);
+    (void) err; // suppress unused variable warning with NDEBUG and MSVC
+
+    uv_sem_wait(&sem);
+
+    uv_sem_destroy(&sem);
+
+    err = req->err;
+    free(req);
+
+    return err;
+}
+
+static void server_shutdown_at_end(uv_handle_t *const handle) {
+    struct dicey_server *const server = (struct dicey_server *) handle;
+
+    uv_stop(&server->loop);
+
+    if (server->shutdown_hook) {
+        // clean the shutdown hook before posting
+        uv_sem_t *const sem = server->shutdown_hook;
+
+        server->shutdown_hook = NULL;
+
+        uv_sem_post(sem);
+    }
+}
+
+static void server_close_pipe(uv_handle_t *const handle) {
+    struct dicey_server *const server = handle->data; // the async handle, which has the server as data
+
+    uv_close((uv_handle_t *) &server->pipe, &server_shutdown_at_end);
+}
+
+static enum dicey_error server_finalize_shutdown(struct dicey_server *const server) {
+    assert(server && server->state == SERVER_STATE_QUITTING);
+
+    dicey_queue_deinit(&server->queue, &loop_request_delete, NULL);
+
+    uv_close((uv_handle_t *) &server->async, &server_close_pipe);
+
+    return DICEY_OK;
+}
+
 static enum dicey_error server_kick_client(
     struct dicey_server *const server,
-    const size_t id,
+    struct dicey_client_data *const client,
     const enum dicey_bye_reason reason
 ) {
     assert(server);
 
-    struct dicey_client_data *const client = dicey_client_list_get_client(server->clients, id);
-    if (!client) {
-        return TRACE(DICEY_EINVAL);
-    }
-
     struct dicey_packet packet = { 0 };
     enum dicey_error err = dicey_packet_bye(&packet, dicey_client_data_next_seq(client), reason);
-    if (!err) {
+    if (err) {
         return err;
     }
 
@@ -338,6 +408,32 @@ static enum dicey_error server_report_error(
     }
 
     return server_sendpkt(server, client, packet);
+}
+
+static enum dicey_error server_shutdown(struct dicey_server *const server) {
+    assert(server && server->state == SERVER_STATE_RUNNING);
+
+    server->state = SERVER_STATE_QUITTING;
+
+    struct dicey_client_data *const *const end = dicey_client_list_end(server->clients);
+
+    enum dicey_error err = DICEY_OK;
+
+    bool empty = true;
+
+    for (struct dicey_client_data *const *client = dicey_client_list_begin(server->clients); client < end; ++client) {
+        if (*client) {
+            empty = false;
+
+            const enum dicey_error kick_err = server_kick_client(server, *client, DICEY_BYE_REASON_SHUTDOWN);
+
+            err = kick_err ? kick_err : err;
+        }
+    }
+
+    // avoid deadlocks: if there are no clients, we can finalize the shutdown immediately without wating for all byes to
+    // be sent
+    return empty ? server_finalize_shutdown(server) : err;
 }
 
 static ptrdiff_t client_got_bye(struct dicey_client_data *client, const struct dicey_bye bye) {
@@ -457,7 +553,7 @@ static enum dicey_error client_raised_error(struct dicey_client_data *client, co
 
     server->on_error(server, err, &client->info, "client error: %s", dicey_error_name(err));
 
-    return server_kick_client(server, client->info.id, DICEY_BYE_REASON_ERROR);
+    return server_kick_client(server, client, DICEY_BYE_REASON_ERROR);
 }
 
 static enum dicey_error client_got_packet(struct dicey_client_data *client, struct dicey_packet packet) {
@@ -479,6 +575,9 @@ static enum dicey_error client_got_packet(struct dicey_client_data *client, stru
             DICEY_ASSUME(dicey_packet_as_hello(packet, &hello));
 
             err = client_got_hello(client, seq, hello);
+
+            dicey_packet_deinit(&packet);
+
             break;
         }
 
@@ -489,6 +588,9 @@ static enum dicey_error client_got_packet(struct dicey_client_data *client, stru
             DICEY_ASSUME(dicey_packet_as_bye(packet, &bye));
 
             err = client_got_bye(client, bye);
+
+            dicey_packet_deinit(&packet);
+
             break;
         }
 
@@ -534,6 +636,19 @@ static void on_write(uv_write_t *const req, const int status) {
 
     dicey_packet_deinit(&write_req->packet);
     free(write_req);
+
+    if (server->state == SERVER_STATE_QUITTING && dicey_client_list_is_empty(server->clients)) {
+        // all clients have been freed. We can now close the server
+        const enum dicey_error err = server_finalize_shutdown(server);
+
+        if (err) {
+            server->on_error(server, err, NULL, "server_finalize_shutdown: %s\n", dicey_error_name(err));
+
+            if (server->shutdown_hook) {
+                uv_sem_post(server->shutdown_hook);
+            }
+        }
+    }
 }
 
 static void alloc_buffer(uv_handle_t *const handle, const size_t suggested_size, uv_buf_t *const buf) {
@@ -572,6 +687,11 @@ static void on_read(uv_stream_t *const stream, const ssize_t nread, const uv_buf
         return;
     }
 
+    if (server->state != SERVER_STATE_RUNNING) {
+        // ignore inbound packets while shutting down
+        return;
+    }
+
     struct dicey_chunk *const chunk = client->chunk;
 
     // mark the first nread bytes of the chunk as taken
@@ -601,7 +721,7 @@ static void on_read(uv_stream_t *const stream, const ssize_t nread, const uv_buf
     }
 }
 
-static void data_available(uv_async_t *const async) {
+static void loop_request_inbound(uv_async_t *const async) {
     assert(async && async->data);
 
     struct dicey_server *const server = async->data;
@@ -612,42 +732,65 @@ static void data_available(uv_async_t *const async) {
     while (dicey_queue_pop(&server->queue, &item, DICEY_LOCKING_POLICY_NONBLOCKING)) {
         assert(item);
 
-        struct send_request req = *(struct send_request *) item;
-        free(item);
+        struct loop_request *const req = item;
 
-        struct dicey_client_data *const client = dicey_client_list_get_client(server->clients, req.target);
+        req->err = DICEY_OK;
 
-        if (client) {
-            if (req.packet.nbytes > UINT_MAX) {
-                dicey_packet_deinit(&req.packet);
-                server->on_error(server, DICEY_EOVERFLOW, &client->info, "packet too large");
+        struct dicey_client_data *const client =
+            req->kind != LOOP_REQ_STOP_SERVER ? dicey_client_list_get_client(server->clients, req->target) : NULL;
 
-                continue;
+        switch (req->kind) {
+        case LOOP_REQ_SEND_PACKET:
+            {
+                assert(dicey_packet_is_valid(req->packet));
+
+                if (client) {
+                    req->err = server_sendpkt(server, client, req->packet);
+                } else {
+                    req->err = DICEY_EPEER_NOT_FOUND;
+                }
+
+                break;
             }
 
-            struct write_request *const write_req = malloc(sizeof *write_req);
-            if (!write_req) {
-                dicey_packet_deinit(&req.packet);
+        case LOOP_REQ_KICK_CLIENT:
+            {
+                req->err = server_kick_client(server, client, req->kick_reason);
 
-                continue;
+                break;
             }
 
-            *write_req = (struct write_request) {
-                .server = server,
-                .client_id = client->info.id,
-                .packet = req.packet,
-            };
+        case LOOP_REQ_STOP_SERVER:
+            {
+                server->shutdown_hook = req->sem;
+                req->err = server_shutdown(server);
 
-            uv_buf_t buf = uv_buf_init(req.packet.payload, (unsigned int) req.packet.nbytes);
+                if (!req->err) {
+                    // do not unlock anything here - it will be done later, when an actual shutdown happens
+                    if (!req->sem) {
+                        // there's nobody wating for this, so we must delete it
+                        free(req);
+                    }
 
-            const int err = uv_write((uv_write_t *) write_req, (uv_stream_t *) client, &buf, 1, &on_write);
-            if (err) {
-                server->on_error(server, dicey_error_from_uv(err), &client->info, "uv_write: %s", uv_strerror(err));
+                    return;
+                }
 
-                free(write_req);
-                dicey_packet_deinit(&req.packet);
+                // if the request did not go through, go forward and unlock the caller
+                break;
             }
         }
+
+        if (req->sem) {
+            // signal the waiting thread that the request has been processed
+            // this should not happen with STOP_SERVER, unless an early error happens - we want the request to return
+            // only when the server _actually_ stops that's why the case above has a return statement
+
+            uv_sem_post(req->sem);
+        }
+
+        free(req); // the packet, if any, will be freed in on_write
+
+        // don't free the request here, it's the responsibility of the caller
     }
 }
 
@@ -715,21 +858,9 @@ void dicey_server_delete(struct dicey_server *const server) {
         return;
     }
 
-    struct dicey_client_data *const *const end = dicey_client_list_end(server->clients);
-
-    for (struct dicey_client_data *const *client = dicey_client_list_begin(server->clients); client < end; ++client) {
-        uv_close((uv_handle_t *) *client, NULL);
-
-        free(*client);
+    if (server->state == SERVER_STATE_RUNNING) {
+        (void) dicey_server_stop_and_wait(server);
     }
-
-    uv_close((uv_handle_t *) &server->pipe, NULL);
-    uv_close((uv_handle_t *) &server->async, NULL);
-
-    // give the callbacks time to be run
-    uv_run(&server->loop, UV_RUN_ONCE);
-
-    dicey_queue_deinit(&server->queue, &free_request, NULL);
 
     const int uverr = uv_loop_close(&server->loop);
     assert(uverr != UV_EBUSY);
@@ -750,8 +881,6 @@ enum dicey_error dicey_server_new(struct dicey_server **const dest, const struct
     }
 
     *server = (struct dicey_server) {
-        .state = SERVER_STATE_INIT,
-
         .on_error = &dummy_error_handler,
 
         .clients = NULL,
@@ -788,7 +917,7 @@ enum dicey_error dicey_server_new(struct dicey_server **const dest, const struct
         goto free_loop;
     }
 
-    uverr = uv_async_init(&server->loop, &server->async, &data_available);
+    uverr = uv_async_init(&server->loop, &server->async, &loop_request_inbound);
     if (uverr < 0) {
         err = dicey_error_from_uv(uverr);
 
@@ -812,7 +941,7 @@ free_async:
     uv_close((uv_handle_t *) &server->async, NULL);
 
 free_queue:
-    dicey_queue_deinit(&server->queue, &free_request, NULL);
+    dicey_queue_deinit(&server->queue, &loop_request_delete, NULL);
 
 free_loop:
     uv_loop_close(&server->loop);
@@ -837,6 +966,22 @@ struct dicey_registry *dicey_server_get_registry(struct dicey_server *const serv
     return server->state <= SERVER_STATE_INIT ? &server->registry : NULL;
 }
 
+enum dicey_error dicey_server_kick(struct dicey_server *const server, const size_t id) {
+    assert(server);
+
+    struct loop_request *const req = malloc(sizeof *req);
+    if (!req) {
+        return TRACE(DICEY_ENOMEM);
+    }
+
+    *req = (struct loop_request) {
+        .kind = LOOP_REQ_KICK_CLIENT,
+        .target = id,
+    };
+
+    return server_blocking_request(server, req);
+}
+
 enum dicey_error dicey_server_send(
     struct dicey_server *const server,
     const size_t id,
@@ -852,22 +997,47 @@ enum dicey_error dicey_server_send(
         return TRACE(DICEY_EINVAL);
     }
 
-    struct send_request *const req = malloc(sizeof *req);
+    struct loop_request *const req = malloc(sizeof *req);
     if (!req) {
         return TRACE(DICEY_ENOMEM);
     }
 
-    *req = (struct send_request) {
+    *req = (struct loop_request) {
+        .kind = LOOP_REQ_SEND_PACKET,
         .target = id,
         .packet = packet,
     };
 
-    const bool success = dicey_queue_push(&server->queue, req, DICEY_LOCKING_POLICY_BLOCKING);
+    return server_submit_request(server, req);
+}
 
-    assert(success);
-    (void) success; // suppress unused variable warning with NDEBUG and MSVC
+enum dicey_error dicey_server_send_and_wait(
+    struct dicey_server *const server,
+    const size_t id,
+    const struct dicey_packet packet
+) {
+    assert(server);
 
-    return dicey_error_from_uv(uv_async_send(&server->async));
+    if (!packet.nbytes || !packet.payload) {
+        return TRACE(DICEY_EINVAL);
+    }
+
+    if (!is_server_msg(packet)) {
+        return TRACE(DICEY_EINVAL);
+    }
+
+    struct loop_request *const req = malloc(sizeof *req);
+    if (!req) {
+        return TRACE(DICEY_ENOMEM);
+    }
+
+    *req = (struct loop_request) {
+        .kind = LOOP_REQ_SEND_PACKET,
+        .target = id,
+        .packet = packet,
+    };
+
+    return server_blocking_request(server, req);
 }
 
 void *dicey_server_set_context(struct dicey_server *const server, void *const new_context) {
@@ -894,15 +1064,56 @@ enum dicey_error dicey_server_start(struct dicey_server *const server, const cha
         goto quit;
     }
 
-    err = uv_run(&server->loop, UV_RUN_DEFAULT);
+    server->state = SERVER_STATE_RUNNING;
 
+    err = uv_run(&server->loop, UV_RUN_DEFAULT);
     if (err < 0) {
         goto quit;
     }
 
-    // the loop terminated. Free everything and quit
-    dicey_server_delete(server);
+    server->state = SERVER_STATE_INIT;
 
 quit:
     return dicey_error_from_uv(err);
+}
+
+enum dicey_error dicey_server_stop(struct dicey_server *const server) {
+    assert(server);
+
+    struct loop_request *const req = malloc(sizeof *req);
+    if (!req) {
+        return TRACE(DICEY_ENOMEM);
+    }
+
+    *req = (struct loop_request) {
+        .kind = LOOP_REQ_STOP_SERVER,
+    };
+
+    const enum dicey_error err = server_submit_request(server, req);
+    if (err) {
+        free(req);
+
+        return err;
+    }
+
+    return DICEY_OK;
+}
+
+enum dicey_error dicey_server_stop_and_wait(struct dicey_server *const server) {
+    assert(server);
+
+    if (server->state != SERVER_STATE_RUNNING) {
+        return TRACE(DICEY_EINVAL);
+    }
+
+    struct loop_request *const req = malloc(sizeof *req);
+    if (!req) {
+        return TRACE(DICEY_ENOMEM);
+    }
+
+    *req = (struct loop_request) {
+        .kind = LOOP_REQ_STOP_SERVER,
+    };
+
+    return server_blocking_request(server, req);
 }

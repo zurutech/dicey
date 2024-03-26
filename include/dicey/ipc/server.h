@@ -55,11 +55,20 @@ struct dicey_server_args {
 DICEY_EXPORT void dicey_server_delete(struct dicey_server *state);
 DICEY_EXPORT enum dicey_error dicey_server_new(struct dicey_server **dest, const struct dicey_server_args *args);
 
+DICEY_EXPORT enum dicey_error dicey_server_close(struct dicey_server *server);
 DICEY_EXPORT void *dicey_server_get_context(struct dicey_server *server);
 DICEY_EXPORT struct dicey_registry *dicey_server_get_registry(struct dicey_server *server);
+DICEY_EXPORT enum dicey_error dicey_server_kick(struct dicey_server *server, size_t id);
 DICEY_EXPORT enum dicey_error dicey_server_send(struct dicey_server *server, size_t id, struct dicey_packet packet);
+DICEY_EXPORT enum dicey_error dicey_server_send_and_wait(
+    struct dicey_server *server,
+    size_t id,
+    struct dicey_packet packet
+);
 DICEY_EXPORT void *dicey_server_set_context(struct dicey_server *server, void *new_context);
 DICEY_EXPORT enum dicey_error dicey_server_start(struct dicey_server *server, const char *name, size_t len);
+DICEY_EXPORT enum dicey_error dicey_server_stop(struct dicey_server *server);
+DICEY_EXPORT enum dicey_error dicey_server_stop_and_wait(struct dicey_server *server);
 
 #if defined(__cplusplus)
 }

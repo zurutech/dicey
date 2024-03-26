@@ -100,6 +100,20 @@ struct dicey_client_data *const *dicey_client_list_end(const struct dicey_client
     return list ? list->clients + list->cap : NULL;
 }
 
+bool dicey_client_list_is_empty(const struct dicey_client_list *const list) {
+    if (list) {
+        struct dicey_client_data *const *const end = dicey_client_list_end(list);
+
+        for (struct dicey_client_data *const *it = dicey_client_list_begin(list); it != end; ++it) {
+            if (*it) {
+                return false;
+            }
+        }
+    }
+
+    return true;
+}
+
 struct dicey_client_data *dicey_client_list_get_client(const struct dicey_client_list *const list, const size_t id) {
     if (list && id < list->cap) {
         return list->clients[id];

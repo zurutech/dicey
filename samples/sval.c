@@ -168,7 +168,7 @@ static int do_op(const char *const addr, const char *const value, const enum req
                         if (dicey_value_get_str(&msg.value, &str) == DICEY_OK) {
                             assert(str);
 
-                            printf(SVAL_TRAIT ":" SVAL_PROP "@" SVAL_PATH " = \"%s\"\n", *str ? str : "(empty)");
+                            printf(SVAL_PATH "#" SVAL_TRAIT ":" SVAL_PROP " = \"%s\"\n", *str ? str : "(empty)");
                         } else {
                             fputs("error: received malformed reply\n", stderr);
                         }

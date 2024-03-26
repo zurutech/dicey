@@ -1,3 +1,5 @@
+# Copyright (c) 2014-2024 Zuru Tech HK Limited, All rights reserved.
+
 from libc.stdint cimport uint32_t
 
 from libcpp cimport bool as c_bool

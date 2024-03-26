@@ -1,3 +1,5 @@
+# Copyright (c) 2014-2024 Zuru Tech HK Limited, All rights reserved.
+
 from collections.abc import Iterable as _Iterable
 from dataclasses import dataclass as _dataclass
 from typing import Callable as _Callable

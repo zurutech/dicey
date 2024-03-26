@@ -1,3 +1,5 @@
+# Copyright (c) 2014-2024 Zuru Tech HK Limited, All rights reserved.
+
 from collections.abc import Callable as _Callable
 from dataclasses import dataclass as _dataclass
 

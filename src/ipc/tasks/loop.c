@@ -100,17 +100,21 @@ static bool step_task(
 
     switch (result.kind) {
     case DICEY_TASK_CONTINUE:
+    case DICEY_TASK_NEXT:
         assert(!result.error);
 
         ++task->work;
 
         if (!*task->work) {
+            assert(result.kind == DICEY_TASK_CONTINUE); // NEXT must always have a next step
+
             complete_task(tloop, id, task, NULL);
 
             return true;
         }
 
-        return false;
+        // if the task returned DICEY_TASK_NEXT, it means it's ready to run the next step (with no input)
+        return result.kind == DICEY_TASK_NEXT ? step_task(tloop, id, task, NULL) : false;
 
     case DICEY_TASK_ERROR:
         fail_task(tloop, id, task, result.error);
@@ -501,6 +505,10 @@ struct dicey_task_result dicey_task_fail(const enum dicey_error error, const cha
 
 struct dicey_task_result dicey_task_fail_with(struct dicey_task_error *const err) {
     return (struct dicey_task_result) { .kind = DICEY_TASK_ERROR, .error = err };
+}
+
+struct dicey_task_result dicey_task_next(void) {
+    return (struct dicey_task_result) { .kind = DICEY_TASK_NEXT };
 }
 
 struct dicey_task_result dicey_task_retry(void) {

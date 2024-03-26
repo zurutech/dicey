@@ -1,3 +1,5 @@
+# Copyright (c) 2014-2024 Zuru Tech HK Limited, All rights reserved.
+
 import sys as _sys
 
 from .errors cimport dicey_error, dicey_error_def, dicey_error_infos
