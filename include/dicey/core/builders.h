@@ -283,6 +283,13 @@ DICEY_EXPORT enum dicey_error dicey_value_builder_array_start(
 DICEY_EXPORT enum dicey_error dicey_value_builder_array_end(struct dicey_value_builder *builder);
 
 /**
+ * @brief Checks if a value builder is in a "list" state.
+ * @param builder The value builder to check.
+ * @return True if the value builder is in a "list" state, false otherwise.
+ */
+DICEY_EXPORT bool dicey_value_builder_is_list(const struct dicey_value_builder *builder);
+
+/**
  * @brief Moves to the next element in a value builder locked on a "list" state (i.e. array or tuple).
  * @param list The value builder of the list. Must be in a "list" state.
  * @param elem An empty value builder for the next element. If the list is an array, it will be pre-filled with the

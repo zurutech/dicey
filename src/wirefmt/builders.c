@@ -404,6 +404,14 @@ enum dicey_error dicey_value_builder_array_end(struct dicey_value_builder *const
     return DICEY_OK;
 }
 
+bool dicey_value_builder_is_list(const struct dicey_value_builder *const builder) {
+    assert(valbuilder_is_valid(builder));
+
+    const enum builder_state state = builder_state_get(builder);
+
+    return state == BUILDER_STATE_ARRAY || state == BUILDER_STATE_PAIR || state == BUILDER_STATE_TUPLE;
+}
+
 enum dicey_error dicey_value_builder_next(
     struct dicey_value_builder *const builder,
     struct dicey_value_builder *const elem
