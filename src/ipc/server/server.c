@@ -19,6 +19,7 @@
 #include <dicey/ipc/server.h>
 #include <dicey/ipc/traits.h>
 
+#include "dicey/ipc/address.h"
 #include "sup/assume.h"
 #include "sup/trace.h"
 
@@ -1049,10 +1050,10 @@ void *dicey_server_set_context(struct dicey_server *const server, void *const ne
     return old_context;
 }
 
-enum dicey_error dicey_server_start(struct dicey_server *const server, const char *const name, const size_t len) {
-    assert(server && name && len);
+enum dicey_error dicey_server_start(struct dicey_server *const server, const struct dicey_addr addr) {
+    assert(server && addr.addr && addr.len);
 
-    int err = uv_pipe_bind2(&server->pipe, name, len, 0U);
+    int err = uv_pipe_bind2(&server->pipe, addr.addr, addr.len, 0U);
 
     if (err < 0) {
         goto quit;

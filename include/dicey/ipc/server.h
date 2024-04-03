@@ -10,6 +10,7 @@
 #include "../core/packet.h"
 #include "../core/type.h"
 
+#include "address.h"
 #include "registry.h"
 
 #include "dicey_export.h"
@@ -66,7 +67,7 @@ DICEY_EXPORT enum dicey_error dicey_server_send_and_wait(
     struct dicey_packet packet
 );
 DICEY_EXPORT void *dicey_server_set_context(struct dicey_server *server, void *new_context);
-DICEY_EXPORT enum dicey_error dicey_server_start(struct dicey_server *server, const char *name, size_t len);
+DICEY_EXPORT enum dicey_error dicey_server_start(struct dicey_server *server, struct dicey_addr addr);
 DICEY_EXPORT enum dicey_error dicey_server_stop(struct dicey_server *server);
 DICEY_EXPORT enum dicey_error dicey_server_stop_and_wait(struct dicey_server *server);
 

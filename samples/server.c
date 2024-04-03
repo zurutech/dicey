@@ -1,5 +1,6 @@
 // Copyright (c) 2014-2024 Zuru Tech HK Limited, All rights reserved.
 
+#include "dicey/ipc/address.h"
 #define _CRT_NONSTDC_NO_DEPRECATE 1
 #include <assert.h>
 #include <inttypes.h>
@@ -24,7 +25,7 @@
 #if defined(_WIN32)
 #define PIPE_NAME "\\\\.\\pipe\\uvsock"
 #else
-#define PIPE_NAME "\0/tmp/.uvsock"
+#define PIPE_NAME "@/tmp/.uvsock"
 #endif
 #else
 #define PIPE_NEEDS_CLEANUP true
@@ -296,14 +297,12 @@ static void on_request_received(
         if (err) {
             fprintf(stderr, "error: %s\n", dicey_error_name(err));
         }
-    } else if (!strcmp(msg.path, SVAL_PATH) && !strcmp(msg.selector.trait, SVAL_TRAIT) &&
-               !strcmp(msg.selector.elem, SVAL_PROP)) {
+    } else if (!strcmp(msg.path, SVAL_PATH) && !strcmp(msg.selector.trait, SVAL_TRAIT) && !strcmp(msg.selector.elem, SVAL_PROP)) {
         err = on_sval_req(server, cln, seq, msg);
         if (err) {
             fprintf(stderr, "error: %s\n", dicey_error_name(err));
         }
-    } else if (!strcmp(msg.path, SELF_PATH) && !strcmp(msg.selector.trait, SELF_TRAIT) &&
-               !strcmp(msg.selector.elem, HALT_ELEMENT)) {
+    } else if (!strcmp(msg.path, SELF_PATH) && !strcmp(msg.selector.trait, SELF_TRAIT) && !strcmp(msg.selector.elem, HALT_ELEMENT)) {
         err = send_reply(server, cln, seq, msg.path, msg.selector, (struct dicey_arg) { .type = DICEY_TYPE_UNIT });
         if (err) {
             fprintf(stderr, "error: %s\n", dicey_error_name(err));
@@ -368,7 +367,15 @@ int main(void) {
         fputs("warning: failed to register break hook. CTRL-C will not clean up the server properly\n", stderr);
     }
 
-    err = dicey_server_start(global_server, PIPE_NAME, sizeof PIPE_NAME - 1U);
+    struct dicey_addr addr = { 0 };
+
+    if (!dicey_addr_from_str(&addr, PIPE_NAME)) {
+        fprintf(stderr, "error: addr_from failed\n");
+
+        goto quit;
+    }
+
+    err = dicey_server_start(global_server, addr);
     if (err) {
         fprintf(stderr, "dicey_server_start: %s\n", dicey_error_name(err));
 
