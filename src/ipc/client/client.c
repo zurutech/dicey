@@ -861,7 +861,7 @@ static bool client_process_event_va(
 
             const enum dicey_bye_reason bye_reason = va_arg(args, enum dicey_bye_reason);
             if (bye_reason == DICEY_BYE_REASON_ERROR) {
-                return client_process_event(ev, client, DICEY_CLIENT_EVENT_ERROR, "kicked by server");
+                return client_process_event(ev, client, DICEY_CLIENT_EVENT_ERROR, DICEY_ECONNRESET, "kicked by server");
             } else {
                 // raise the event
                 client_set_state(client, CLIENT_STATE_DEAD);
@@ -891,8 +891,6 @@ static bool client_process_event_va(
     default:
         abort(); // unreachable, dicey_client_event_type is an enum
     }
-
-    va_end(args);
 
     return true;
 }

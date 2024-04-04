@@ -317,6 +317,8 @@ enum dicey_error dicey_registry_add_trait(struct dicey_registry *const registry,
         if (add_err) {
             dicey_trait_delete(trait);
 
+            va_end(ap);
+
             return add_err;
         }
     }
