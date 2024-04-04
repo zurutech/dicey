@@ -26,6 +26,13 @@ option(BUILD_SHARED_LIBS "Build using shared libraries" ON)
 option(BUILD_LIBXML2 "Always build libxml2 from source" OFF)
 option(BUILD_UV "Always build libuv from source" OFF)
 
+option(USE_VENDORED_LIBS "Use vendored libraries (implies BUILD_LIBXML2 and BUILD_UV)" OFF)
+
+if (USE_VENDORED_LIBS)
+    set(BUILD_LIBXML2 ON)
+    set(BUILD_UV ON)
+endif()
+
 add_library(${PROJECT_NAME})
 
 if (MSVC)
