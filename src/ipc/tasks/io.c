@@ -89,6 +89,10 @@ struct dicey_task_error *perform_write(
     assert(tloop && stream && buf.base && buf.len);
 
     struct write_op *const write = malloc(sizeof(*write));
+    if (!write) {
+        // this will almost certainly fail too, but we can't do anything about it
+        return dicey_task_error_new(DICEY_ENOMEM, "failed to allocate write operation");
+    }
 
     *write = (struct write_op) {
         .cookie = {tloop, id},
@@ -113,6 +117,10 @@ struct dicey_task_error *dicey_task_op_close(
     assert(tloop && handle && !handle->data);
 
     struct task_cookie *const tcookie = malloc(sizeof *tcookie);
+    if (!tcookie) {
+        // this will almost certainly fail too, but we can't do anything about it
+        return dicey_task_error_new(DICEY_ENOMEM, "failed to allocate close operation");
+    }
 
     *tcookie = (struct task_cookie) { tloop, id };
 
@@ -141,6 +149,10 @@ struct dicey_task_error *dicey_task_op_connect_pipe(
     }
 
     struct connect_op *const conn = malloc(sizeof(*conn));
+    if (!conn) {
+        // this will almost certainly fail too, but we can't do anything about it
+        return dicey_task_error_new(DICEY_ENOMEM, "failed to allocate connect operation");
+    }
 
     *conn = (struct connect_op) {
         .cookie = {tloop, id},

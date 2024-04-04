@@ -46,6 +46,9 @@ uv_buf_t dicey_chunk_get_buf(struct dicey_chunk **const buf, const size_t min) {
     }
 
     struct dicey_chunk *const cnk = *buf;
+    if (!cnk) {
+        return uv_buf_init(NULL, 0U);
+    }
 
     return uv_buf_init(cnk->bytes + cnk->len, avail > UINT_MAX ? UINT_MAX : (unsigned int) avail);
 }
