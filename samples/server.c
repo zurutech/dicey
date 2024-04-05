@@ -375,6 +375,8 @@ int main(void) {
         goto quit;
     }
 
+    puts("starting Dicey sample server on " PIPE_NAME "...");
+
     err = dicey_server_start(global_server, addr);
     if (err) {
         fprintf(stderr, "dicey_server_start: %s\n", dicey_error_name(err));
