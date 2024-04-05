@@ -307,6 +307,24 @@
             "configuration": "Debug"
         },
         {
+            "name": "debug-vendored",
+            "displayName": "Full debug build, with samples and vendored dependencies",
+            "configurePreset": "debug-vendored",
+            "configuration": "Debug"
+        },
+        {
+            "name": "debug-static",
+            "displayName": "Full debug build (static), with samples and automatic probing of dependencies",
+            "configurePreset": "debug-static",
+            "configuration": "Debug"
+        },
+        {
+            "name": "debug-static-vendored",
+            "displayName": "Full debug build (static), with samples and vendored dependencies",
+            "configurePreset": "debug-static-vendored",
+            "configuration": "Debug"
+        },
+        {
             "name": "release",
             "displayName": "Release with shared libraries and automatic probing of dependencies",
             "configurePreset": "release",
