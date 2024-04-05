@@ -14,60 +14,156 @@
 extern "C" {
 #endif
 
+/**
+ * @brief Represents all the possible client events
+ */
 enum dicey_client_event_type {
-    DICEY_CLIENT_EVENT_CONNECT,
-    DICEY_CLIENT_EVENT_ERROR,
-    DICEY_CLIENT_EVENT_HANDSHAKE_START,
-    DICEY_CLIENT_EVENT_INIT,
-    DICEY_CLIENT_EVENT_MESSAGE_RECEIVING,
-    DICEY_CLIENT_EVENT_MESSAGE_SENDING,
-    DICEY_CLIENT_EVENT_SERVER_BYE,
-    DICEY_CLIENT_EVENT_QUITTING,
-    DICEY_CLIENT_EVENT_QUIT,
+    DICEY_CLIENT_EVENT_CONNECT,         /**< Raised whenever `connect()` succeedes - i.e., if the server is up */
+    DICEY_CLIENT_EVENT_ERROR,           /**< Raised whenever an error occurs, which always causes the client to drop */
+    DICEY_CLIENT_EVENT_HANDSHAKE_START, /**< Raised when the client starts the handshake by sending the Hello packet */
+    DICEY_CLIENT_EVENT_INIT,            /**< Raised when the client is initialized (before any connect takes place) */
+    DICEY_CLIENT_EVENT_MESSAGE_RECEIVING, /**< Raised when the client is receiving a message. Can be used to intercept
+                                             inbound packets */
+    DICEY_CLIENT_EVENT_MESSAGE_SENDING,   /**< Raised when the client is sending a message. Can be used to intercept
+                                             outbound packets */
+    DICEY_CLIENT_EVENT_SERVER_BYE, /**< Raised when the client receives a Bye packet from the server, before quitting */
+    DICEY_CLIENT_EVENT_QUITTING,   /**< Raised when the client is about to quit */
+    DICEY_CLIENT_EVENT_QUIT,       /**< Raised when the client quits */
 };
 
+/**
+ * @brief Represents a client event, as received by `dicey_client_inspect_fn` handlers
+ */
 struct dicey_client_event {
-    enum dicey_client_event_type type;
+    enum dicey_client_event_type type; /**< The type of this event, as described by `dicey_client_event_type` */
 
     union {
         struct {
             enum dicey_error err;
             char *msg;
-        } error;
-        struct dicey_packet packet;
-        struct dicey_version version;
+        } error;                      /**< The value of the error in case type is ERROR */
+        struct dicey_packet packet;   /**< The packet in case type is MESSAGE_RECEIVING or MESSAGE_SENDING */
+        struct dicey_version version; /**< The version in case type is HANDSHAKE_START */
     };
 };
 
+/**
+ * @brief Represents an asynchronous IPC client that can connect to a server and send/receive packets and events.
+ * @note  This is an opaque structure, and its internals are not meant to be accessed directly.
+ */
 struct dicey_client;
 
+/**
+ * @brief Represents a callback function that is called when a client connects to a server.
+ * @param client The client this callback is associated with.
+ * @param ctx    The context associated to this function (usually passed through `dicey_client_connect_async()`).
+ * @param status The status of the connection - either `DICEY_OK` or an error describing why the connection failed.
+ * @param msg    If error is not OK, an error message describing why the connection failed.
+ */
 typedef void dicey_client_on_connect_fn(
     struct dicey_client *client,
     void *ctx,
     enum dicey_error status,
     const char *msg
 );
+
+/**
+ * @brief Represents a callback function that is called whenever a client disconnects from a server.
+ * @param client The client this callback is associated with.
+ * @param ctx    The context associated to this function (usually passed through `dicey_client_disconnect_async()`).
+ * @param status The status of the disconnection - either `DICEY_OK` or an error describing why the disconnection
+ * failed.
+ */
 typedef void dicey_client_on_disconnect_fn(struct dicey_client *client, void *ctx, enum dicey_error status);
 
+/**
+ * @brief Represents a callback function that is called whenever a client receives a reply to a previously sent request.
+ * @param client The client this callback is associated with.
+ * @param ctx    The context associated to this function (usually passed through `dicey_client_request_async()`).
+ * @param status The status of the requerst - either `DICEY_OK` or an error describing why the request failed.
+ * @param packet The packet that was received as a reply to the request, or NULL if the request failed.
+ *               A reply function is free to steal the packet it receives, taking ownership of it. This can be done by
+ *               resetting the `dicey_packet` struct pointed to by `packet` to an empty state.
+ */
 typedef void dicey_client_on_reply_fn(
     struct dicey_client *client,
     void *ctx,
     enum dicey_error status,
-    struct dicey_packet *packet // this is a pointer, so the caller can steal the value, if it so desires
+    struct dicey_packet *packet
 );
 
+/**
+ * @brief Represents a callback function that is called whenever a client receives a Dicey Message containing an Event.
+ * @param client The client this callback is associated with.
+ * @param ctx    The global context of `client`, as obtained via `dicey_client_get_context()`. This is provided for
+ * convenience.
+ * @param packet  The event packet that was received. This is guaranteed to be a valid message containing an event.
+ */
 typedef void dicey_client_event_fn(struct dicey_client *client, void *ctx, struct dicey_packet packet);
+
+/**
+ * @brief Represents a callback function that is called whenever anything happens in the client.
+ *        Useful to inspect the client lifecycle and the packets it sends and receives.
+ * @param client The client this callback is associated with.
+ * @param ctx    The global context of `client`, as obtained via `dicey_client_get_context()`. This is provided for
+ * convenience.
+ * @param event  The event that was raised. This is guaranteed to be a valid event.
+ */
 typedef void dicey_client_inspect_fn(struct dicey_client *client, void *ctx, struct dicey_client_event event);
 
+/**
+ * @brief Represents the initialisation arguments that can be passed to `dicey_client_new()`.
+ */
 struct dicey_client_args {
-    dicey_client_inspect_fn *inspect_func;
-    dicey_client_event_fn *on_event;
+    dicey_client_inspect_fn
+        *inspect_func; /**< The function that will be called whenever an event happens in the client. */
+    dicey_client_event_fn
+        *on_event; /**< The function that will be called whenever the client receives an event message. */
 };
 
+/**
+ * @brief Creates a new client using the provided arguments.
+ * @param dest The destination pointer to the new client. Must be freed using `dicey_client_delete()`.
+ * @param args The arguments to use for the client. Can be NULL - in that case, the client will ignore all events.
+ * @return     Error code. Possible values are:
+ *             - OK: the client was successfully created
+ *             - ENOMEM: memory allocation failed (out of memory)
+ */
 DICEY_EXPORT enum dicey_error dicey_client_new(struct dicey_client **dest, const struct dicey_client_args *args);
+
+/**
+ * @brief Deletes a client, releasing any resources it may own.
+ * @note  The client must be disconnected before being deleted. Deleting a connected client will cause it to disconnect
+ *        abruptly, which may result in data loss.
+ * @param client The client to delete. May be NULL - in that case, this function does nothing.
+ */
 DICEY_EXPORT void dicey_client_delete(struct dicey_client *client);
 
+/**
+ * @brief Connects a client to a server, blocking until the connection is established or an error occurs.
+ * @param client The client to connect.
+ * @param addr   The address (UDS or NT named pipe) of the server to connect to.
+ * @return       Error code. A (non-exhaustive) list of possible values are:
+ *               - OK: the client was successfully connected
+ *               - EINVAL: the client is in the wrong state (i.e. already connected, dead, ...)
+ *               - ENOMEM: memory allocation failed (out of memory)
+ *               - EPEER_NOT_FOUND: the server is not up
+ */
 DICEY_EXPORT enum dicey_error dicey_client_connect(struct dicey_client *client, struct dicey_addr addr);
+
+/**
+ * @brief Connects a client to a server, returning immediately and calling the provided callback when the connection is
+ *        established or an error occurs.
+ * @param client The client to connect.
+ * @param addr   The address (UDS or NT named pipe) of the server to connect to.
+ * @param cb     The callback to call when the connection is established or an error occurs.
+ * @param data   The context to pass to the callback.
+ * @return       Error code. A (non-exhaustive) list of possible values are:
+ *               - OK: the client was successfully connected
+ *               - EINVAL: the client is in the wrong state (i.e. already connected, dead, ...)
+ *               - ENOMEM: memory allocation failed (out of memory)
+ *               - EPEER_NOT_FOUND: the server is not up
+ */
 DICEY_EXPORT enum dicey_error dicey_client_connect_async(
     struct dicey_client *client,
     struct dicey_addr addr,
@@ -75,17 +171,59 @@ DICEY_EXPORT enum dicey_error dicey_client_connect_async(
     void *data
 );
 
+/**
+ * @brief Disconnects a client from a server, blocking until the disconnection is complete or an error occurs.
+ * @param client The client to disconnect.
+ * @return       Error code. A (non-exhaustive) list of possible values are:
+ *               - OK: the client was successfully disconnected
+ *               - EINVAL: the client is in the wrong state (i.e. not connected or connecting)
+ *               - ENOMEM: memory allocation failed (out of memory)
+ */
 DICEY_EXPORT enum dicey_error dicey_client_disconnect(struct dicey_client *client);
+
+/**
+ * @brief Disconnects a client from a server, returning immediately and calling the provided callback when the
+ * disconnection sequence is complete or an error occurs.
+ * @param client The client to disconnect.
+ * @param cb     The callback to call when the disconnection is complete or an error occurs.
+ * @param data   The context to pass to the callback.
+ * @return       Error code. A (non-exhaustive) list of possible values are:
+ *               - OK: the client was successfully disconnected
+ *               - EINVAL: the client is in the wrong state (i.e. not connected or connecting)
+ *               - ENOMEM: memory allocation failed (out of memory)
+ */
 DICEY_EXPORT enum dicey_error dicey_client_disconnect_async(
     struct dicey_client *client,
     dicey_client_on_disconnect_fn *cb,
     void *data
 );
 
+/**
+ * @brief Gets the context associated with a client. This is either the `ctx` parameter set via
+ * `dicey_client_set_context()` or NULL if no context has been set.
+ */
 DICEY_EXPORT void *dicey_client_get_context(const struct dicey_client *client);
 
+/**
+ * @brief Returns true if the client is connected to a server, false otherwise.
+ * @param client The client to check.
+ * @return       True if the client is connected to a server, false otherwise.
+ */
 DICEY_EXPORT bool dicey_client_is_running(const struct dicey_client *client);
 
+/**
+ * @brief Sends a request to the server, blocking until a response is received or an error occurs.
+ * @param client   The client to send the request with.
+ * @param packet   The packet to send.
+ * @param response The response packet, if the request was successful. Must be freed using `dicey_packet_deinit()` when
+ * done.
+ * @param timeout  The maximum time to wait for a response, in milliseconds.
+ * @return         Error code. A (non-exhaustive) list of possible values are:
+ *                 - OK: the request was successfully sent and a response was received (`response` is valid)
+ *                 - EINVAL: the client is in the wrong state (i.e. not connected)
+ *                 - ETIMEDOUT: the request timed out
+ *                 - ENOMEM: memory allocation failed (out of memory)
+ */
 DICEY_EXPORT enum dicey_error dicey_client_request(
     struct dicey_client *client,
     struct dicey_packet packet,
@@ -93,6 +231,19 @@ DICEY_EXPORT enum dicey_error dicey_client_request(
     uint32_t timeout
 );
 
+/**
+ * @brief Sends a request to the server, returning immediately and calling the provided callback when either a response
+ *        is received or an error occurs.
+ * @param client The client to send the request with.
+ * @param packet The packet to send.
+ * @param cb     The callback to call when a response is received or an error occurs.
+ * @param data   The context to pass to the callback.
+ * @param timeout The maximum time to wait for a response, in milliseconds.
+ * @return       Error code. A (non-exhaustive) list of possible values are:
+ *               - OK: the request was successfully sent and a response was received
+ *               - EINVAL: the client is in the wrong state (i.e. not connected)
+ *               - ENOMEM: memory allocation failed (out of memory)
+ */
 DICEY_EXPORT enum dicey_error dicey_client_request_async(
     struct dicey_client *client,
     struct dicey_packet packet,
@@ -101,6 +252,16 @@ DICEY_EXPORT enum dicey_error dicey_client_request_async(
     uint32_t timeout
 );
 
+/**
+ * @brief Sets the context associated with a client. This context can then be retrieved using
+ * `dicey_client_get_context()`, or passwd automatically to global callbacks.
+ * @note  The client does not take ownership of the context, and it is the responsibility of the caller to manage its
+ * memory.
+ * @param client The client to set the context for.
+ * @param data   The context to set. Can be anything, as long as it is a pointer whose lifetime exceeds that of the
+ * client.
+ * @return       The previous context associated with the client, or NULL if no context was set.
+ */
 DICEY_EXPORT void *dicey_client_set_context(struct dicey_client *client, void *data);
 
 #if defined(__cplusplus)
