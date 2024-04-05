@@ -22,7 +22,7 @@ In order to build Dicey, you need:
 
 - a recent C11-compliant compiler. The code has been thourougly tested with GCC 12+, Clang 15+ and CL 19.38+ (MSVC 2022)
 - a recent version of CMake  - at least 3.26
-- (optional) Ninja, for presets.
+- (optional) [Ninja](https://ninja-build.org/), for presets.
 
 If you have `ninja` installed, you can use one of the many pre-defined presets to build Dicey:
 
