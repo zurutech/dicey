@@ -298,5 +298,31 @@
                 "rhs": "Windows"
             }
         }
+    ],
+    "buildPresets": [
+        {
+            "name": "debug",
+            "displayName": "Full debug build, with samples and automatic probing of dependencies",
+            "configurePreset": "debug",
+            "configuration": "Debug"
+        },
+        {
+            "name": "release",
+            "displayName": "Release with shared libraries and automatic probing of dependencies",
+            "configurePreset": "release",
+            "configuration": "Release"
+        },
+        {
+            "name": "release-vendored",
+            "displayName": "Release with shared libraries and vendored dependencies",
+            "configurePreset": "release-vendored",
+            "configuration": "Release"
+        },
+        {
+            "name": "release-static-vendored",
+            "displayName": "Release with static libraries and vendored dependencies",
+            "configurePreset": "release-static-vendored",
+            "configuration": "Release"
+        }
     ]
 }
