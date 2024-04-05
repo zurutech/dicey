@@ -9,115 +9,108 @@
             "binaryDir": "build",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Debug",
+                "BUILD_SHARED_LIBS": "ON",
+                "BUILD_SAMPLES": "ON",
                 "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
             }
         },
         {
             "name": "debug-vendored",
             "displayName": "Debug (shared, with vendored libraries)",
-            "generator": "Ninja",
-            "binaryDir": "build",
+            "inherits": "debug",
             "cacheVariables": {
-                "CMAKE_BUILD_TYPE": "Debug",
-                "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
                 "USE_VENDORED_LIBS": "ON"
             }
         },
         {
             "name": "debug-static",
             "displayName": "Debug (static)",
-            "generator": "Ninja",
             "binaryDir": "build-static",
+            "inherits": "debug",
             "cacheVariables": {
-                "CMAKE_BUILD_TYPE": "Debug",
-                "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
                 "BUILD_SHARED_LIBS": "OFF"
             }
         },
         {
             "name": "debug-static-vendored",
             "displayName": "Debug (static, with vendored libraries)",
-            "generator": "Ninja",
-            "binaryDir": "build-static",
+            "inherits": "debug-static", 
             "cacheVariables": {
-                "CMAKE_BUILD_TYPE": "Debug",
-                "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
-                "BUILD_SHARED_LIBS": "OFF",
                 "USE_VENDORED_LIBS": "ON"
             }
         },
         {
             "name": "debug-min",
             "displayName": "Debug (shared, no samples)",
-            "generator": "Ninja",
-            "binaryDir": "build",
+            "inherits": "debug",
             "cacheVariables": {
-                "CMAKE_BUILD_TYPE": "Debug",
-                "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
                 "BUILD_SAMPLES": "OFF"
             }
         },
         {
             "name": "debug-min-vendored",
             "displayName": "Debug (shared, no samples, with vendored libraries)",
-            "generator": "Ninja",
-            "binaryDir": "build",
+            "inherits": "debug-min",
             "cacheVariables": {
-                "CMAKE_BUILD_TYPE": "Debug",
-                "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
-                "BUILD_SAMPLES": "OFF",
-                "USE_VENDORED_LIBS": "ON"
-            }
-        },
-        {
-            "name": "debug-min-static-vendored",
-            "displayName": "Debug (static, no samples, with vendored libraries)",
-            "generator": "Ninja",
-            "binaryDir": "build-static",
-            "cacheVariables": {
-                "CMAKE_BUILD_TYPE": "Debug",
-                "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
-                "BUILD_SHARED_LIBS": "OFF",
-                "BUILD_SAMPLES": "OFF",
                 "USE_VENDORED_LIBS": "ON"
             }
         },
         {
             "name": "debug-min-static",
             "displayName": "Debug (static, no samples)",
-            "generator": "Ninja",
-            "binaryDir": "build-static",
+            "inherits": "debug-static",
             "cacheVariables": {
-                "CMAKE_BUILD_TYPE": "Debug",
-                "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
-                "BUILD_SHARED_LIBS": "OFF",
                 "BUILD_SAMPLES": "OFF"
+            }
+        },
+        {
+            "name": "debug-min-static-vendored",
+            "displayName": "Debug (static, no samples, with vendored libraries)",
+            "inherits": "debug-min-static",
+            "cacheVariables": {
+                "USE_VENDORED_LIBS": "ON"
             }
         },
         {
             "name": "debug-gcc",
             "displayName": "Debug (shared, with GCC)",
-            "generator": "Ninja",
-            "binaryDir": "build",
+            "inherits": "debug",
             "cacheVariables": {
-                "CMAKE_BUILD_TYPE": "Debug",
-                "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
                 "CMAKE_C_COMPILER": "gcc",
-                "CMAKE_CXX_COMPILER": "g++",
                 "CMAKE_AR": "ar",
                 "CMAKE_LINKER": "ld"
             }
         },
         {
+            "name": "debug-gcc-analyzer",
+            "displayName": "Debug (shared, with GCC, with GCC Static analyzer)",
+            "inherits": "debug-gcc",
+            "binaryDir": "build-analyzer",
+            "cacheVariables": {
+                "CMAKE_C_FLAGS_INIT": "-fanalyzer"
+            }
+        },
+        {
+            "name": "debug-msvc",
+            "displayName": "Debug (shared, with MSVC)",
+            "inherits": "debug",
+            "cacheVariables": {
+                "CMAKE_C_COMPILER": "cl",
+                "CMAKE_AR": "lib",
+                "CMAKE_LINKER": "link"
+            },
+            "condition": {
+                "type": "equals",
+                "lhs": "${hostSystemName}",
+                "rhs": "Windows"
+            }
+        },
+        {
             "name": "debug-llvm-unix",
             "displayName": "Debug (shared, with LLVM)",
-            "generator": "Ninja",
-            "binaryDir": "build",
+            "inherits": "debug",
             "cacheVariables": {
-                "CMAKE_BUILD_TYPE": "Debug",
-                "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
                 "CMAKE_C_COMPILER": "clang",
-                "CMAKE_CXX_COMPILER": "clang++",
                 "CMAKE_AR": "llvm-ar",
                 "CMAKE_LINKER": "ld.lld",
                 "CMAKE_EXE_LINKER_FLAGS": "-fuse-ld=lld"
@@ -132,34 +125,57 @@
             }
         },
         {
-            "name": "debug-msvc",
-            "displayName": "Debug (shared, with MSVC)",
-            "generator": "Ninja",
-            "binaryDir": "build",
+            "name": "debug-llvm-san-base",
+            "inherits": "debug-llvm-unix",
+            "hidden": true,
+            "binaryDir": "build-san"
+        },
+        {
+            "name": "debug-llvm-fuzzer",
+            "displayName": "Debug (shared, with LLVM, with libFuzzer sample)",
+            "inherits": "debug-llvm-san-base",
             "cacheVariables": {
-                "CMAKE_BUILD_TYPE": "Debug",
-                "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
-                "CMAKE_C_COMPILER": "cl",
-                "CMAKE_CXX_COMPILER": "cl",
-                "CMAKE_AR": "lib",
-                "CMAKE_LINKER": "link"
-            },
-            "condition": {
-                "type": "equals",
-                "lhs": "${hostSystemName}",
-                "rhs": "Windows"
+                "BUILD_FUZZER": "ON"
+            }
+        },
+        {
+            "name": "debug-llvm-asan",
+            "displayName": "Debug (shared, with LLVM, with AddressSanitizer)",
+            "inherits": "debug-llvm-san-base",
+            "cacheVariables": {
+                "CMAKE_C_FLAGS_INIT": "-fsanitize=address"
+            }
+        },
+        {
+            "name": "debug-llvm-msan",
+            "displayName": "Debug (shared, with LLVM, with MemorySanitizer)",
+            "inherits": "debug-llvm-san-base",
+            "cacheVariables": {
+                "CMAKE_C_FLAGS_INIT": "-fsanitize=memory"
+            }
+        },
+        {
+            "name": "debug-llvm-tsan",
+            "displayName": "Debug (shared, with LLVM, with ThreadSanitizer)",
+            "inherits": "debug-llvm-san-base",
+            "cacheVariables": {
+                "CMAKE_C_FLAGS_INIT": "-fsanitize=thread"
+            }
+        },
+        {
+            "name": "debug-llvm-ubsan",
+            "displayName": "Debug (shared, with LLVM, with UndefinedBehaviorSanitizer)",
+            "inherits": "debug-llvm-san-base",
+            "cacheVariables": {
+                "CMAKE_C_FLAGS_INIT": "-fsanitize=undefined"
             }
         },
         {
             "name": "debug-llvm-win",
             "displayName": "Debug (shared, with LLVM)",
-            "generator": "Ninja",
-            "binaryDir": "build",
+            "inherits": "debug",
             "cacheVariables": {
-                "CMAKE_BUILD_TYPE": "Debug",
-                "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
                 "CMAKE_C_COMPILER": "clang-cl",
-                "CMAKE_CXX_COMPILER": "clang-cl",
                 "CMAKE_AR": "llvm-ar",
                 "CMAKE_LINKER": "lld-link",
                 "CMAKE_EXE_LINKER_FLAGS": "-fuse-ld=lld"
@@ -177,96 +193,72 @@
             "binaryDir": "build-rel",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Release",
+                "BUILD_SHARED_LIBS": "ON",
                 "BUILD_SAMPLES": "OFF"
             }
         },
         {
             "name": "release-vendored",
             "displayName": "Release (shared, with vendored libraries)",
-            "generator": "Ninja",
-            "binaryDir": "build-rel",
+            "inherits": "release",
             "cacheVariables": {
-                "CMAKE_BUILD_TYPE": "Release",
-                "USE_VENDORED_LIBS": "ON",
-                "BUILD_SAMPLES": "OFF"
+                "USE_VENDORED_LIBS": "ON"
             }
         },
         {
             "name": "release-with-samples",
             "displayName": "Release (shared, with samples)",
-            "generator": "Ninja",
-            "binaryDir": "build-rel",
+            "inherits": "release",
             "cacheVariables": {
-                "CMAKE_BUILD_TYPE": "Release",
                 "BUILD_SAMPLES": "ON"
             }
         },
         {
             "name": "release-with-samples-vendored",
             "displayName": "Release (shared, with samples, with vendored libraries)",
-            "generator": "Ninja",
-            "binaryDir": "build-rel",
+            "inherits": "release-with-samples",
             "cacheVariables": {
-                "CMAKE_BUILD_TYPE": "Release",
-                "USE_VENDORED_LIBS": "ON",
-                "BUILD_SAMPLES": "ON"
+                "USE_VENDORED_LIBS": "ON"
             }
         },
         {
             "name": "release-static",
             "displayName": "Release (static)",
-            "generator": "Ninja",
-            "binaryDir": "build-rel-static",
+            "inherits": "release",
             "cacheVariables": {
-                "CMAKE_BUILD_TYPE": "Release",
-                "BUILD_SHARED_LIBS": "OFF",
-                "BUILD_SAMPLES": "OFF"
+                "BUILD_SHARED_LIBS": "OFF"
             }
         },
         {
             "name": "release-static-vendored",
             "displayName": "Release (static, with vendored libraries)",
-            "generator": "Ninja",
-            "binaryDir": "build-rel-static",
+            "inherits": "release-static",
             "cacheVariables": {
-                "CMAKE_BUILD_TYPE": "Release",
-                "BUILD_SHARED_LIBS": "OFF",
-                "USE_VENDORED_LIBS": "ON",
-                "BUILD_SAMPLES": "OFF"
+                "USE_VENDORED_LIBS": "ON"
             }
         },
         {
             "name": "release-static-with-samples",
             "displayName": "Release (static, with samples)",
-            "generator": "Ninja",
-            "binaryDir": "build-rel-static",
+            "inherits": "release-static",
             "cacheVariables": {
-                "CMAKE_BUILD_TYPE": "Release",
-                "BUILD_SHARED_LIBS": "OFF",
                 "BUILD_SAMPLES": "ON"
             }
         },
         {
             "name": "release-static-with-samples-vendored",
             "displayName": "Release (static, with samples, with vendored libraries)",
-            "generator": "Ninja",
-            "binaryDir": "build-rel-static",
+            "inherits": "release-static-with-samples",
             "cacheVariables": {
-                "CMAKE_BUILD_TYPE": "Release",
-                "BUILD_SHARED_LIBS": "OFF",
-                "USE_VENDORED_LIBS": "ON",
-                "BUILD_SAMPLES": "ON"
+                "USE_VENDORED_LIBS": "ON"
             }
         },
         {
             "name": "release-gcc",
             "displayName": "Release (shared, with GCC)",
-            "generator": "Ninja",
-            "binaryDir": "build-rel",
+            "inherits": "release",
             "cacheVariables": {
-                "CMAKE_BUILD_TYPE": "Release",
                 "CMAKE_C_COMPILER": "gcc",
-                "CMAKE_CXX_COMPILER": "g++",
                 "CMAKE_AR": "ar",
                 "CMAKE_LINKER": "ld"
             }
@@ -274,12 +266,9 @@
         {
             "name": "release-llvm-unix",
             "displayName": "Release (shared, with LLVM)",
-            "generator": "Ninja",
-            "binaryDir": "build-rel",
+            "inherits": "release",
             "cacheVariables": {
-                "CMAKE_BUILD_TYPE": "Release",
                 "CMAKE_C_COMPILER": "clang",
-                "CMAKE_CXX_COMPILER": "clang++",
                 "CMAKE_AR": "llvm-ar",
                 "CMAKE_LINKER": "ld.lld",
                 "CMAKE_EXE_LINKER_FLAGS": "-fuse-ld=lld"
@@ -296,12 +285,9 @@
         {
             "name": "release-llvm-win",
             "displayName": "Release (shared, with LLVM)",
-            "generator": "Ninja",
-            "binaryDir": "build-rel",
+            "inherits": "release",
             "cacheVariables": {
-                "CMAKE_BUILD_TYPE": "Release",
                 "CMAKE_C_COMPILER": "clang-cl",
-                "CMAKE_CXX_COMPILER": "clang-cl",
                 "CMAKE_AR": "llvm-ar",
                 "CMAKE_LINKER": "lld-link",
                 "CMAKE_EXE_LINKER_FLAGS": "-fuse-ld=lld"
