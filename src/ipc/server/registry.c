@@ -299,6 +299,10 @@ enum dicey_error dicey_registry_add_object_with_trait_list(
 }
 
 enum dicey_error dicey_registry_add_trait(struct dicey_registry *const registry, const char *const name, ...) {
+    if (dicey_registry_contains_trait(registry, name)) {
+        return DICEY_EEXIST;
+    }
+
     struct dicey_trait *const trait = dicey_trait_new(name);
     if (!trait) {
         return DICEY_ENOMEM;
