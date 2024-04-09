@@ -266,10 +266,10 @@ static bool hash_grow(struct dicey_hashtable **const table_ptr) {
     const uint32_t old_cap = table->cap;
     const uint32_t buckets_no = (uint32_t) *table->buckets_no;
 
-    assert(old_cap > buckets_no);
+    assert(old_cap >= buckets_no);
 
     const uint32_t extra_cap = old_cap - buckets_no;
-    const uint32_t new_cap = (uint32_t) *primes + extra_cap * 3 / 2;
+    const uint32_t new_cap = ((uint32_t) *primes + extra_cap) * 3 / 2;
 
     table = realloc(table, sizeof(struct dicey_hashtable) + new_cap * sizeof(struct table_entry));
     if (!table) {
