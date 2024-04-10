@@ -307,6 +307,12 @@
             "configuration": "Debug"
         },
         {
+            "name": "debug-asan",
+            "displayName": "Full debug build with AddressSanitizer, with samples and automatic probing of dependencies",
+            "configurePreset": "debug-llvm-asan",
+            "configuration": "Debug"
+        },
+        {
             "name": "debug-vendored",
             "displayName": "Full debug build, with samples and vendored dependencies",
             "configurePreset": "debug-vendored",
