@@ -176,7 +176,7 @@
             "inherits": "debug",
             "cacheVariables": {
                 "CMAKE_C_COMPILER": "clang-cl",
-                "CMAKE_AR": "llvm-ar",
+                "CMAKE_AR": "llvm-lib",
                 "CMAKE_LINKER": "lld-link",
                 "CMAKE_EXE_LINKER_FLAGS": "-fuse-ld=lld"
             },
