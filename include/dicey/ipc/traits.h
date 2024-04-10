@@ -72,6 +72,28 @@ DICEY_EXPORT bool dicey_trait_iter_next(
 );
 
 /**
+ * @brief Deletes a trait structure.
+ * @param trait The trait to delete. No-op if NULL.
+ */
+DICEY_EXPORT void dicey_trait_delete(struct dicey_trait *trait);
+
+/**
+ * @brief Creates a new trait structure.
+ * @param name The name of the trait. Will be copied.
+ * @return A pointer to the new trait, or NULL on allocation error.
+ */
+DICEY_EXPORT struct dicey_trait *dicey_trait_new(const char *name);
+
+/**
+ * @brief Adds an element to a trait. The contents of the element are deep copied.
+ */
+DICEY_EXPORT enum dicey_error dicey_trait_add_element(
+    struct dicey_trait *trait,
+    const char *name,
+    struct dicey_element elem
+);
+
+/**
  * @brief Check if a trait contains an element with a specific name.
  * @param trait The trait to check.
  * @param name The name of the element.

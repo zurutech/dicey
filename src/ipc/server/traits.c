@@ -13,8 +13,6 @@
 
 #include "ipc/typedescr.h"
 
-#include "traits.h"
-
 static struct dicey_element *elem_dup(const struct dicey_element *const elem) {
     if (!elem) {
         return NULL;
