@@ -53,6 +53,12 @@ struct dtf_result {
 struct dtf_result dtf_bye_write(struct dicey_view_mut dest, uint32_t seq, uint32_t reason);
 struct dtf_result dtf_hello_write(struct dicey_view_mut dest, uint32_t seq, uint32_t version);
 
+ptrdiff_t dtf_message_estimate_header_size(
+    enum dtf_payload_kind kind,
+    const char *path,
+    struct dicey_selector selector
+);
+
 ptrdiff_t dtf_message_estimate_size(
     enum dtf_payload_kind kind,
     const char *path,
@@ -77,6 +83,15 @@ struct dtf_result dtf_message_write(
     const char *path,
     struct dicey_selector selector,
     const struct dicey_arg *value
+);
+
+struct dtf_result dtf_message_write_with_raw_value(
+    struct dicey_view_mut dest,
+    enum dtf_payload_kind kind,
+    uint32_t seq,
+    const char *path,
+    struct dicey_selector selector,
+    struct dicey_view view
 );
 
 int dtf_selector_load_from(struct dicey_selector *selector, struct dicey_view src);

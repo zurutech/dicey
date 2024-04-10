@@ -261,7 +261,7 @@ ptrdiff_t dtf_message_get_content(
 struct dtf_result dtf_message_write(
     struct dicey_view_mut dest,
     const enum dtf_payload_kind kind,
-    const uint32_t tid,
+    const uint32_t seq,
     const char *const path,
     const struct dicey_selector selector,
     const struct dicey_arg *const value
@@ -286,7 +286,7 @@ struct dtf_result dtf_message_write(
 
     const uint32_t trailer_size = (uint32_t) needed_len - (uint32_t) sizeof(struct dtf_message_head);
 
-    ptrdiff_t result = message_header_write(&dest, kind, tid, trailer_size);
+    ptrdiff_t result = message_header_write(&dest, kind, seq, trailer_size);
     if (result < 0) {
         goto fail;
     }
@@ -330,36 +330,129 @@ fail:
     return (struct dtf_result) { .result = result, .size = (size_t) needed_len };
 }
 
+struct dtf_result dtf_message_write_with_raw_value(
+    struct dicey_view_mut dest,
+    const enum dtf_payload_kind kind,
+    const uint32_t seq,
+    const char *const path,
+    const struct dicey_selector selector,
+    const struct dicey_view value
+) {
+    if (dutl_zstring_size(path) == DICEY_EOVERFLOW) {
+        return (struct dtf_result) { .result = TRACE(DICEY_EPATH_TOO_LONG) };
+    }
+
+    if (value.len > (size_t) PTRDIFF_MAX) {
+        return (struct dtf_result) { .result = TRACE(DICEY_EOVERFLOW) };
+    }
+
+    const ptrdiff_t header_size = dtf_message_estimate_header_size(kind, path, selector);
+    if (header_size < 0) {
+        return (struct dtf_result) { .result = header_size };
+    }
+
+    ptrdiff_t needed_len = header_size;
+    if (!dutl_checked_add(&needed_len, needed_len, (ptrdiff_t) value.len)) {
+        return (struct dtf_result) { .result = TRACE(DICEY_EOVERFLOW) };
+    }
+
+    const ptrdiff_t alloc_res = dicey_view_mut_ensure_cap(&dest, (size_t) needed_len);
+
+    if (alloc_res < 0) {
+        return (struct dtf_result) { .result = alloc_res, .size = (size_t) needed_len };
+    }
+
+    struct dtf_message *const msg = dest.data;
+
+    const uint32_t trailer_size = (uint32_t) needed_len - (uint32_t) sizeof(struct dtf_message_head);
+
+    ptrdiff_t result = message_header_write(&dest, kind, seq, trailer_size);
+    if (result < 0) {
+        goto fail;
+    }
+
+    result = dicey_view_mut_write_zstring(&dest, path);
+    if (result < 0) {
+        goto fail;
+    }
+
+    result = dtf_selector_write(selector, &dest);
+    if (result < 0) {
+        goto fail;
+    }
+
+    result = dicey_view_mut_write(&dest, value);
+    if (result < 0) {
+        goto fail;
+    }
+
+    // success: return the payload. Return the size as well, in case the caller wants to know how much was written
+    // result will either be DICEY_OK or, if positive, the number of bytes that were allocated (aka size)
+    // This allows the caller to free the payload if needed and/or detect allocations
+    return (struct dtf_result) { .result = alloc_res, .data = msg, .size = (size_t) needed_len };
+
+fail:
+    if (alloc_res > 0) {
+        free(msg);
+    }
+
+    return (struct dtf_result) { .result = result, .size = (size_t) needed_len };
+}
+
+ptrdiff_t dtf_message_estimate_header_size(
+    const enum dtf_payload_kind kind,
+    const char *const path,
+    const struct dicey_selector selector
+) {
+    if (!is_message(kind) || !path || !selector.trait || !selector.elem) {
+        return TRACE(DICEY_EINVAL);
+    }
+
+    uint32_t total_size = (uint32_t) message_fixed_size(kind);
+
+    const ptrdiff_t sizes[] = { dutl_zstring_size(path), dicey_selector_size(selector) };
+
+    const ptrdiff_t *end = sizes + sizeof sizes / sizeof *sizes;
+
+    for (const ptrdiff_t *size = sizes; size != end; ++size) {
+        if (*size < 0) {
+            return *size;
+        }
+
+        if (!dutl_checked_add(&total_size, total_size, (uint32_t) *size)) {
+            return TRACE(DICEY_EOVERFLOW);
+        }
+    }
+
+    return total_size;
+}
+
 ptrdiff_t dtf_message_estimate_size(
     const enum dtf_payload_kind kind,
     const char *const path,
     const struct dicey_selector selector,
     const struct dicey_arg *const value
 ) {
-    if (!is_message(kind) || !path || !selector.trait || !selector.elem) {
-        return TRACE(DICEY_EINVAL);
-    }
-
     // the value should always be present, except for GET messages
     if ((kind != DTF_PAYLOAD_GET) != (bool) { value }) {
         return TRACE(DICEY_EBADMSG);
     }
 
-    uint32_t total_size = (uint32_t) message_fixed_size(kind);
-
-    const ptrdiff_t sizes[] = { dutl_zstring_size(path),
-                                dicey_selector_size(selector),
-                                value ? dtf_value_estimate_size(value) : 0 };
-
-    const ptrdiff_t *end = sizes + sizeof sizes / sizeof *sizes;
-
-    for (const ptrdiff_t *size = sizes; size != end; ++size) {
-        if (*size < 0 || !dutl_checked_add(&total_size, total_size, (uint32_t) *size)) {
-            return TRACE(DICEY_EOVERFLOW);
-        }
+    ptrdiff_t size = dtf_message_estimate_header_size(kind, path, selector);
+    if (size < 0) {
+        return size;
     }
 
-    return total_size;
+    const ptrdiff_t value_size = value ? dtf_value_estimate_size(value) : 0;
+    if (value_size < 0) {
+        return value_size;
+    }
+
+    if (!dutl_checked_add(&size, size, value_size) || size > (ptrdiff_t) UINT32_MAX) {
+        return TRACE(DICEY_EOVERFLOW);
+    }
+
+    return size;
 }
 
 enum dtf_payload_kind dtf_payload_get_kind(const union dtf_payload payload) {
