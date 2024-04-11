@@ -205,7 +205,7 @@ struct test_object {
 };
 
 static const struct test_object test_objects[] = {
-    {.path = DUMMY_PATH,     .traits = (const char *[]) { DUMMY_TRAIT, NULL }   },
+    { .path = DUMMY_PATH,    .traits = (const char *[]) { DUMMY_TRAIT, NULL }   },
     { .path = SVAL_PATH,     .traits = (const char *[]) { SVAL_TRAIT, NULL }    },
     { .path = SELF_PATH,     .traits = (const char *[]) { SELF_TRAIT, NULL }    },
     { .path = ECHO_PATH,     .traits = (const char *[]) { ECHO_TRAIT, NULL }    },
