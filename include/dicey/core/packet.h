@@ -232,7 +232,7 @@ DICEY_EXPORT enum dicey_error dicey_packet_dump(struct dicey_packet packet, void
  * @brief Changes the message header of a packet of type MESSAGE.
  * @note  This function is usually used to forward a packet as it is, keeping the value unchanged.
  * @param dest The destination packet.
- * @param old The packet to change. The old packet contents will be not be freed.
+ * @param old The packet to change. The old packet contents will not be freed.
  * @param seq The sequence number to set in the packet.
  * @param type The operation type to set in the packet.
  * @param path The path to set in the packet.
