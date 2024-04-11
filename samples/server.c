@@ -1,6 +1,7 @@
 // Copyright (c) 2014-2024 Zuru Tech HK Limited, All rights reserved.
 
 #include "dicey/ipc/server.h"
+#include "dicey/core/errors.h"
 #include "dicey/core/hashtable.h"
 #include "dicey/ipc/address.h"
 #define _CRT_NONSTDC_NO_DEPRECATE 1
@@ -53,6 +54,8 @@
 #define TEST_MGR_TRAIT "dicey.test.Manager"
 #define TEST_MGR_ADD_ELEMENT "Add"
 #define TEST_MGR_ADD_SIGNATURE "s"
+#define TEST_MGR_DEL_ELEMENT "Delete"
+#define TEST_MGR_DEL_SIGNATURE "@"
 
 #define TEST_OBJ_PATH_BASE "/dicey/test/object/"
 #define TEST_OBJ_PATH_FMT TEST_OBJ_PATH_BASE "%zu"
@@ -124,59 +127,76 @@ struct test_trait {
 static const struct test_trait test_traits[] = {
     {
      .name = DUMMY_TRAIT,
-     .elements = (const struct test_element *[]) { &(struct test_element) {
-                                                          .type = DICEY_ELEMENT_TYPE_PROPERTY,
-                                                          .name = DUMMY_ELEMENT,
-                                                          .signature = DUMMY_SIGNATURE,
-                                                      },
-                                                      NULL },
-     },
+     .elements =
+            (const struct test_element *[]) {
+                &(struct test_element) {
+                    .type = DICEY_ELEMENT_TYPE_PROPERTY,
+                    .name = DUMMY_ELEMENT,
+                    .signature = DUMMY_SIGNATURE,
+                },
+                NULL,
+            }, },
     {
      .name = SVAL_TRAIT,
-     .elements = (const struct test_element *[]) { &(struct test_element) {
-                                                          .type = DICEY_ELEMENT_TYPE_PROPERTY,
-                                                          .name = SVAL_PROP,
-                                                          .signature = SVAL_SIG,
-                                                      },
-                                                      NULL },
-     },
+     .elements =
+            (const struct test_element *[]) {
+                &(struct test_element) {
+                    .type = DICEY_ELEMENT_TYPE_PROPERTY,
+                    .name = SVAL_PROP,
+                    .signature = SVAL_SIG,
+                },
+                NULL,
+            }, },
     {
      .name = SELF_TRAIT,
-     .elements = (const struct test_element *[]) { &(struct test_element) {
-                                                          .type = DICEY_ELEMENT_TYPE_OPERATION,
-                                                          .name = HALT_ELEMENT,
-                                                          .signature = HALT_SIGNATURE,
-                                                      },
-                                                      NULL },
-     },
+     .elements =
+            (const struct test_element *[]) {
+                &(struct test_element) {
+                    .type = DICEY_ELEMENT_TYPE_OPERATION,
+                    .name = HALT_ELEMENT,
+                    .signature = HALT_SIGNATURE,
+                },
+                NULL,
+            }, },
     {
      .name = ECHO_TRAIT,
-     .elements = (const struct test_element *[]) { &(struct test_element) {
-                                                          .type = DICEY_ELEMENT_TYPE_OPERATION,
-                                                          .name = ECHO_ECHO_ELEMENT,
-                                                          .signature = ECHO_ECHO_SIGNATURE,
-                                                      },
-                                                      NULL },
-     },
+     .elements =
+            (const struct test_element *[]) {
+                &(struct test_element) {
+                    .type = DICEY_ELEMENT_TYPE_OPERATION,
+                    .name = ECHO_ECHO_ELEMENT,
+                    .signature = ECHO_ECHO_SIGNATURE,
+                },
+                NULL,
+            }, },
     {
      .name = TEST_MGR_TRAIT,
-     .elements = (const struct test_element *[]) { &(struct test_element) {
-                                                          .type = DICEY_ELEMENT_TYPE_OPERATION,
-                                                          .name = TEST_MGR_ADD_ELEMENT,
-                                                          .signature = TEST_MGR_ADD_SIGNATURE,
-                                                      },
-                                                      NULL },
-     },
+     .elements =
+            (const struct test_element *[]) {
+                &(struct test_element) {
+                    .type = DICEY_ELEMENT_TYPE_OPERATION,
+                    .name = TEST_MGR_ADD_ELEMENT,
+                    .signature = TEST_MGR_ADD_SIGNATURE,
+                },
+                &(struct test_element) {
+                    .type = DICEY_ELEMENT_TYPE_OPERATION,
+                    .name = TEST_MGR_DEL_ELEMENT,
+                    .signature = TEST_MGR_DEL_SIGNATURE,
+                },
+                NULL,
+            }, },
     {
      .name = TEST_OBJ_TRAIT,
-     .elements = (const struct test_element *[]) { &(struct test_element) {
-                                                          .type = DICEY_ELEMENT_TYPE_PROPERTY,
-                                                          .name = TEST_OBJ_NAME_ELEMENT,
-                                                          .signature = TEST_OBJ_NAME_SIGNATURE,
-                                                          .readonly = true,
-                                                      },
-                                                      NULL },
-     },
+     .elements =
+            (const struct test_element *[]) {
+                &(struct test_element) {
+                    .type = DICEY_ELEMENT_TYPE_PROPERTY,
+                    .name = TEST_OBJ_NAME_ELEMENT,
+                    .signature = TEST_OBJ_NAME_SIGNATURE,
+                    .readonly = true,
+                },
+                NULL,
+            }, },
 };
 
 struct test_object {
@@ -525,6 +545,69 @@ static enum dicey_error on_test_add(
     );
 }
 
+static enum dicey_error on_test_del(
+    struct dicey_server *const server,
+    const struct dicey_client_info *const cln,
+    const uint32_t seq,
+    const struct dicey_message *const req
+) {
+    assert(server && cln && req && req->type == DICEY_OP_EXEC);
+
+    const char *path = NULL;
+    enum dicey_error err = dicey_value_get_path(&req->value, &path);
+    if (err) {
+        return send_reply(server, cln, seq, req->path, req->selector, (struct dicey_arg) { .type = DICEY_TYPE_ERROR, .error = {
+            .code = err,
+            .message = dicey_error_msg(err),
+        } });
+    }
+
+    if (strncmp(path, TEST_OBJ_PATH_BASE, sizeof(TEST_OBJ_PATH_BASE) - 1)) {
+        return send_reply(
+            server, cln, seq, req->path, req->selector, (struct dicey_arg) {
+                .type = DICEY_TYPE_ERROR,
+                .error = {
+                    .code = DICEY_EINVAL,
+                    .message = "can't delete the given path - not a test object",
+                },
+            }
+        );
+    }
+
+    struct dicey_hashtable **const table = dicey_server_get_context(server);
+
+    assert(table && *table);
+
+    char *const name = dicey_hashtable_remove(*table, path);
+
+    if (!name) {
+        return send_reply(
+            server, cln, seq, req->path, req->selector, (struct dicey_arg) {
+                .type = DICEY_TYPE_ERROR,
+                .error = {
+                    .code = DICEY_EPATH_NOT_FOUND,
+                    .message = "can't delete the given path - not found",
+                },
+            }
+        );
+    }
+
+    free(name);
+
+    err = dicey_server_delete_object(server, path);
+    if (err) {
+        return send_reply(server, cln, seq, req->path, req->selector, (struct dicey_arg) {
+            .type = DICEY_TYPE_ERROR,
+            .error = {
+                .code = err,
+                .message = dicey_error_msg(err),
+            },
+        });
+    }
+
+    return send_reply(server, cln, seq, req->path, req->selector, (struct dicey_arg) { .type = DICEY_TYPE_UNIT });
+}
+
 static enum dicey_error on_test_obj_name(
     struct dicey_server *const server,
     const struct dicey_client_info *const cln,
@@ -591,12 +674,14 @@ static void on_request_received(
         }
 
         dicey_server_stop(server);
-    } else if (matches_elem(&msg, TEST_MGR_PATH, TEST_MGR_TRAIT, TEST_MGR_ADD_ELEMENT)) {
-        err = on_test_add(server, cln, seq, &msg);
-    } else if (matches_elem_under_root(&msg, TEST_OBJ_PATH_BASE, TEST_OBJ_TRAIT, TEST_OBJ_NAME_ELEMENT)) {
-        err = on_test_obj_name(server, cln, seq, &msg);
     } else if (matches_elem(&msg, ECHO_PATH, ECHO_TRAIT, ECHO_ECHO_ELEMENT)) {
         err = on_echo_req(server, cln, seq, packet, &msg);
+    } else if (matches_elem(&msg, TEST_MGR_PATH, TEST_MGR_TRAIT, TEST_MGR_ADD_ELEMENT)) {
+        err = on_test_add(server, cln, seq, &msg);
+    } else if (matches_elem(&msg, TEST_MGR_PATH, TEST_MGR_TRAIT, TEST_MGR_DEL_ELEMENT)) {
+        err = on_test_del(server, cln, seq, &msg);
+    } else if (matches_elem_under_root(&msg, TEST_OBJ_PATH_BASE, TEST_OBJ_TRAIT, TEST_OBJ_NAME_ELEMENT)) {
+        err = on_test_obj_name(server, cln, seq, &msg);
     }
 
     // this function receives a copy of the packet that must be freed
