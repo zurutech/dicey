@@ -116,7 +116,8 @@ DICEY_EXPORT enum dicey_error dicey_server_new(struct dicey_server **dest, const
  * @brief Adds an object to the server. The server will then be able to handle requests at the given path.
  * @note This function has a different behaviour depending on whether the server is running or not. If the server is
  *       in a stopped state, the trait is added to the server's registry immediately. If the server is running, the
- *       request is executed on the server thread and the function will block until the operation is complete.
+ *       request is executed on the server thread: the function only submit the request to the server thread and
+ *       return immediately.
  * @param server      The server to add the object to.
  * @param path        The path at which the object will be accessible.
  * @param trait_names The names of the traits that the object implements. The registry will take ownership of this set.
@@ -136,8 +137,8 @@ DICEY_EXPORT enum dicey_error dicey_server_add_object(
  * @brief Adds an object to the server. The server will then be able to handle requests at the given path.
  * @note This function has a different behaviour depending on whether the server is running or not. If the server is
  *       in a stopped state, the trait is added to the server's registry immediately (note: not thread safe).
- *       If the server is running, the request is executed on the server thread and the function will block until the
- *       operation is complete.
+ *       If the server is running, the request is executed on the server thread: the function only submit the request to
+ *       the server thread and return immediately.
  * @param server      The server to add the object to.
  * @param path        The path at which the object will be accessible.
  * @param ...         The names of the traits that the object implements. The last argument must be NULL.
@@ -148,8 +149,8 @@ DICEY_EXPORT enum dicey_error dicey_server_add_object_with(struct dicey_server *
  * @brief Adds a trait to the server's registry. The server will then be able to handle requests for this trait.
  * @note This function has a different behaviour depending on whether the server is running or not. If the server is
  *       in a stopped state, the trait is added to the server's registry immediately (note: not thread safe).
- *       If the server is running, the request is executed on the server thread and the function will block until the
- *       operation is complete.
+ *       If the server is running, the request is executed on the server thread: the function only submit the request to
+ *       the server thread and return immediately.
  * @param server The server to add the trait to.
  * @param trait  The trait to add to the server's registry. The registry will take ownership of this trait.
  * @return       Error code. The possible values are several and include:
@@ -163,7 +164,8 @@ DICEY_EXPORT enum dicey_error dicey_server_add_trait(struct dicey_server *server
  * @brief Deletes an object from the server. The server will stop handling requests at the given path.
  * @note This function has a different behaviour depending on whether the server is running or not. If the server is
  *       in a stopped state, the trait is removed from the server's registry immediately. If the server is running, the
- *       request is executed on the server thread and the function will block until the operation is complete.
+ *       request is executed on the server thread: the function only submit the request to the server thread and
+ *       return immediately.
  * @param server The server to delete the object from.
  * @param path   The path at which the object is accessible. Must be a valid path.
  * @return       Error code. The possible values are several and include:
