@@ -141,9 +141,14 @@ cdef class _BuilderHandle:
         _check(dicey_value_builder_pair_end(self.value))
 
     cdef void set_path(self, p: Path):
+        sbytes = p.value.encode("UTF-8")
+
+        self.obj_cache.append(sbytes)
+
         cdef dicey_arg arg
         arg.type = dicey_type.DICEY_TYPE_PATH
-        arg.str = p.value
+        
+        arg.str = sbytes
 
         _check(dicey_value_builder_set(self.value, arg))
 
@@ -262,7 +267,7 @@ def _add_pair(_BuilderHandle value, p: Pair):
 
 @_dicey_matcher(dicey_type.DICEY_TYPE_PATH)
 def _add_path(_BuilderHandle value, p: Path):
-    value.set_path(p.value)
+    value.set_path(p)
 
 @_dicey_matcher(dicey_type.DICEY_TYPE_SELECTOR)
 def _add_selector(_BuilderHandle value, s: Selector):

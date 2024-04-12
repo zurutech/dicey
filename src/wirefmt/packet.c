@@ -18,6 +18,12 @@
 #include "sup/trace.h"
 #include "sup/view-ops.h"
 
+static bool is_valid_forward(const enum dicey_op from, const enum dicey_op to) {
+    const bool from_is_get = from == DICEY_OP_GET, to_is_get = to == DICEY_OP_GET;
+
+    return from_is_get == to_is_get; // GETs can only be forwarded to GETs, and nothing can forward as GETs
+}
+
 static enum dicey_op msgkind_from_dtf(const ptrdiff_t kind) {
     switch (kind) {
     default:
@@ -360,6 +366,64 @@ enum dicey_error dicey_packet_as_message(const struct dicey_packet packet, struc
             ._data = value.data,
         };
     }
+
+    return DICEY_OK;
+}
+
+enum dicey_error dicey_packet_forward_message(
+    struct dicey_packet *const dest,
+    const struct dicey_packet old,
+    const uint32_t seq,
+    const enum dicey_op type,
+    const char *const path,
+    const struct dicey_selector selector
+) {
+    if (!(dest && path && dicey_op_is_valid(type) && dicey_selector_is_valid(selector))) {
+        return TRACE(DICEY_EINVAL);
+    }
+
+    if (!dicey_packet_is_valid(old)) {
+        return TRACE(DICEY_EBADMSG);
+    }
+
+    struct dicey_message msg = { 0 };
+    if (dicey_packet_as_message(old, &msg) != DICEY_OK) {
+        return TRACE(DICEY_EBADMSG);
+    }
+
+    if (!is_valid_forward(msg.type, type)) {
+        return TRACE(DICEY_EINVAL);
+    }
+
+    const enum dtf_payload_kind dtf_kind = (enum dtf_payload_kind) type;
+
+    const ptrdiff_t old_header_size = dtf_message_estimate_header_size(dtf_kind, msg.path, msg.selector);
+    if (old_header_size < 0) {
+        return old_header_size;
+    }
+
+    assert((size_t) old_header_size <= old.nbytes);
+
+    const size_t value_size = old.nbytes - (size_t) old_header_size;
+
+    const struct dtf_result craft_res = dtf_message_write_with_raw_value(
+        DICEY_NULL,
+        dtf_kind,
+        seq,
+        path,
+        selector,
+        // this is fine - we can always do pointer arithmetic on char* pointers, and this will just be memcpy'd
+        dicey_view_from((char *) old.payload + old_header_size, value_size)
+    );
+
+    if (craft_res.result < 0) {
+        return craft_res.result;
+    }
+
+    *dest = (struct dicey_packet) {
+        .payload = craft_res.data,
+        .nbytes = craft_res.size,
+    };
 
     return DICEY_OK;
 }

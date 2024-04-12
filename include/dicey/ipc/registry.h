@@ -76,6 +76,8 @@ DICEY_EXPORT enum dicey_error dicey_registry_init(struct dicey_registry *registr
 
 /**
  * @brief Adds an object to the registry at a given path, with a variable number of traits.
+ * @note All the values this function takes are not required to be valid after the function returns. The function will
+ *       copy the values it needs.
  * @param registry The registry to add the object to.
  * @param path     The path at which to add the object.
  * @param ...      A list of `const char*` trait names that the object implements. This list must be terminated with a
@@ -87,10 +89,12 @@ DICEY_EXPORT enum dicey_error dicey_registry_init(struct dicey_registry *registr
  *                 - EINVAL: one or more of the arguments is invalid (e.g. a trait name is duplicated)
  *                 - ETRAIT_NOT_FOUND: one (or more) of the specified traits does not exist
  */
-DICEY_EXPORT enum dicey_error dicey_registry_add_object(struct dicey_registry *registry, const char *path, ...);
+DICEY_EXPORT enum dicey_error dicey_registry_add_object_with(struct dicey_registry *registry, const char *path, ...);
 
 /**
  * @brief Adds an object to the registry at a given path, with a list of traits.
+ * @note All the values this function takes are not required to be valid after the function returns. The function will
+ *       copy the values it needs.
  * @param registry The registry to add the object to.
  * @param path     The path at which to add the object.
  * @param trait    A list of `const char*` trait names that the object implements, terminated by a NULL pointer.
@@ -108,7 +112,42 @@ DICEY_EXPORT enum dicey_error dicey_registry_add_object_with_trait_list(
 );
 
 /**
+ * @brief Adds an object to the registry at a given path, with a set of traits (which must all be valid).
+ * @note  The ownership of the set is transferred to the registry.
+ * @param registry The registry to add the object to.
+ * @param path     The path at which to add the object.
+ * @param set      A set of `const char*` trait names that the object implements. The set must be valid and only contain
+ *                 valid trait names (i.e. traits that exist in the registry). The ownership of the set will be
+ *                 transferred to the registry.
+ * @return         Error code. Possible values are:
+ *                 - OK: the object was successfully added to the registry
+ *                 - EEXISTS: an object already exists at the given path
+ *                 - ENOMEM: memory allocation failed
+ *                 - EINVAL: one or more of the arguments is invalid (e.g. a trait name is duplicated)
+ *                 - ETRAIT_NOT_FOUND: one (or more) of the specified traits does not exist
+ */
+DICEY_EXPORT enum dicey_error dicey_registry_add_object_with_trait_set(
+    struct dicey_registry *registry,
+    const char *path,
+    struct dicey_hashset *set
+);
+
+/**
+ * @brief Adds a trait to the registry. The trait must be valid and not already exist in the registry.
+ * @note  The ownership of the trait is transferred to the registry.
+ * @param registry The registry to add the trait to.
+ * @param trait    The trait to add.
+ * @return         Error code. Possible values are:
+ *                 - OK: the trait was successfully added to the registry
+ *                 - EEXISTS: a trait with the same name already exists
+ *                 - ENOMEM: memory allocation failed (out of memory)
+ */
+DICEY_EXPORT enum dicey_error dicey_registry_add_trait(struct dicey_registry *registry, struct dicey_trait *trait);
+
+/**
  * @brief Adds a trait to the registry with a variable number of elements.
+ * @note  All the values this function takes are not required to be valid after the function returns. The function will
+ *        copy the values it needs.
  * @param registry The registry to add the trait to.
  * @param name     The name of the trait.
  * @param ...      A list of alternating `const char*` and `struct dicey_element` respectively representing the name and
@@ -120,7 +159,7 @@ DICEY_EXPORT enum dicey_error dicey_registry_add_object_with_trait_list(
  *                 - ENOMEM: memory allocation failed
  *                 - EINVAL: one or more of the arguments is invalid (e.g. an element name is duplicated)
  */
-DICEY_EXPORT enum dicey_error dicey_registry_add_trait(struct dicey_registry *registry, const char *name, ...);
+DICEY_EXPORT enum dicey_error dicey_registry_add_trait_with(struct dicey_registry *registry, const char *name, ...);
 
 /**
  * @brief Adds a trait to the registry with a list of elements.
@@ -156,6 +195,18 @@ DICEY_EXPORT bool dicey_registry_contains_object(const struct dicey_registry *re
  * @return         True if the trait exists, false otherwise.
  */
 DICEY_EXPORT bool dicey_registry_contains_trait(const struct dicey_registry *registry, const char *name);
+
+/**
+ * @brief Deletes a trait from the registry.
+ * @note  The ownership of the trait is transferred to the registry.
+ * @param registry The registry to add the trait to.
+ * @param trait    The trait to add.
+ * @return         Error code. Possible values are:
+ *                 - OK: the trait was successfully added to the registry
+ *                 - EEXISTS: a trait with the same name already exists
+ *                 - ENOMEM: memory allocation failed (out of memory)
+ */
+DICEY_EXPORT enum dicey_error dicey_registry_delete_object(struct dicey_registry *registry, const char *const name);
 
 /**
  * @brief Gets an element from a trait.

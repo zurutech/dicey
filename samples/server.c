@@ -1,5 +1,8 @@
 // Copyright (c) 2014-2024 Zuru Tech HK Limited, All rights reserved.
 
+#include "dicey/ipc/server.h"
+#include "dicey/core/errors.h"
+#include "dicey/core/hashtable.h"
 #include "dicey/ipc/address.h"
 #define _CRT_NONSTDC_NO_DEPRECATE 1
 #include <assert.h>
@@ -41,6 +44,24 @@
 #define SELF_TRAIT "dicey.sample.Server"
 #define HALT_ELEMENT "Halt"
 #define HALT_SIGNATURE "u"
+
+#define ECHO_PATH "/dicey/test/echo"
+#define ECHO_TRAIT "dicey.test.Echo"
+#define ECHO_ECHO_ELEMENT "Echo"
+#define ECHO_ECHO_SIGNATURE "v"
+
+#define TEST_MGR_PATH "/dicey/test/manager"
+#define TEST_MGR_TRAIT "dicey.test.Manager"
+#define TEST_MGR_ADD_ELEMENT "Add"
+#define TEST_MGR_ADD_SIGNATURE "s"
+#define TEST_MGR_DEL_ELEMENT "Delete"
+#define TEST_MGR_DEL_SIGNATURE "@"
+
+#define TEST_OBJ_PATH_BASE "/dicey/test/object/"
+#define TEST_OBJ_PATH_FMT TEST_OBJ_PATH_BASE "%zu"
+#define TEST_OBJ_TRAIT "dicey.test.Object"
+#define TEST_OBJ_NAME_ELEMENT "Name"
+#define TEST_OBJ_NAME_SIGNATURE "s"
 
 static struct dicey_server *global_server = NULL;
 
@@ -90,58 +111,201 @@ static bool register_break_hook(void) {
 
 #endif
 
+struct test_element {
+    enum dicey_element_type type;
+    const char *name;
+    const char *signature;
+
+    bool readonly;
+};
+
+struct test_trait {
+    const char *name;
+    const struct test_element *const *elements;
+};
+
+static const struct test_trait test_traits[] = {
+    {
+     .name = DUMMY_TRAIT,
+     .elements =
+            (const struct test_element *[]) {
+                &(struct test_element) {
+                    .type = DICEY_ELEMENT_TYPE_PROPERTY,
+                    .name = DUMMY_ELEMENT,
+                    .signature = DUMMY_SIGNATURE,
+                },
+                NULL,
+            }, },
+    {
+     .name = SVAL_TRAIT,
+     .elements =
+            (const struct test_element *[]) {
+                &(struct test_element) {
+                    .type = DICEY_ELEMENT_TYPE_PROPERTY,
+                    .name = SVAL_PROP,
+                    .signature = SVAL_SIG,
+                },
+                NULL,
+            }, },
+    {
+     .name = SELF_TRAIT,
+     .elements =
+            (const struct test_element *[]) {
+                &(struct test_element) {
+                    .type = DICEY_ELEMENT_TYPE_OPERATION,
+                    .name = HALT_ELEMENT,
+                    .signature = HALT_SIGNATURE,
+                },
+                NULL,
+            }, },
+    {
+     .name = ECHO_TRAIT,
+     .elements =
+            (const struct test_element *[]) {
+                &(struct test_element) {
+                    .type = DICEY_ELEMENT_TYPE_OPERATION,
+                    .name = ECHO_ECHO_ELEMENT,
+                    .signature = ECHO_ECHO_SIGNATURE,
+                },
+                NULL,
+            }, },
+    {
+     .name = TEST_MGR_TRAIT,
+     .elements =
+            (const struct test_element *[]) {
+                &(struct test_element) {
+                    .type = DICEY_ELEMENT_TYPE_OPERATION,
+                    .name = TEST_MGR_ADD_ELEMENT,
+                    .signature = TEST_MGR_ADD_SIGNATURE,
+                },
+                &(struct test_element) {
+                    .type = DICEY_ELEMENT_TYPE_OPERATION,
+                    .name = TEST_MGR_DEL_ELEMENT,
+                    .signature = TEST_MGR_DEL_SIGNATURE,
+                },
+                NULL,
+            }, },
+    {
+     .name = TEST_OBJ_TRAIT,
+     .elements =
+            (const struct test_element *[]) {
+                &(struct test_element) {
+                    .type = DICEY_ELEMENT_TYPE_PROPERTY,
+                    .name = TEST_OBJ_NAME_ELEMENT,
+                    .signature = TEST_OBJ_NAME_SIGNATURE,
+                    .readonly = true,
+                },
+                NULL,
+            }, },
+};
+
+struct test_object {
+    const char *path;
+    const char *const *traits;
+};
+
+static const struct test_object test_objects[] = {
+    {.path = DUMMY_PATH,     .traits = (const char *[]) { DUMMY_TRAIT, NULL }   },
+    { .path = SVAL_PATH,     .traits = (const char *[]) { SVAL_TRAIT, NULL }    },
+    { .path = SELF_PATH,     .traits = (const char *[]) { SELF_TRAIT, NULL }    },
+    { .path = ECHO_PATH,     .traits = (const char *[]) { ECHO_TRAIT, NULL }    },
+    { .path = TEST_MGR_PATH, .traits = (const char *[]) { TEST_MGR_TRAIT, NULL }},
+};
+
+static bool matches_elem(
+    const struct dicey_message *const msg,
+    const char *const path,
+    const char *const trait,
+    const char *const elem
+) {
+    return !strcmp(msg->path, path) && !strcmp(msg->selector.trait, trait) && !strcmp(msg->selector.elem, elem);
+}
+
+static bool matches_elem_under_root(
+    const struct dicey_message *const msg,
+    const char *const root,
+    const char *const trait,
+    const char *const elem
+) {
+    return !strncmp(msg->path, root, strlen(root)) && !strcmp(msg->selector.trait, trait) &&
+           !strcmp(msg->selector.elem, elem);
+}
+
 static enum dicey_error registry_fill(struct dicey_registry *const registry) {
     assert(registry);
 
-    enum dicey_error err = dicey_registry_add_trait(
-        registry,
-        DUMMY_TRAIT,
-        DUMMY_ELEMENT,
-        (struct dicey_element) { .type = DICEY_ELEMENT_TYPE_PROPERTY, .signature = DUMMY_SIGNATURE },
-        NULL
-    );
+    const struct test_trait *const traits_end = test_traits + sizeof(test_traits) / sizeof(test_traits[0]);
+    for (const struct test_trait *trait_def = test_traits; trait_def < traits_end; ++trait_def) {
+        assert(trait_def->name && trait_def->elements);
 
-    if (err) {
-        return err;
+        struct dicey_trait *const trait = dicey_trait_new(trait_def->name);
+        if (!trait) {
+            return DICEY_ENOMEM;
+        }
+
+        for (const struct test_element *const *element_def_ptr = trait_def->elements; *element_def_ptr;
+             ++element_def_ptr) {
+            const struct test_element *const element = *element_def_ptr;
+
+            assert(element->name && element->signature && element->type != DICEY_ELEMENT_TYPE_INVALID);
+
+            const enum dicey_error err = dicey_trait_add_element(
+                trait,
+                element->name,
+                (struct dicey_element
+                ) { .type = element->type, .signature = element->signature, .readonly = element->readonly }
+            );
+
+            if (err) {
+                dicey_trait_delete(trait);
+
+                return err;
+            }
+        }
+
+        const enum dicey_error err = dicey_registry_add_trait(registry, trait);
+        if (err) {
+            dicey_trait_delete(trait);
+
+            return err;
+        }
     }
 
-    err = dicey_registry_add_trait(
-        registry,
-        SVAL_TRAIT,
-        SVAL_PROP,
-        (struct dicey_element) { .type = DICEY_ELEMENT_TYPE_PROPERTY, .signature = SVAL_SIG },
-        NULL
-    );
+    const struct test_object *const objects_end = test_objects + sizeof(test_objects) / sizeof(test_objects[0]);
+    for (const struct test_object *object_def = test_objects; object_def < objects_end; ++object_def) {
+        assert(object_def->path && object_def->traits);
 
-    if (err) {
-        return err;
-    }
+        struct dicey_hashset *traits_set = dicey_hashset_new();
+        if (!traits_set) {
+            return DICEY_ENOMEM;
+        }
 
-    err = dicey_registry_add_trait(
-        registry,
-        SELF_TRAIT,
-        HALT_ELEMENT,
-        (struct dicey_element) { .type = DICEY_ELEMENT_TYPE_OPERATION, .signature = HALT_SIGNATURE },
-        NULL
-    );
+        for (const char *const *trait_name_ptr = object_def->traits; *trait_name_ptr; ++trait_name_ptr) {
+            const char *const trait_name = *trait_name_ptr;
 
-    if (err) {
-        return err;
-    }
+            const enum dicey_hash_set_result result = dicey_hashset_add(&traits_set, trait_name);
+            switch (result) {
+            case DICEY_HASH_SET_FAILED:
+                dicey_hashset_delete(traits_set);
 
-    err = dicey_registry_add_object(registry, DUMMY_PATH, DUMMY_TRAIT, NULL);
-    if (err) {
-        return err;
-    }
+                return DICEY_ENOMEM;
 
-    err = dicey_registry_add_object(registry, SVAL_PATH, SVAL_TRAIT, NULL);
-    if (err) {
-        return err;
-    }
+            case DICEY_HASH_SET_ADDED:
+                break;
 
-    err = dicey_registry_add_object(registry, SELF_PATH, SELF_TRAIT, NULL);
-    if (err) {
-        return err;
+            case DICEY_HASH_SET_UPDATED:
+                dicey_hashset_delete(traits_set);
+
+                return DICEY_EINVAL;
+            }
+        }
+
+        const enum dicey_error err = dicey_registry_add_object_with_trait_set(registry, object_def->path, traits_set);
+        if (err) {
+            dicey_hashset_delete(traits_set);
+
+            return err;
+        }
     }
 
     return DICEY_OK;
@@ -212,25 +376,51 @@ static enum dicey_error send_reply(
     return DICEY_OK;
 }
 
+static enum dicey_error on_echo_req(
+    struct dicey_server *const server,
+    const struct dicey_client_info *const cln,
+    const uint32_t seq,
+    struct dicey_packet packet,
+    const struct dicey_message *const req
+) {
+    assert(server && cln && dicey_packet_is_valid(packet) && req && req->type == DICEY_OP_EXEC);
+
+    struct dicey_packet fixed = { 0 };
+
+    // rewrite the message as a response
+    const enum dicey_error err =
+        dicey_packet_forward_message(&fixed, packet, seq, DICEY_OP_RESPONSE, req->path, req->selector);
+    if (err) {
+        return err;
+    }
+
+    return dicey_server_send(server, cln->id, fixed);
+}
+
 static enum dicey_error on_sval_req(
     struct dicey_server *const server,
     const struct dicey_client_info *const cln,
     const uint32_t seq,
-    const struct dicey_message req
+    const struct dicey_message *const req
 ) {
-    assert(server && cln);
+    assert(server && cln && req);
 
-    switch (req.type) {
+    struct dicey_hashtable **const table = dicey_server_get_context(server);
+    assert(table && *table);
+
+    const char sval_entry[] = { SVAL_PATH "#" SVAL_TRAIT ":" SVAL_PROP };
+
+    switch (req->type) {
     case DICEY_OP_GET:
         {
-            const char *const sval = dicey_server_get_context(server);
+            const char *const sval = dicey_hashtable_get(*table, sval_entry);
 
             return send_reply(
                 server,
                 cln,
                 seq,
-                req.path,
-                req.selector,
+                req->path,
+                req->selector,
                 (struct dicey_arg) { .type = DICEY_TYPE_STR, .str = sval ? sval : "" }
             );
         }
@@ -238,9 +428,9 @@ static enum dicey_error on_sval_req(
     case DICEY_OP_SET:
         {
             const char *str = NULL;
-            const enum dicey_error err = dicey_value_get_str(&req.value, &str);
+            const enum dicey_error err = dicey_value_get_str(&req->value, &str);
             if (err) {
-                (void) send_reply(server, cln, seq, req.path, req.selector, (struct dicey_arg) { .type = DICEY_TYPE_ERROR, .error = {
+                (void) send_reply(server, cln, seq, req->path, req->selector, (struct dicey_arg) { .type = DICEY_TYPE_ERROR, .error = {
                     .code = err,
                     .message = dicey_error_msg(err),
                 } });
@@ -253,14 +443,190 @@ static enum dicey_error on_sval_req(
                 return DICEY_ENOMEM;
             }
 
-            free(dicey_server_set_context(server, sval));
+            void *old_sval = NULL;
+            const enum dicey_hash_set_result set_res = dicey_hashtable_set(table, sval_entry, sval, &old_sval);
 
-            return send_reply(server, cln, seq, req.path, req.selector, (struct dicey_arg) { .type = DICEY_TYPE_UNIT });
+            free(old_sval);
+
+            if (set_res == DICEY_HASH_SET_FAILED) {
+                free(sval);
+
+                return DICEY_ENOMEM;
+            }
+
+            return send_reply(
+                server, cln, seq, req->path, req->selector, (struct dicey_arg) { .type = DICEY_TYPE_UNIT }
+            );
         }
 
     default:
         abort();
     }
+}
+
+static enum dicey_error on_test_add(
+    struct dicey_server *const server,
+    const struct dicey_client_info *const cln,
+    const uint32_t seq,
+    const struct dicey_message *const req
+) {
+    assert(server && cln && req && req->type == DICEY_OP_EXEC);
+
+    const char test_mgr[] = { TEST_MGR_PATH "#" TEST_MGR_TRAIT ":" TEST_MGR_ADD_ELEMENT };
+
+    const char *str = NULL;
+    enum dicey_error err = dicey_value_get_str(&req->value, &str);
+    if (err) {
+        return send_reply(server, cln, seq, req->path, req->selector, (struct dicey_arg) { .type = DICEY_TYPE_ERROR, .error = {
+            .code = err,
+            .message = dicey_error_msg(err),
+        } });
+    }
+
+    struct dicey_hashtable **const table = dicey_server_get_context(server);
+
+    assert(table && *table);
+
+    // get index from table - if not found, malloc a new one and set it to 0
+    size_t *index = dicey_hashtable_get(*table, test_mgr);
+    if (index) {
+        ++*index;
+    } else {
+        size_t *const new_index = calloc(1U, sizeof *new_index);
+        if (!new_index) {
+            return DICEY_ENOMEM;
+        }
+
+        void *old_index = NULL;
+        const enum dicey_hash_set_result set_res = dicey_hashtable_set(table, test_mgr, new_index, &old_index);
+
+        assert(!old_index);
+
+        if (set_res == DICEY_HASH_SET_FAILED) {
+            free(new_index);
+
+            return DICEY_ENOMEM;
+        }
+
+        index = new_index;
+    }
+
+    // swanky buffer to hold the object path we're going to snprintf. this is enough space for numbers up to 2^128 at
+    // the least
+    char str_buffer[sizeof(TEST_OBJ_PATH_FMT) + 40] = { 0 };
+
+    snprintf(str_buffer, sizeof str_buffer, TEST_OBJ_PATH_FMT, *index);
+
+    err = dicey_server_add_object_with(server, str_buffer, TEST_OBJ_TRAIT, NULL);
+    if (err) {
+        return send_reply(server, cln, seq, req->path, req->selector, (struct dicey_arg) { .type = DICEY_TYPE_ERROR, .error = {
+            .code = err,
+            .message = dicey_error_msg(err),
+        } });
+    }
+
+    char *const name = strdup(str);
+    if (!name) {
+        return DICEY_ENOMEM;
+    }
+
+    void *old_obj = NULL;
+    const enum dicey_hash_set_result set_res = dicey_hashtable_set(table, str_buffer, name, &old_obj);
+
+    assert(!old_obj && set_res != DICEY_HASH_SET_UPDATED);
+
+    if (set_res == DICEY_HASH_SET_FAILED) {
+        free(name);
+        return DICEY_ENOMEM;
+    }
+
+    return send_reply(
+        server, cln, seq, req->path, req->selector, (struct dicey_arg) { .type = DICEY_TYPE_PATH, .str = str_buffer }
+    );
+}
+
+static enum dicey_error on_test_del(
+    struct dicey_server *const server,
+    const struct dicey_client_info *const cln,
+    const uint32_t seq,
+    const struct dicey_message *const req
+) {
+    assert(server && cln && req && req->type == DICEY_OP_EXEC);
+
+    const char *path = NULL;
+    enum dicey_error err = dicey_value_get_path(&req->value, &path);
+    if (err) {
+        return send_reply(server, cln, seq, req->path, req->selector, (struct dicey_arg) { .type = DICEY_TYPE_ERROR, .error = {
+            .code = err,
+            .message = dicey_error_msg(err),
+        } });
+    }
+
+    if (strncmp(path, TEST_OBJ_PATH_BASE, sizeof(TEST_OBJ_PATH_BASE) - 1)) {
+        return send_reply(
+            server, cln, seq, req->path, req->selector, (struct dicey_arg) {
+                .type = DICEY_TYPE_ERROR,
+                .error = {
+                    .code = (uint16_t) DICEY_EINVAL,
+                    .message = "can't delete the given path - not a test object",
+                },
+            }
+        );
+    }
+
+    struct dicey_hashtable **const table = dicey_server_get_context(server);
+
+    assert(table && *table);
+
+    char *const name = dicey_hashtable_remove(*table, path);
+
+    if (!name) {
+        return send_reply(
+            server, cln, seq, req->path, req->selector, (struct dicey_arg) {
+                .type = DICEY_TYPE_ERROR,
+                .error = {
+                    .code = (uint16_t) DICEY_EPATH_NOT_FOUND,
+                    .message = "can't delete the given path - not found",
+                },
+            }
+        );
+    }
+
+    free(name);
+
+    err = dicey_server_delete_object(server, path);
+    if (err) {
+        return send_reply(server, cln, seq, req->path, req->selector, (struct dicey_arg) {
+            .type = DICEY_TYPE_ERROR,
+            .error = {
+                .code = err,
+                .message = dicey_error_msg(err),
+            },
+        });
+    }
+
+    return send_reply(server, cln, seq, req->path, req->selector, (struct dicey_arg) { .type = DICEY_TYPE_UNIT });
+}
+
+static enum dicey_error on_test_obj_name(
+    struct dicey_server *const server,
+    const struct dicey_client_info *const cln,
+    const uint32_t seq,
+    const struct dicey_message *const req
+) {
+    assert(server && cln && req && req->type == DICEY_OP_GET);
+
+    struct dicey_hashtable **const table = dicey_server_get_context(server);
+
+    assert(table && *table);
+
+    const char *name = dicey_hashtable_get(*table, req->path);
+
+    assert(name);
+
+    return send_reply(
+        server, cln, seq, req->path, req->selector, (struct dicey_arg) { .type = DICEY_TYPE_STR, .str = name }
+    );
 }
 
 static void on_request_received(
@@ -289,26 +655,33 @@ static void on_request_received(
 
     util_dumper_dump_packet(&dumper, packet);
 
-    if (!strcmp(msg.path, DUMMY_PATH) && !strcmp(msg.selector.trait, DUMMY_TRAIT) &&
-        !strcmp(msg.selector.elem, DUMMY_ELEMENT)) {
+    if (matches_elem(&msg, DUMMY_PATH, DUMMY_TRAIT, DUMMY_ELEMENT)) {
         err = send_reply(
             server, cln, seq, msg.path, msg.selector, (struct dicey_arg) { .type = DICEY_TYPE_BOOL, .boolean = true }
         );
         if (err) {
             fprintf(stderr, "error: %s\n", dicey_error_name(err));
         }
-    } else if (!strcmp(msg.path, SVAL_PATH) && !strcmp(msg.selector.trait, SVAL_TRAIT) && !strcmp(msg.selector.elem, SVAL_PROP)) {
-        err = on_sval_req(server, cln, seq, msg);
+    } else if (matches_elem(&msg, SVAL_PATH, SVAL_TRAIT, SVAL_PROP)) {
+        err = on_sval_req(server, cln, seq, &msg);
         if (err) {
             fprintf(stderr, "error: %s\n", dicey_error_name(err));
         }
-    } else if (!strcmp(msg.path, SELF_PATH) && !strcmp(msg.selector.trait, SELF_TRAIT) && !strcmp(msg.selector.elem, HALT_ELEMENT)) {
+    } else if (matches_elem(&msg, SELF_PATH, SELF_TRAIT, HALT_ELEMENT)) {
         err = send_reply(server, cln, seq, msg.path, msg.selector, (struct dicey_arg) { .type = DICEY_TYPE_UNIT });
         if (err) {
             fprintf(stderr, "error: %s\n", dicey_error_name(err));
         }
 
         dicey_server_stop(server);
+    } else if (matches_elem(&msg, ECHO_PATH, ECHO_TRAIT, ECHO_ECHO_ELEMENT)) {
+        err = on_echo_req(server, cln, seq, packet, &msg);
+    } else if (matches_elem(&msg, TEST_MGR_PATH, TEST_MGR_TRAIT, TEST_MGR_ADD_ELEMENT)) {
+        err = on_test_add(server, cln, seq, &msg);
+    } else if (matches_elem(&msg, TEST_MGR_PATH, TEST_MGR_TRAIT, TEST_MGR_DEL_ELEMENT)) {
+        err = on_test_del(server, cln, seq, &msg);
+    } else if (matches_elem_under_root(&msg, TEST_OBJ_PATH_BASE, TEST_OBJ_TRAIT, TEST_OBJ_NAME_ELEMENT)) {
+        err = on_test_obj_name(server, cln, seq, &msg);
     }
 
     // this function receives a copy of the packet that must be freed
@@ -331,6 +704,8 @@ static enum dicey_error remove_socket_if_present(void) {
 #endif
 
 int main(void) {
+    struct dicey_hashtable **ctx = NULL;
+
     enum dicey_error err = dicey_server_new(
         &global_server,
         &(struct dicey_server_args) {
@@ -377,6 +752,22 @@ int main(void) {
 
     puts("starting Dicey sample server on " PIPE_NAME "...");
 
+    ctx = malloc(sizeof *ctx);
+    if (!ctx) {
+        fprintf(stderr, "error: malloc failed\n");
+
+        goto quit;
+    }
+
+    *ctx = dicey_hashtable_new();
+    if (!*ctx) {
+        fprintf(stderr, "error: hashtable_new failed\n");
+
+        goto quit;
+    }
+
+    dicey_server_set_context(global_server, ctx);
+
     err = dicey_server_start(global_server, addr);
     if (err) {
         fprintf(stderr, "dicey_server_start: %s\n", dicey_error_name(err));
@@ -387,8 +778,11 @@ int main(void) {
     uv_fs_unlink(NULL, &(uv_fs_t) { 0 }, PIPE_NAME, NULL);
 
 quit:
-    // free any dummy string
-    free(dicey_server_get_context(global_server));
+    if (ctx) {
+        dicey_hashtable_delete(*ctx, &free);
+
+        free(ctx);
+    }
 
     dicey_server_delete(global_server);
 

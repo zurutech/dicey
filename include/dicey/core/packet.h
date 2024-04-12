@@ -229,6 +229,32 @@ DICEY_EXPORT void dicey_packet_deinit(struct dicey_packet *packet);
 DICEY_EXPORT enum dicey_error dicey_packet_dump(struct dicey_packet packet, void **data, size_t *nbytes);
 
 /**
+ * @brief Changes the message header of a packet of type MESSAGE.
+ * @note  This function is usually used to forward a packet as it is, keeping the value unchanged.
+ * @param dest The destination packet.
+ * @param old The packet to change. The old packet contents will not be freed.
+ * @param seq The sequence number to set in the packet.
+ * @param type The operation type to set in the packet.
+ * @param path The path to set in the packet.
+ * @param selector The selector to set in the packet.
+ * @return The error code indicating the success or failure of the operation. Possible errors are:
+ *         - OK: the packet was successfully rewritten
+ *         - EINVAL: the arguments are not valid (i.e. something is NULL, ...)
+ *         - ENOMEM: the packet could not be rewritten because of insufficient memory
+ *         - EBADMSG: the packet is not a message packet or is corrupted
+ *         - EPATH_MALFORMED: the path is not a valid path
+ *         - EPATH_TOO_LONG: the path is too long to be stored in the packet
+ */
+DICEY_EXPORT enum dicey_error dicey_packet_forward_message(
+    struct dicey_packet *dest,
+    struct dicey_packet old,
+    uint32_t seq,
+    enum dicey_op type,
+    const char *path,
+    struct dicey_selector selector
+);
+
+/**
  * @brief Gets the kind of a packet.
  * @param packet The packet.
  * @return The packet kind.

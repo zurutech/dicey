@@ -113,6 +113,70 @@ DICEY_EXPORT void dicey_server_delete(struct dicey_server *state);
 DICEY_EXPORT enum dicey_error dicey_server_new(struct dicey_server **dest, const struct dicey_server_args *args);
 
 /**
+ * @brief Adds an object to the server. The server will then be able to handle requests at the given path.
+ * @note This function has a different behaviour depending on whether the server is running or not. If the server is
+ *       in a stopped state, the trait is added to the server's registry immediately. If the server is running, the
+ *       request is executed on the server thread: the function only submit the request to the server thread and
+ *       return immediately.
+ * @param server      The server to add the object to.
+ * @param path        The path at which the object will be accessible.
+ * @param trait_names The names of the traits that the object implements. The registry will take ownership of this set.
+ * @return            Error code. The possible values are several and include:
+ *                    - OK: the object was successfully added
+ *                    - ENOMEM: memory allocation failed
+ *                    - EPATH_MALFORMED: the path is malformed
+ *                    - EEXIST: the object is already registered
+ */
+DICEY_EXPORT enum dicey_error dicey_server_add_object(
+    struct dicey_server *server,
+    const char *path,
+    struct dicey_hashset *trait_names
+);
+
+/**
+ * @brief Adds an object to the server. The server will then be able to handle requests at the given path.
+ * @note This function has a different behaviour depending on whether the server is running or not. If the server is
+ *       in a stopped state, the trait is added to the server's registry immediately (note: not thread safe).
+ *       If the server is running, the request is executed on the server thread: the function only submit the request to
+ *       the server thread and return immediately.
+ * @param server      The server to add the object to.
+ * @param path        The path at which the object will be accessible.
+ * @param ...         The names of the traits that the object implements. The last argument must be NULL.
+ */
+DICEY_EXPORT enum dicey_error dicey_server_add_object_with(struct dicey_server *server, const char *path, ...);
+
+/**
+ * @brief Adds a trait to the server's registry. The server will then be able to handle requests for this trait.
+ * @note This function has a different behaviour depending on whether the server is running or not. If the server is
+ *       in a stopped state, the trait is added to the server's registry immediately (note: not thread safe).
+ *       If the server is running, the request is executed on the server thread: the function only submit the request to
+ *       the server thread and return immediately.
+ * @param server The server to add the trait to.
+ * @param trait  The trait to add to the server's registry. The registry will take ownership of this trait.
+ * @return       Error code. The possible values are several and include:
+ *               - OK: the trait was successfully added
+ *               - ENOMEM: memory allocation failed
+ *               - EEXIST: the trait is already registered
+ */
+DICEY_EXPORT enum dicey_error dicey_server_add_trait(struct dicey_server *server, struct dicey_trait *trait);
+
+/**
+ * @brief Deletes an object from the server. The server will stop handling requests at the given path.
+ * @note This function has a different behaviour depending on whether the server is running or not. If the server is
+ *       in a stopped state, the trait is removed from the server's registry immediately. If the server is running, the
+ *       request is executed on the server thread: the function only submit the request to the server thread and
+ *       return immediately.
+ * @param server The server to delete the object from.
+ * @param path   The path at which the object is accessible. Must be a valid path.
+ * @return       Error code. The possible values are several and include:
+ *               - OK: the object was successfully deleted
+ *               - ENOMEM: memory allocation failed
+ *               - EPATH_MALFORMED: the path is malformed
+ *               - EPATH_NOT_FOUND: the object is not registered
+ */
+DICEY_EXPORT enum dicey_error dicey_server_delete_object(struct dicey_server *server, const char *path);
+
+/**
  * @brief Gets the context associated with the server, as set by `dicey_server_set_context`.
  * @param server The server to get the context from.
  * @return       The context pointer associated with the server (or NULL if none was set).
