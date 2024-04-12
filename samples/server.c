@@ -205,7 +205,7 @@ struct test_object {
 };
 
 static const struct test_object test_objects[] = {
-    { .path = DUMMY_PATH,    .traits = (const char *[]) { DUMMY_TRAIT, NULL }   },
+    {.path = DUMMY_PATH,     .traits = (const char *[]) { DUMMY_TRAIT, NULL }   },
     { .path = SVAL_PATH,     .traits = (const char *[]) { SVAL_TRAIT, NULL }    },
     { .path = SELF_PATH,     .traits = (const char *[]) { SELF_TRAIT, NULL }    },
     { .path = ECHO_PATH,     .traits = (const char *[]) { ECHO_TRAIT, NULL }    },
@@ -567,7 +567,7 @@ static enum dicey_error on_test_del(
             server, cln, seq, req->path, req->selector, (struct dicey_arg) {
                 .type = DICEY_TYPE_ERROR,
                 .error = {
-                    .code = DICEY_EINVAL,
+                    .code = (uint16_t) DICEY_EINVAL,
                     .message = "can't delete the given path - not a test object",
                 },
             }
@@ -585,7 +585,7 @@ static enum dicey_error on_test_del(
             server, cln, seq, req->path, req->selector, (struct dicey_arg) {
                 .type = DICEY_TYPE_ERROR,
                 .error = {
-                    .code = DICEY_EPATH_NOT_FOUND,
+                    .code = (uint16_t) DICEY_EPATH_NOT_FOUND,
                     .message = "can't delete the given path - not found",
                 },
             }
