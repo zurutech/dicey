@@ -6,11 +6,10 @@
 #include <string.h>
 
 #include <dicey/core/type.h>
+#include <dicey/core/typedescr.h>
 #include <dicey/core/views.h>
 
 #include "sup/view-ops.h"
-
-#include "typedescr.h"
 
 #define ARRAY_END ']'
 #define PAIR_END '}'

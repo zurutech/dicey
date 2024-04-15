@@ -9,9 +9,8 @@
 #include <string.h>
 
 #include <dicey/core/hashtable.h>
+#include <dicey/core/typedescr.h>
 #include <dicey/ipc/traits.h>
-
-#include "ipc/typedescr.h"
 
 static struct dicey_element *elem_dup(const struct dicey_element *const elem) {
     if (!elem) {

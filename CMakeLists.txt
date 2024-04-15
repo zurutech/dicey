@@ -154,6 +154,7 @@ set(PUBLIC_HEADERS
     "include/dicey/core/hashtable.h"
     "include/dicey/core/packet.h"
     "include/dicey/core/type.h"
+    "include/dicey/core/typedescr.h"
     "include/dicey/core/value.h"
     "include/dicey/core/version.h"
     "include/dicey/core/views.h"
@@ -176,6 +177,7 @@ set(CORE_SOURCES
     src/wirefmt/packet-args.c
     src/wirefmt/packet-args.h
     src/wirefmt/packet.c
+    src/wirefmt/typedescr.c
     src/wirefmt/value.c
 
     # wirefmt/dtf
@@ -208,8 +210,6 @@ set(CORE_SOURCES
     src/ipc/chunk.h
     src/ipc/queue.c
     src/ipc/queue.h
-    src/ipc/typedescr.c
-    src/ipc/typedescr.h
     src/ipc/uvtools.c
     src/ipc/uvtools.h
     

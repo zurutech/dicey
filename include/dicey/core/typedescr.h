@@ -5,7 +5,9 @@
 
 #include <stdbool.h>
 
-#include <dicey/core/views.h>
+#include "views.h"
+
+#include "dicey_export.h"
 
 enum dicey_typedescr_kind {
     DICEY_TYPEDESCR_INVALID,
@@ -28,7 +30,7 @@ struct dicey_typedescr {
     };
 };
 
-bool dicey_typedescr_is_valid(const char *typedescr);
-bool dicey_typedescr_parse(const char *typedescr, struct dicey_typedescr *descr);
+DICEY_EXPORT bool dicey_typedescr_is_valid(const char *typedescr);
+DICEY_EXPORT bool dicey_typedescr_parse(const char *typedescr, struct dicey_typedescr *descr);
 
 #endif // WQWGWWXACS_TYPEDESCR_H
