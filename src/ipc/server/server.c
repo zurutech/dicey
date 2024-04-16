@@ -18,11 +18,11 @@
 #include <dicey/core/builders.h>
 #include <dicey/core/errors.h>
 #include <dicey/core/packet.h>
+#include <dicey/ipc/address.h>
 #include <dicey/ipc/registry.h>
 #include <dicey/ipc/server.h>
 #include <dicey/ipc/traits.h>
 
-#include "dicey/ipc/address.h"
 #include "sup/assume.h"
 #include "sup/trace.h"
 
