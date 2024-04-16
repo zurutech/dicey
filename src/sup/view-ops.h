@@ -18,6 +18,8 @@ static inline struct dicey_view dicey_view_from(const void *const data, const si
     return (struct dicey_view) { .len = len, .data = data };
 }
 
+struct dicey_view dicey_view_from_str(const char *str);
+
 static inline struct dicey_view dicey_view_from_mut(const struct dicey_view_mut view) {
     return (struct dicey_view) { .len = view.len, .data = view.data };
 }
