@@ -300,6 +300,15 @@ DICEY_EXPORT enum dicey_error dicey_value_get_u64(const struct dicey_value *valu
 DICEY_EXPORT bool dicey_value_is(const struct dicey_value *value, enum dicey_type type);
 
 /**
+ * @brief Verifies if the given value is compatible with the given signature.
+ * @note  If the signature represents an operation, this function verifies that the given value can be used as an
+ *        argument to an operation with the given signature.
+ * @param value The value to check.
+ * @return true if the value is compatible with the given signature, false otherwise.
+ */
+DICEY_EXPORT bool dicey_value_is_compatible_with(const struct dicey_value *value, const char *signature);
+
+/**
  * @brief Returns true if the value is unit. Equivalent to dicey_value_is(value, DICEY_UNIT).
  * @param value The value to check.
  * @return true if the value is of the specified type, false otherwise.
