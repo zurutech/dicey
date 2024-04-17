@@ -18,6 +18,7 @@
 #include <dicey/core/builders.h>
 #include <dicey/core/errors.h>
 #include <dicey/core/packet.h>
+#include <dicey/core/typedescr.h>
 #include <dicey/core/value.h>
 #include <dicey/ipc/address.h>
 #include <dicey/ipc/registry.h>
@@ -131,7 +132,8 @@ static enum dicey_error is_message_acceptable_for(
             return DICEY_EINVAL;
         }
 
-        break;
+        // for GET, skip signature validation
+        return DICEY_OK;
 
     case DICEY_OP_SET:
         if (elem.type != DICEY_ELEMENT_TYPE_PROPERTY) {
@@ -188,27 +190,6 @@ static bool is_server_msg(const struct dicey_packet pkt) {
     }
 
     return is_server_op(msg.type);
-}
-
-static enum dicey_error can_send(const struct dicey_server *const server, const struct dicey_packet packet) {
-    assert(server && dicey_packet_is_valid(packet));
-
-    struct dicey_message msg = { 0 };
-    if (dicey_packet_as_message(packet, &msg) != DICEY_OK) {
-        return DICEY_OK; // assume this is not a message. We can send it
-    }
-
-    if (!is_server_op(msg.type)) {
-        return TRACE(DICEY_EINVAL);
-    }
-
-    const struct dicey_element *elem = dicey_registry_get_element_from_sel(&server->registry, msg.path, msg.selector);
-
-    if (!elem) {
-        return TRACE(DICEY_EELEMENT_NOT_FOUND);
-    }
-
-    return dicey_value_is_compatible_with(&msg.value, elem->signature) ? DICEY_OK : DICEY_ESIGNATURE_MISMATCH;
 }
 
 static enum dicey_error make_error(
@@ -288,10 +269,12 @@ static enum dicey_error server_sendpkt(
         return TRACE(DICEY_EOVERFLOW);
     }
 
-    enum dicey_error err = can_send(server, packet);
-    if (err) {
-        return err;
+    if (dicey_packet_get_kind(packet) == DICEY_PACKET_KIND_MESSAGE) {
+        if (!is_server_msg(packet)) {
+            return TRACE(DICEY_EINVAL);
+        }
     }
+    enum dicey_error err = DICEY_OK;
 
     struct write_request *const req = malloc(sizeof *req);
     if (!req) {
@@ -604,7 +587,7 @@ static ptrdiff_t client_got_message(struct dicey_client_data *const client, stru
 }
 
 static enum dicey_error client_raised_error(struct dicey_client_data *client, const enum dicey_error err) {
-    assert(client && client->state == CLIENT_STATE_CONNECTED);
+    assert(client);
 
     struct dicey_server *const server = client->parent;
     assert(server);
@@ -832,7 +815,9 @@ static void loop_request_inbound(uv_async_t *const async) {
             assert(dicey_packet_is_valid(req->packet));
 
             if (client) {
+                // TODO: validate that we are sending a valid response
                 req->err = server_sendpkt(server, client, req->packet);
+
             } else {
                 req->err = DICEY_EPEER_NOT_FOUND;
             }
@@ -938,6 +923,13 @@ static void dummy_error_handler(
     (void) msg;
 }
 
+static void close_all_handles(uv_handle_t *const handle, void *const ctx) {
+    (void) ctx;
+
+    // issue a close and pray
+    uv_close(handle, NULL);
+}
+
 void dicey_server_delete(struct dicey_server *const server) {
     if (!server) {
         return;
@@ -948,8 +940,14 @@ void dicey_server_delete(struct dicey_server *const server) {
     }
 
     const int uverr = uv_loop_close(&server->loop);
-    assert(uverr != UV_EBUSY);
-    (void) uverr;
+    if (uverr == UV_EBUSY) {
+        // hail mary attempt at closing any handles left. This is 99% likely only triggered whenever the loop was never
+        // run at all, so there are only empty handles to free up
+
+        uv_walk(&server->loop, &close_all_handles, NULL);
+
+        uv_run(&server->loop, UV_RUN_DEFAULT); // should return whenever all uv_close calls are done
+    }
 
     dicey_registry_deinit(&server->registry);
 
