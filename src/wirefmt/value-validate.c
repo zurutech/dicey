@@ -164,11 +164,11 @@ bool dicey_value_can_be_returned_from(const struct dicey_value *value, const cha
     return checksig(&sig, value);
 }
 
-bool dicey_value_is_compatible_with(const struct dicey_value *const value, const char *const full_sig) {
-    assert(value && full_sig);
+bool dicey_value_is_compatible_with(const struct dicey_value *const value, const char *const sigstr) {
+    assert(value && sigstr);
 
     struct dicey_typedescr descr = { 0 };
-    if (!dicey_typedescr_parse(full_sig, &descr)) {
+    if (!dicey_typedescr_parse(sigstr, &descr)) {
         return false;
     }
 
