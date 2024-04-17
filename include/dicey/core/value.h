@@ -304,6 +304,7 @@ DICEY_EXPORT bool dicey_value_is(const struct dicey_value *value, enum dicey_typ
  * @note  If the signature represents an operation, this function verifies that the given value can be used as an
  *        argument to an operation with the given signature.
  * @param value The value to check.
+ * @param signature The signature to check the value against.
  * @return true if the value is compatible with the given signature, false otherwise.
  */
 DICEY_EXPORT bool dicey_value_is_compatible_with(const struct dicey_value *value, const char *signature);
