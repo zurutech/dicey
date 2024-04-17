@@ -48,6 +48,12 @@
  * so `i -> s`, `i->s`, and `i               -> s` are all equivalent.
  * Note that this rule is only valid for function-like types. For all other types, spaces are not allowed.
  *
+ * The "error" ('e') type is a special type that can be always returned by any operation or property access, even if the
+ * signature itself does not annoverate `e` as a possible return type. In this, all return values somewhat operate like
+ * as if returning a union, where the actual return type can either be the signature's return type or `e`.
+ * This also means that it is not recommended to explicitly return `e` as a standalone type in signatures such as `s ->
+ e`, and returning the `$` (unit) type should be preferred instead (i.e. `s -> $`).
+ *
  * More in detail, the grammar for a Dicey signature can be summarized as follows:
  *
  * typedescr = value | operation
