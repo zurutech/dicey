@@ -39,19 +39,19 @@
 #define SELF_PATH "/dicey/sample_server"
 #define SELF_TRAIT "dicey.sample.Server"
 #define HALT_ELEMENT "Halt"
-#define HALT_SIGNATURE "u"
+#define HALT_SIGNATURE "$ -> $"
 
 #define ECHO_PATH "/dicey/test/echo"
 #define ECHO_TRAIT "dicey.test.Echo"
 #define ECHO_ECHO_ELEMENT "Echo"
-#define ECHO_ECHO_SIGNATURE "v"
+#define ECHO_ECHO_SIGNATURE "v -> v"
 
 #define TEST_MGR_PATH "/dicey/test/manager"
 #define TEST_MGR_TRAIT "dicey.test.Manager"
 #define TEST_MGR_ADD_ELEMENT "Add"
-#define TEST_MGR_ADD_SIGNATURE "s"
+#define TEST_MGR_ADD_SIGNATURE "s -> @"
 #define TEST_MGR_DEL_ELEMENT "Delete"
-#define TEST_MGR_DEL_SIGNATURE "@"
+#define TEST_MGR_DEL_SIGNATURE "@ -> $"
 
 #define TEST_OBJ_PATH_BASE "/dicey/test/object/"
 #define TEST_OBJ_PATH_FMT TEST_OBJ_PATH_BASE "%zu"
@@ -634,7 +634,7 @@ static void on_request_received(
     struct dicey_message msg = { 0 };
     enum dicey_error err = dicey_packet_as_message(packet, &msg);
     if (err) {
-        fprintf(stderr, "error: malformed message: %s\n", dicey_error_name(err));
+        fprintf(stderr, "error: malformed message: %s\n", dicey_error_msg(err));
         return;
     }
 
@@ -652,21 +652,20 @@ static void on_request_received(
     util_dumper_dump_packet(&dumper, packet);
 
     if (matches_elem(&msg, DUMMY_PATH, DUMMY_TRAIT, DUMMY_ELEMENT)) {
-        err = send_reply(
-            server, cln, seq, msg.path, msg.selector, (struct dicey_arg) { .type = DICEY_TYPE_BOOL, .boolean = true }
-        );
+        err = send_reply(server, cln, seq, msg.path, msg.selector, (struct dicey_arg) { .type = DICEY_TYPE_UNIT });
+
         if (err) {
-            fprintf(stderr, "error: %s\n", dicey_error_name(err));
+            fprintf(stderr, "error: %s\n", dicey_error_msg(err));
         }
     } else if (matches_elem(&msg, SVAL_PATH, SVAL_TRAIT, SVAL_PROP)) {
         err = on_sval_req(server, cln, seq, &msg);
         if (err) {
-            fprintf(stderr, "error: %s\n", dicey_error_name(err));
+            fprintf(stderr, "error: %s\n", dicey_error_msg(err));
         }
     } else if (matches_elem(&msg, SELF_PATH, SELF_TRAIT, HALT_ELEMENT)) {
         err = send_reply(server, cln, seq, msg.path, msg.selector, (struct dicey_arg) { .type = DICEY_TYPE_UNIT });
         if (err) {
-            fprintf(stderr, "error: %s\n", dicey_error_name(err));
+            fprintf(stderr, "error: %s\n", dicey_error_msg(err));
         }
 
         dicey_server_stop(server);
@@ -713,14 +712,14 @@ int main(void) {
     );
 
     if (err) {
-        fprintf(stderr, "dicey_server_init: %s\n", dicey_error_name(err));
+        fprintf(stderr, "dicey_server_init: %s\n", dicey_error_msg(err));
 
         goto quit;
     }
 
     err = registry_fill(dicey_server_get_registry(global_server));
     if (err) {
-        fprintf(stderr, "registry_init: %s\n", dicey_error_name(err));
+        fprintf(stderr, "registry_init: %s\n", dicey_error_msg(err));
 
         goto quit;
     }
@@ -766,7 +765,7 @@ int main(void) {
 
     err = dicey_server_start(global_server, addr);
     if (err) {
-        fprintf(stderr, "dicey_server_start: %s\n", dicey_error_name(err));
+        fprintf(stderr, "dicey_server_start: %s\n", dicey_error_msg(err));
 
         goto quit;
     }
