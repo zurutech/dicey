@@ -131,6 +131,39 @@ static bool checksig(struct dicey_view *const sig, const struct dicey_value *con
     }
 }
 
+bool dicey_value_can_be_returned_from(const struct dicey_value *value, const char *sigstr) {
+    assert(value && sigstr);
+
+    if (dicey_value_get_type(value) == DICEY_TYPE_ERROR) {
+        return true; // errors can be returned by any operation or property
+    }
+
+    struct dicey_typedescr descr = { 0 };
+    if (!dicey_typedescr_parse(sigstr, &descr)) {
+        return false;
+    }
+
+    struct dicey_view sig = { 0 };
+
+    switch (descr.kind) {
+    case DICEY_TYPEDESCR_INVALID:
+        assert(false);
+
+        return false;
+
+    case DICEY_TYPEDESCR_VALUE:
+        sig = dicey_view_from_str(descr.value);
+        break;
+
+    case DICEY_TYPEDESCR_FUNCTIONAL:
+        sig = descr.op.output;
+
+        break;
+    }
+
+    return checksig(&sig, value);
+}
+
 bool dicey_value_is_compatible_with(const struct dicey_value *const value, const char *const full_sig) {
     assert(value && full_sig);
 
