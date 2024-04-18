@@ -1,13 +1,35 @@
-# You can override the included template(s) by including variable overrides
-# SAST customization: https://docs.gitlab.com/ee/user/application_security/sast/#customizing-the-sast-settings
-# Secret Detection customization: https://docs.gitlab.com/ee/user/application_security/secret_detection/#customizing-settings
-# Dependency Scanning customization: https://docs.gitlab.com/ee/user/application_security/dependency_scanning/#customizing-the-dependency-scanning-settings
-# Container Scanning customization: https://docs.gitlab.com/ee/user/application_security/container_scanning/#customizing-the-container-scanning-settings
-# Note that environment variables can be set in several places
-# See https://docs.gitlab.com/ee/ci/variables/#cicd-variable-precedence
+variables:
+  GIT_SUBMODULE_STRATEGY: "recursive"
+  GIT_STRATEGY: "fetch"
+  GIT_CHECKOUT: "true"
+  GIT_SSL_NO_VERIFY: "1"
+
 stages:
-- test
-sast:
-  stage: test
-include:
-- template: Security/SAST.gitlab-ci.yml
+  - static-analysis
+
+default:
+  interruptible: true
+
+pre-commit:
+  image: python:3.11
+  stage: static-analysis
+  variables:
+    PRE_COMMIT_HOME: ${CI_PROJECT_DIR}/.cache/pre-commit
+    PIP_CACHE_DIR: ${CI_PROJECT_DIR}/.cache/pip
+    GIT_LFS_SKIP_SMUDGE: "1"
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event" && $CI_MERGE_REQUEST_EVENT_TYPE != "merge_train" 
+      # Verify on main without blocking subsequent jobs
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+      allow_failure: true
+  before_script:
+    - git config --global --add safe.directory $CI_PROJECT_DIR
+    - pip install pre-commit
+  script:
+    - pre-commit run --verbose --show-diff-on-failure --all-files --color always
+  retry: 1
+  # Select runner
+  tags:
+    - linux
+    - docker
+    - t0
