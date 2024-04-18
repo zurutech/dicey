@@ -5,9 +5,11 @@ variables:
   GIT_SSL_NO_VERIFY: "1"
   ENGINE_VERSION: "dev-dc-epic-5-2-1"
 
+include:
+  - template: Security/SAST.gitlab-ci.yml
+
 stages:
   - static-analysis
-  - test
 
 default:
   interruptible: true
@@ -38,5 +40,11 @@ pre-commit:
     - docker
     - t0
 
-include:
-  - template: Security/SAST.gitlab-ci.yml
+flawfinder-sast:
+  stage: static-analysis
+  variables:
+    SAST_FLAWFINDER_LEVEL: 1
+    SAST_EXCLUDED_PATHS: Dreamcatcher/Plugins
+    SEARCH_MAX_DEPTH: 10
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event" && $CI_MERGE_REQUEST_EVENT_TYPE != "merge_train"
