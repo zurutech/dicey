@@ -3,7 +3,6 @@ variables:
   GIT_STRATEGY: "fetch"
   GIT_CHECKOUT: "true"
   GIT_SSL_NO_VERIFY: "1"
-  ENGINE_VERSION: "dev-dc-epic-5-2-1"
 
 stages:
   - static-analysis
@@ -18,8 +17,6 @@ pre-commit:
     PRE_COMMIT_HOME: ${CI_PROJECT_DIR}/.cache/pre-commit
     PIP_CACHE_DIR: ${CI_PROJECT_DIR}/.cache/pip
     GIT_LFS_SKIP_SMUDGE: "1"
-    # Soft lock is checked in a different job
-    SKIP: check_locks
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event" && $CI_MERGE_REQUEST_EVENT_TYPE != "merge_train" && $CI_COMMIT_MESSAGE !~ /^Add changelog for version .*/
       # Verify on main without blocking subsequent jobs
