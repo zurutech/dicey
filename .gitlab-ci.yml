@@ -12,12 +12,6 @@ stages:
 default:
   interruptible: true
 
-sast:
-  stage: test
-
-include:
-  - template: Security/SAST.gitlab-ci.yml
-
 pre-commit:
   image: python:3.11
   stage: static-analysis
@@ -43,3 +37,6 @@ pre-commit:
     - linux
     - docker
     - t0
+
+include:
+  - template: Security/SAST.gitlab-ci.yml
