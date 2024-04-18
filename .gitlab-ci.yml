@@ -7,12 +7,13 @@ variables:
 
 stages:
   - static-analysis
+  - test
 
 default:
   interruptible: true
 
 sast:
-  stage: static-analysis
+  stage: test
 
 include:
   - template: Security/SAST.gitlab-ci.yml
