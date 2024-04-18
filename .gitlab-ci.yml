@@ -5,9 +5,6 @@ variables:
   GIT_SSL_NO_VERIFY: "1"
   ENGINE_VERSION: "dev-dc-epic-5-2-1"
 
-include:
-  - template: Security/SAST.gitlab-ci.yml
-
 stages:
   - static-analysis
 
