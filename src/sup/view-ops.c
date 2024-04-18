@@ -56,6 +56,10 @@ ptrdiff_t dicey_view_as_zstring(struct dicey_view *const view, const char **cons
     return dicey_view_advance(view, (ptrdiff_t) size);
 }
 
+struct dicey_view dicey_view_from_str(const char *const str) {
+    return dicey_view_from(str, dutl_zstring_size(str));
+}
+
 ptrdiff_t dicey_view_read(struct dicey_view *const view, const struct dicey_view_mut dest) {
     if (!view || !view->data || !dest.data) {
         return TRACE(DICEY_EINVAL);

@@ -217,7 +217,14 @@ static struct dicey_task_result issue_close(
 
     client_event(client, DICEY_CLIENT_EVENT_QUITTING);
 
-    struct dicey_task_error *const err = dicey_task_op_close(tloop, id, (uv_handle_t *) &client->pipe);
+    uv_handle_t *const handle = (uv_handle_t *) &client->pipe;
+
+    if (uv_is_closing(handle)) {
+        // no need to issue anything, just quit
+        return dicey_task_next();
+    }
+
+    struct dicey_task_error *const err = dicey_task_op_close(tloop, id, handle);
     if (err) {
         return dicey_task_fail_with(err);
     }

@@ -18,6 +18,8 @@
 #include <dicey/core/builders.h>
 #include <dicey/core/errors.h>
 #include <dicey/core/packet.h>
+#include <dicey/core/typedescr.h>
+#include <dicey/core/value.h>
 #include <dicey/ipc/address.h>
 #include <dicey/ipc/registry.h>
 #include <dicey/ipc/server.h>
@@ -118,27 +120,56 @@ static void loop_request_delete(void *const ctx, void *const ptr) {
 
 static void on_write(uv_write_t *req, int status);
 
-static enum dicey_error chech_op_valid_on(const enum dicey_op op, const struct dicey_element elem) {
-    switch (op) {
+static enum dicey_error is_message_acceptable_for(
+    const struct dicey_element elem,
+    const struct dicey_message *const msg
+) {
+    assert(msg);
+
+    switch (msg->type) {
     case DICEY_OP_GET:
-        return elem.type == DICEY_ELEMENT_TYPE_PROPERTY ? DICEY_OK : DICEY_EINVAL;
+        if (elem.type != DICEY_ELEMENT_TYPE_PROPERTY) {
+            return DICEY_EINVAL;
+        }
+
+        // for GET, skip signature validation
+        return DICEY_OK;
 
     case DICEY_OP_SET:
         if (elem.type != DICEY_ELEMENT_TYPE_PROPERTY) {
             return DICEY_EINVAL;
         }
 
-        return elem.readonly ? DICEY_EPROPERTY_READ_ONLY : DICEY_OK;
+        if (elem.readonly) {
+            return DICEY_EPROPERTY_READ_ONLY;
+        }
+
+        break;
 
     case DICEY_OP_EXEC:
-        return elem.type == DICEY_ELEMENT_TYPE_OPERATION ? DICEY_OK : DICEY_EINVAL;
+        if (elem.type != DICEY_ELEMENT_TYPE_OPERATION) {
+            return DICEY_EINVAL;
+        }
+
+        break;
 
     case DICEY_OP_EVENT:
-        return elem.type == DICEY_ELEMENT_TYPE_SIGNAL ? DICEY_OK : DICEY_EINVAL;
+        if (elem.type != DICEY_ELEMENT_TYPE_SIGNAL) {
+            return DICEY_EINVAL;
+        }
+
+        break;
+
+    case DICEY_OP_RESPONSE:
+        return false; // never ok, only server can send responses
 
     default:
-        return false;
+        assert(false);
+
+        return DICEY_EINVAL;
     }
+
+    return dicey_value_is_compatible_with(&msg->value, elem.signature) ? DICEY_OK : DICEY_ESIGNATURE_MISMATCH;
 }
 
 static bool is_server_op(const enum dicey_op op) {
@@ -534,18 +565,16 @@ static ptrdiff_t client_got_message(struct dicey_client_data *const client, stru
         return repl_err ? repl_err : CLIENT_STATE_RUNNING;
     }
 
-    const enum dicey_error op_err = chech_op_valid_on(message.type, *elem);
+    const enum dicey_error op_err = is_message_acceptable_for(*elem, &message);
     if (op_err) {
         const enum dicey_error repl_err = server_report_error(server, client, packet, op_err);
 
         // get rid of packet
         dicey_packet_deinit(&packet);
 
-        // shortcircuit: the element is read-only, so we've already sent an error response
+        // shortcircuit: the message has been rejected and we've already sent an error response
         return repl_err ? repl_err : CLIENT_STATE_RUNNING;
     }
-
-    // TODO: check the signature of the element
 
     if (server->on_request) {
         // move ownership of the packet to the callback
@@ -558,7 +587,7 @@ static ptrdiff_t client_got_message(struct dicey_client_data *const client, stru
 }
 
 static enum dicey_error client_raised_error(struct dicey_client_data *client, const enum dicey_error err) {
-    assert(client && client->state == CLIENT_STATE_CONNECTED);
+    assert(client);
 
     struct dicey_server *const server = client->parent;
     assert(server);
@@ -786,7 +815,9 @@ static void loop_request_inbound(uv_async_t *const async) {
             assert(dicey_packet_is_valid(req->packet));
 
             if (client) {
+                // TODO: validate that we are sending a valid response
                 req->err = server_sendpkt(server, client, req->packet);
+
             } else {
                 req->err = DICEY_EPEER_NOT_FOUND;
             }
@@ -822,11 +853,14 @@ static void loop_request_inbound(uv_async_t *const async) {
             // only when the server _actually_ stops that's why the case above has a return statement
 
             uv_sem_post(req->sem);
+        } else if (req->err) {
+            // if the request is not blocking, and an error happened, we must report it otherwise it will be lost
+            server->on_error(server, req->err, &client->info, "loop_request_inbound: %s", dicey_error_name(req->err));
         }
 
         free(req); // the packet, if any, will be freed in on_write
 
-        // don't free the request here, it's the responsibility of the caller
+        // don't free the request here, it's the caller's responsibility
     }
 }
 
@@ -889,6 +923,13 @@ static void dummy_error_handler(
     (void) msg;
 }
 
+static void close_all_handles(uv_handle_t *const handle, void *const ctx) {
+    (void) ctx;
+
+    // issue a close and pray
+    uv_close(handle, NULL);
+}
+
 void dicey_server_delete(struct dicey_server *const server) {
     if (!server) {
         return;
@@ -899,8 +940,14 @@ void dicey_server_delete(struct dicey_server *const server) {
     }
 
     const int uverr = uv_loop_close(&server->loop);
-    assert(uverr != UV_EBUSY);
-    (void) uverr;
+    if (uverr == UV_EBUSY) {
+        // hail mary attempt at closing any handles left. This is 99% likely only triggered whenever the loop was never
+        // run at all, so there are only empty handles to free up
+
+        uv_walk(&server->loop, &close_all_handles, NULL);
+
+        uv_run(&server->loop, UV_RUN_DEFAULT); // should return whenever all uv_close calls are done
+    }
 
     dicey_registry_deinit(&server->registry);
 

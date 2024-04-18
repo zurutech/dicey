@@ -89,6 +89,15 @@ struct dicey_pair {
 };
 
 /**
+ * @brief Verifies if the given value can be returned by an operation or property having the given signature.
+ * @param value The value to check.
+ * @param sigstr The signature string of the operation or property whose return type is to be checked against the given
+ * value.
+ * @return true if the operation described by the signature can return the given value, false otherwise.
+ */
+DICEY_EXPORT bool dicey_value_can_be_returned_from(const struct dicey_value *value, const char *sigstr);
+
+/**
  * @brief Gets the Dicey type of the given value.
  * @param value The value to get the type of.
  * @return The type of the value (INVALID if the value is NULL).
@@ -298,6 +307,16 @@ DICEY_EXPORT enum dicey_error dicey_value_get_u64(const struct dicey_value *valu
  * @return true if the value is of the specified type, false otherwise.
  */
 DICEY_EXPORT bool dicey_value_is(const struct dicey_value *value, enum dicey_type type);
+
+/**
+ * @brief Verifies if the given value is compatible with the given signature.
+ * @note  If the signature represents an operation, this function verifies that the given value can be used as an
+ *        argument to an operation with the given signature.
+ * @param value The value to check.
+ * @param sigstr The signature string to check the value against
+ * @return true if the value is compatible with the given signature, false otherwise.
+ */
+DICEY_EXPORT bool dicey_value_is_compatible_with(const struct dicey_value *value, const char *sigstr);
 
 /**
  * @brief Returns true if the value is unit. Equivalent to dicey_value_is(value, DICEY_UNIT).

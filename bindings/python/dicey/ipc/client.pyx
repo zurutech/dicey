@@ -49,9 +49,12 @@ cdef class Client:
             self.disconnect()
 
     def __dealloc__(self):
-        if self.running:
+        try:
+            # either disconnects or throws an exception, it's the same
+            self.disconnect()
+        except:
             # ignore errors if any, this is just for safety
-            dicey_client_disconnect(self.client)
+            pass
 
         dicey_client_delete(self.client)
 

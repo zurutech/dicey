@@ -8,10 +8,10 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <dicey/core/errors.h>
 #include <dicey/core/hashtable.h>
+#include <dicey/core/typedescr.h>
 #include <dicey/ipc/traits.h>
-
-#include "ipc/typedescr.h"
 
 static struct dicey_element *elem_dup(const struct dicey_element *const elem) {
     if (!elem) {
@@ -52,8 +52,19 @@ enum dicey_error dicey_trait_add_element(
 ) {
     assert(trait && trait->elems && elem.signature && *elem.signature && elem.type != DICEY_ELEMENT_TYPE_INVALID);
 
-    if (!dicey_typedescr_is_valid(elem.signature)) {
+    struct dicey_typedescr descr = { 0 };
+
+    if (!dicey_typedescr_parse(elem.signature, &descr)) {
         return DICEY_ESIGNATURE_MALFORMED;
+    }
+
+    const bool is_op = elem.type == DICEY_ELEMENT_TYPE_OPERATION,
+               is_func_sig = descr.kind == DICEY_TYPEDESCR_FUNCTIONAL;
+
+    // if the element is an operation, the signature must be a function signature
+    // conversely, if the element is a property or signal, the signature must be a value signature
+    if (is_op != is_func_sig) {
+        return DICEY_ESIGNATURE_MISMATCH;
     }
 
     // todo: optimise this by implementing an "add-or-fail" function in hashtable

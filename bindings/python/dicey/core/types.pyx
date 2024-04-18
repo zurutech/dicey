@@ -1,6 +1,7 @@
 # Copyright (c) 2014-2024 Zuru Tech HK Limited, All rights reserved.
 
 from dataclasses import dataclass as _dataclass
+from typing import Iterable as _Iterable, Optional as _Optional
 
 from libc.stdint cimport INT16_MIN, INT16_MAX, INT32_MIN, INT32_MAX, INT64_MIN, INT64_MAX, \
                          UINT8_MAX, UINT16_MAX, UINT32_MAX, UINT64_MAX
@@ -28,7 +29,7 @@ class ErrorMessage(DiceyError):
     """An error message is an error that can be sent or received via the Dicey protocol"""
     # 16-bit error code
     code: int
-    message: str
+    message: _Optional[str] = None
 
     def __post_init__(self):
         if not 0 <= self.code <= UINT16_MAX:

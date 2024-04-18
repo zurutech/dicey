@@ -6,11 +6,10 @@
 #include <string.h>
 
 #include <dicey/core/type.h>
+#include <dicey/core/typedescr.h>
 #include <dicey/core/views.h>
 
 #include "sup/view-ops.h"
-
-#include "typedescr.h"
 
 #define ARRAY_END ']'
 #define PAIR_END '}'
@@ -151,7 +150,7 @@ bool dicey_typedescr_parse(const char *typedescr, struct dicey_typedescr *const 
     if (typedescr == end) {
         *descr = (struct dicey_typedescr) {
             .kind = DICEY_TYPEDESCR_VALUE,
-            .value = typedescr,
+            .value = root,
         };
 
         return true;
