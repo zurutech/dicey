@@ -251,6 +251,7 @@ enum dicey_error dicey_pending_requests_complete(
     }
 
     pending_request_invalidate(ext_req);
+    --reqs->len;
 
     return DICEY_OK;
 }
@@ -288,6 +289,7 @@ void dicey_pending_requests_prune(
 
         if (prune_fn(req, ctx)) {
             pending_request_invalidate(req);
+            --reqs->len;
         }
     }
 }
