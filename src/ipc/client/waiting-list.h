@@ -6,10 +6,6 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-#if defined(_MSC_VER)
-#pragma warning(disable : 4200)
-#endif
-
 struct dicey_waiting_task {
     uint32_t packet_seq;
     uint64_t task_id;

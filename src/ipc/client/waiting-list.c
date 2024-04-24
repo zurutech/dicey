@@ -1,5 +1,9 @@
 // Copyright (c) 2014-2024 Zuru Tech HK Limited, All rights reserved.
 
+#if defined(_MSC_VER)
+#pragma warning(disable : 4200)
+#endif
+
 #include <assert.h>
 #include <stdbool.h>
 #include <stddef.h>
