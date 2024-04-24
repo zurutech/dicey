@@ -89,7 +89,11 @@ static struct dicey_pending_request *search_seq(struct dicey_pending_requests *c
     return NULL;
 }
 
-static enum dicey_error pending_requests_make_room(struct dicey_pending_requests **reqs_ptr) {
+// marks that a reallocation happened and the pointer has been updated to the new memory.
+// a positive value - all negative values are errors and should be treated as such
+#define REALLOCATION_HAPPENED ((ptrdiff_t) 1)
+
+static ptrdiff_t pending_requests_make_room(struct dicey_pending_requests **reqs_ptr) {
     assert(reqs_ptr && *reqs_ptr);
 
     struct dicey_pending_requests *reqs = *reqs_ptr;
@@ -100,7 +104,9 @@ static enum dicey_error pending_requests_make_room(struct dicey_pending_requests
     // TODO: find a way to go around possible intereger overflows
     const size_t occupation = reqs->len * 100U / reqs->cap;
 
-    const struct dicey_pending_requests *const old_reqs = reqs;
+    bool reallocd = false;
+
+    struct dicey_pending_requests *const old_reqs = reqs;
     if (occupation > 80U) {
         const size_t new_cap = reqs->cap * 3U / 2U;
         reqs = calloc(1U, sizeof *reqs + new_cap * sizeof *reqs->reqs);
@@ -116,14 +122,14 @@ static enum dicey_error pending_requests_make_room(struct dicey_pending_requests
         // reset the indeces - we are operating on a new circular memory block
         reqs->start = 0;
         reqs->end = reqs->len;
-    }
 
-    *reqs_ptr = reqs;
+        reallocd = true;
+    }
 
     if (!old_reqs->len) {
         // nothing to copy, we are done
 
-        return DICEY_OK;
+        goto quit;
     }
 
     // compact the list
@@ -143,7 +149,15 @@ static enum dicey_error pending_requests_make_room(struct dicey_pending_requests
         i = next_index(old_reqs, i);
     } while (i != old_reqs->end);
 
-    return DICEY_OK;
+quit:
+    *reqs_ptr = reqs;
+
+    if (reallocd) {
+        // a reallocation took place - free the old memory
+        free(old_reqs);
+    }
+
+    return reallocd ? REALLOCATION_HAPPENED : DICEY_OK;
 }
 
 static bool room_available(const struct dicey_pending_requests *const reqs) {
@@ -191,15 +205,13 @@ enum dicey_error dicey_pending_requests_add(
         reqs->last_seq = req->packet_seq;
 
         if (!room_available(reqs)) {
-            const enum dicey_error err = pending_requests_make_room(&reqs);
-            if (err != DICEY_OK) {
-                return err;
+            const ptrdiff_t res = pending_requests_make_room(&reqs);
+            if (res < 0) {
+                return (enum dicey_error) res;
             }
 
             // if this is true, the pointer has been reallocated. Clean up the old memory and update the pointer
-            if (reqs != *reqs_ptr) {
-                free(*reqs_ptr);
-
+            if (res == REALLOCATION_HAPPENED) {
                 *reqs_ptr = reqs;
             }
         }
@@ -209,8 +221,7 @@ enum dicey_error dicey_pending_requests_add(
             return TRACE(DICEY_ENOMEM);
         }
 
-        *reqs = (struct dicey_pending_requests
-        ) { .last_seq = req->packet_seq, .start = 0, .end = 0, .len = 0, .cap = STARTING_CAP };
+        *reqs = (struct dicey_pending_requests) { .last_seq = req->packet_seq, .cap = STARTING_CAP };
     }
 
     reqs->reqs[reqs->end] = *req;
