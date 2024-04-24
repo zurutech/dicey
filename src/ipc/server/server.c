@@ -681,6 +681,7 @@ static ptrdiff_t client_got_message(struct dicey_client_data *const client, stru
                 .op = message.type,
                 .path = obj_entry.path, // lifetime tied to the object
                 .sel = elem_entry.sel,  // lifetime tied to the trait
+                .signature = elem_entry.element->signature,
             }
         );
 
