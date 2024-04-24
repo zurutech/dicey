@@ -22,7 +22,7 @@ DICEY_EXPORT void dicey_hashset_delete(struct dicey_hashset *table);
 DICEY_EXPORT struct dicey_hashset_iter dicey_hashset_iter_start(struct dicey_hashset *table);
 DICEY_EXPORT bool dicey_hashset_iter_next(struct dicey_hashset_iter *iter, const char **key);
 
-DICEY_EXPORT bool dicey_hashset_contains(struct dicey_hashset *table, const char *key);
+DICEY_EXPORT bool dicey_hashset_contains(const struct dicey_hashset *table, const char *key);
 DICEY_EXPORT bool dicey_hashset_remove(struct dicey_hashset *table, const char *key);
 
 DICEY_EXPORT enum dicey_hash_set_result dicey_hashset_add(struct dicey_hashset **set, const char *key);

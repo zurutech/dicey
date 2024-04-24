@@ -19,6 +19,11 @@ struct dicey_hashtable_iter {
     const void *_current;
 };
 
+struct dicey_hashtable_entry {
+    const char *key;
+    void *value;
+};
+
 DICEY_EXPORT struct dicey_hashtable *dicey_hashtable_new(void);
 
 typedef void dicey_hashtable_free_fn(void *value);
@@ -27,8 +32,15 @@ DICEY_EXPORT void dicey_hashtable_delete(struct dicey_hashtable *table, dicey_ha
 DICEY_EXPORT struct dicey_hashtable_iter dicey_hashtable_iter_start(struct dicey_hashtable *table);
 DICEY_EXPORT bool dicey_hashtable_iter_next(struct dicey_hashtable_iter *iter, const char **key, void **value);
 
-DICEY_EXPORT bool dicey_hashtable_contains(struct dicey_hashtable *table, const char *key);
-DICEY_EXPORT void *dicey_hashtable_get(struct dicey_hashtable *table, const char *key);
+DICEY_EXPORT bool dicey_hashtable_contains(const struct dicey_hashtable *table, const char *key);
+DICEY_EXPORT void *dicey_hashtable_get(const struct dicey_hashtable *table, const char *key);
+
+DICEY_EXPORT void *dicey_hashtable_get_entry(
+    const struct dicey_hashtable *table,
+    const char *key,
+    struct dicey_hashtable_entry *entry
+);
+
 DICEY_EXPORT void *dicey_hashtable_remove(struct dicey_hashtable *table, const char *key);
 
 enum dicey_hash_set_result {

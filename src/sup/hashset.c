@@ -55,8 +55,8 @@ bool dicey_hashset_iter_next(struct dicey_hashset_iter *const iter, const char *
     return dicey_hashtable_iter_next(&iter->_inner, key, NULL);
 }
 
-bool dicey_hashset_contains(struct dicey_hashset *const table, const char *const key) {
-    return dicey_hashtable_contains((struct dicey_hashtable *) table, key);
+bool dicey_hashset_contains(const struct dicey_hashset *const table, const char *const key) {
+    return dicey_hashtable_contains((const struct dicey_hashtable *) table, key);
 }
 
 bool dicey_hashset_remove(struct dicey_hashset *const table, const char *const key) {
