@@ -46,6 +46,7 @@ void dicey_client_data_delete(struct dicey_client_data *const client) {
     }
 
     free(client->chunk);
+    free(client->pending);
     free(client);
 }
 

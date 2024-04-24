@@ -13,6 +13,8 @@
 
 #include "ipc/chunk.h"
 
+#include "pending-reqs.h"
+
 #if defined(_MSC_VER)
 #pragma warning(disable : 4200)
 #endif
@@ -36,6 +38,8 @@ struct dicey_client_data {
     struct dicey_chunk *chunk;
 
     struct dicey_server *parent;
+
+    struct dicey_pending_requests *pending;
 };
 
 void dicey_client_data_delete(struct dicey_client_data *client);
