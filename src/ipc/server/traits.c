@@ -114,10 +114,34 @@ bool dicey_trait_contains_element(const struct dicey_trait *const trait, const c
     return dicey_trait_get_element(trait, name);
 }
 
-struct dicey_element *dicey_trait_get_element(const struct dicey_trait *const trait, const char *const name) {
+const struct dicey_element *dicey_trait_get_element(const struct dicey_trait *const trait, const char *const name) {
     assert(trait && name && *name);
 
     return dicey_hashtable_get(trait->elems, name);
+}
+
+bool dicey_trait_get_element_entry(
+    const struct dicey_trait *const trait,
+    const char *const name,
+    struct dicey_element_entry *const entry
+) {
+    assert(trait && name && *name && entry);
+
+    struct dicey_hashtable_entry table_entry = { 0 };
+
+    if (!dicey_hashtable_get_entry(trait->elems, name, &table_entry)) {
+        return false;
+    }
+
+    *entry = (struct dicey_element_entry) {
+        .sel = {
+            .trait = trait->name,
+            .elem = table_entry.key,
+        },
+        .element = table_entry.value,
+    };
+
+    return true;
 }
 
 struct dicey_trait *dicey_trait_new(const char *const name) {

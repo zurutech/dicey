@@ -3,8 +3,11 @@
 #if !defined(GFJABYMEEM_TRAITS_H)
 #define GFJABYMEEM_TRAITS_H
 
+#include <stdbool.h>
+
 #include "../core/errors.h"
 #include "../core/hashtable.h"
+#include "../core/type.h"
 
 #include "dicey_export.h"
 
@@ -35,8 +38,15 @@ struct dicey_element {
 };
 
 /**
- * @brief Iterator over the elements of a trait structure.
+ * @brief Structure that describes the entry associated with an element in a trait hashtable.
+ */
+struct dicey_element_entry {
+    struct dicey_selector sel; /**< The element selector. This is guaranteed to be valid until the trait exists */
+    const struct dicey_element *element; /**< The element itself */
+};
 
+/**
+ * @brief Iterator over the elements of a trait structure.
  */
 struct dicey_trait_iter {
     struct dicey_hashtable_iter _inner;
@@ -107,7 +117,20 @@ DICEY_EXPORT bool dicey_trait_contains_element(const struct dicey_trait *trait, 
  * @param name The name of the element.
  * @return A pointer to the element, or NULL if not found.
  */
-DICEY_EXPORT struct dicey_element *dicey_trait_get_element(const struct dicey_trait *trait, const char *name);
+DICEY_EXPORT const struct dicey_element *dicey_trait_get_element(const struct dicey_trait *trait, const char *name);
+
+/**
+ * @brief Get an element entry from a trait by name.
+ * @param trait The trait to get the element from.
+ * @param name The name of the element.
+ * @param entry Pointer to store the element entry.
+ * @return true if the element is present, false otherwise.
+ */
+DICEY_EXPORT bool dicey_trait_get_element_entry(
+    const struct dicey_trait *trait,
+    const char *name,
+    struct dicey_element_entry *entry
+);
 
 #if defined(__cplusplus)
 }
