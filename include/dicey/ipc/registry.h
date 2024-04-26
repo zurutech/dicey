@@ -26,17 +26,25 @@ struct dicey_object {
 };
 
 /**
+ * @brief Represents an object entry inside of a registry.
+ */
+struct dicey_object_entry {
+    const char *path; /**< The path of this object. This string is valid for the entire lifetime of the object */
+    const struct dicey_object *object; /**< The object itself. */
+};
+
+/**
  * @brief Given a trait name, returns true if the object at `object` implements it.
  * @param object The object to check.
  * @param trait  The name of the trait to check for.
  * @return       True if the object implements the trait, false otherwise.
  */
-DICEY_EXPORT bool dicey_object_implements(struct dicey_object *object, const char *trait);
+DICEY_EXPORT bool dicey_object_implements(const struct dicey_object *object, const char *trait);
 
 /**
- * @brief Represents a trait element inside of a trait definition.
+ * @brief Structure used when adding a new element to a trait.
  */
-struct dicey_element_entry {
+struct dicey_element_new_entry {
     enum dicey_element_type
         type; /**< The type of the element, which can be one among Operation, Property, or Signal. */
 
@@ -176,7 +184,7 @@ DICEY_EXPORT enum dicey_error dicey_registry_add_trait_with(struct dicey_registr
 DICEY_EXPORT enum dicey_error dicey_registry_add_trait_with_element_list(
     struct dicey_registry *registry,
     const char *name,
-    const struct dicey_element_entry *elems,
+    const struct dicey_element_new_entry *elems,
     size_t count
 );
 
@@ -216,11 +224,28 @@ DICEY_EXPORT enum dicey_error dicey_registry_delete_object(struct dicey_registry
  * @param elem     The name of the element.
  * @return         A pointer to the element, or NULL if the element does not exist.
  */
-DICEY_EXPORT struct dicey_element *dicey_registry_get_element(
+DICEY_EXPORT const struct dicey_element *dicey_registry_get_element(
     const struct dicey_registry *registry,
     const char *path,
-    const char *trait,
+    const char *trait_name,
     const char *elem
+);
+
+/**
+ * @brief Gets the entry of an element from a trait.
+ * @param registry The registry to get the element from.
+ * @param path     The path to the object.
+ * @param trait    The name of the trait.
+ * @param elem     The name of the element.
+ * @param entry    A pointer to a `dicey_element_entry` struct to fill with the element's details. Must not be NULL.
+ * @return         True if the element exists, false otherwise.
+ */
+DICEY_EXPORT bool dicey_registry_get_element_entry(
+    const struct dicey_registry *registry,
+    const char *path,
+    const char *trait_name,
+    const char *elem,
+    struct dicey_element_entry *entry
 );
 
 /**
@@ -230,10 +255,25 @@ DICEY_EXPORT struct dicey_element *dicey_registry_get_element(
  * @param sel      A valid selector referencing the element.
  * @return         A pointer to the element, or NULL if the element does not exist.
  */
-DICEY_EXPORT struct dicey_element *dicey_registry_get_element_from_sel(
+DICEY_EXPORT const struct dicey_element *dicey_registry_get_element_from_sel(
     const struct dicey_registry *registry,
     const char *path,
     struct dicey_selector sel
+);
+
+/**
+ * @brief Gets the entry of an element from a trait using a selector.
+ * @param registry The registry to get the element from.
+ * @param path     The path to the object.
+ * @param sel      A valid selector referencing the element.
+ * @param entry    A pointer to a `dicey_element_entry` struct to fill with the element's details. Must not be NULL.
+ * @return         True if the element exists, false otherwise.
+ */
+DICEY_EXPORT bool dicey_registry_get_element_entry_from_sel(
+    const struct dicey_registry *registry,
+    const char *path,
+    struct dicey_selector sel,
+    struct dicey_element_entry *entry
 );
 
 /**
@@ -242,7 +282,23 @@ DICEY_EXPORT struct dicey_element *dicey_registry_get_element_from_sel(
  * @param path     The path to the object.
  * @return         A pointer to the object, or NULL if the object does not exist.
  */
-DICEY_EXPORT struct dicey_object *dicey_registry_get_object(const struct dicey_registry *registry, const char *path);
+DICEY_EXPORT const struct dicey_object *dicey_registry_get_object(
+    const struct dicey_registry *registry,
+    const char *path
+);
+
+/**
+ * @brief Gets an entry representing the object at a given path.
+ * @param registry The registry to get the object from.
+ * @param path     The path to the object.
+ * @param entry    A pointer to a `dicey_object_entry` struct to fill with the object's details. Must not be NULL.
+ * @return         True if the object exists, false otherwise.
+ */
+DICEY_EXPORT bool dicey_registry_get_object_entry(
+    const struct dicey_registry *registry,
+    const char *path,
+    struct dicey_object_entry *entry
+);
 
 /**
  * @brief Gets the trait with the given name.

@@ -1,7 +1,6 @@
 // Copyright (c) 2014-2024 Zuru Tech HK Limited, All rights reserved.
 
 #include <assert.h>
-#include <ctype.h>
 #include <stdarg.h>
 #include <stdbool.h>
 #include <stddef.h>
@@ -100,9 +99,9 @@ static enum dicey_error registry_del_object(struct dicey_registry *const registr
     return DICEY_OK;
 }
 
-static enum dicey_error registry_get_object(
+static enum dicey_error registry_get_object_entry(
     const struct dicey_registry *const registry,
-    struct dicey_object **const dest,
+    struct dicey_object_entry *dest,
     const char *const path
 ) {
     assert(registry && registry->_paths && dest && path);
@@ -111,12 +110,16 @@ static enum dicey_error registry_get_object(
         return DICEY_EPATH_MALFORMED;
     }
 
-    struct dicey_object *const obj = dicey_hashtable_get(registry->_paths, path);
+    struct dicey_hashtable_entry entry = { 0 };
+    struct dicey_object *const obj = dicey_hashtable_get_entry(registry->_paths, path, &entry);
     if (!obj) {
         return DICEY_EPATH_NOT_FOUND;
     }
 
-    *dest = obj;
+    *dest = (struct dicey_object_entry) {
+        .path = entry.key,
+        .object = obj,
+    };
 
     return DICEY_OK;
 }
@@ -171,7 +174,7 @@ static enum dicey_error registry_add_trait(
     return DICEY_OK;
 }
 
-bool dicey_object_implements(struct dicey_object *object, const char *trait) {
+bool dicey_object_implements(const struct dicey_object *const object, const char *const trait) {
     assert(object && object->traits && trait);
 
     return dicey_hashset_contains(object->traits, trait);
@@ -414,7 +417,7 @@ enum dicey_error dicey_registry_add_trait_with(struct dicey_registry *const regi
 enum dicey_error dicey_registry_add_trait_with_element_list(
     struct dicey_registry *const registry,
     const char *const name,
-    const struct dicey_element_entry *const elems,
+    const struct dicey_element_new_entry *const elems,
     const size_t count
 ) {
     assert(name && ((elems != NULL) == (count != 0)));
@@ -424,8 +427,8 @@ enum dicey_error dicey_registry_add_trait_with_element_list(
         return DICEY_ENOMEM;
     }
 
-    const struct dicey_element_entry *const end = elems + count;
-    for (const struct dicey_element_entry *entry = elems; entry < end; ++entry) {
+    const struct dicey_element_new_entry *const end = elems + count;
+    for (const struct dicey_element_new_entry *entry = elems; entry < end; ++entry) {
         const enum dicey_error add_err = dicey_trait_add_element(
             trait,
             entry->name,
@@ -464,35 +467,47 @@ enum dicey_error dicey_registry_delete_object(struct dicey_registry *const regis
     return registry_del_object(registry, name);
 }
 
-struct dicey_element *dicey_registry_get_element(
+const struct dicey_element *dicey_registry_get_element(
     const struct dicey_registry *const registry,
     const char *const path,
     const char *const trait_name,
     const char *const elem
 ) {
-    assert(registry && path && trait_name && elem);
+    struct dicey_element_entry entry = { 0 };
 
-    struct dicey_object *object = NULL;
-    enum dicey_error err = registry_get_object(registry, &object, path);
-    if (err != DICEY_OK) {
-        return NULL;
+    return dicey_registry_get_element_entry(registry, path, trait_name, elem, &entry) ? NULL : entry.element;
+}
+
+bool dicey_registry_get_element_entry(
+    const struct dicey_registry *const registry,
+    const char *const path,
+    const char *const trait_name,
+    const char *const elem,
+    struct dicey_element_entry *const entry
+) {
+    assert(registry && path && trait_name && elem && entry);
+
+    struct dicey_object_entry obj_entry = { 0 };
+    enum dicey_error err = registry_get_object_entry(registry, &obj_entry, path);
+    if (err) {
+        return false;
     }
 
-    assert(object);
+    assert(obj_entry.object && !strcmp(obj_entry.path, path));
 
-    if (!dicey_object_implements(object, trait_name)) {
-        return NULL;
+    if (!dicey_object_implements(obj_entry.object, trait_name)) {
+        return false;
     }
 
     const struct dicey_trait *const trait = dicey_registry_get_trait(registry, trait_name);
     if (!trait) {
-        return NULL;
+        return false;
     }
 
-    return dicey_trait_get_element(trait, elem);
+    return dicey_trait_get_element_entry(trait, elem, entry);
 }
 
-struct dicey_element *dicey_registry_get_element_from_sel(
+const struct dicey_element *dicey_registry_get_element_from_sel(
     const struct dicey_registry *const registry,
     const char *const path,
     const struct dicey_selector sel
@@ -500,18 +515,39 @@ struct dicey_element *dicey_registry_get_element_from_sel(
     return dicey_registry_get_element(registry, path, sel.trait, sel.elem);
 }
 
-struct dicey_object *dicey_registry_get_object(const struct dicey_registry *const registry, const char *const path) {
-    assert(registry && path);
+bool dicey_registry_get_element_entry_from_sel(
+    const struct dicey_registry *registry,
+    const char *path,
+    struct dicey_selector sel,
+    struct dicey_element_entry *entry
+) {
+    return dicey_registry_get_element_entry(registry, path, sel.trait, sel.elem, entry);
+}
 
-    struct dicey_object *object = NULL;
-    enum dicey_error err = registry_get_object(registry, &object, path);
+const struct dicey_object *dicey_registry_get_object(
+    const struct dicey_registry *const registry,
+    const char *const path
+) {
+    struct dicey_object_entry entry = { 0 };
+
+    return dicey_registry_get_object_entry(registry, path, &entry) ? entry.object : NULL;
+}
+
+bool dicey_registry_get_object_entry(
+    const struct dicey_registry *registry,
+    const char *path,
+    struct dicey_object_entry *entry
+) {
+    assert(registry && path && entry);
+
+    enum dicey_error err = registry_get_object_entry(registry, entry, path);
     if (err != DICEY_OK) {
-        return NULL;
+        return false;
     }
 
-    assert(object);
+    assert(entry->object && !strcmp(entry->path, path));
 
-    return object;
+    return true;
 }
 
 struct dicey_trait *dicey_registry_get_trait(const struct dicey_registry *const registry, const char *const name) {

@@ -476,14 +476,34 @@ iter_end:
     return false;
 }
 
-bool dicey_hashtable_contains(struct dicey_hashtable *const table, const char *const key) {
-    return hash_get_entry(table, key);
+bool dicey_hashtable_contains(const struct dicey_hashtable *const table, const char *const key) {
+    return dicey_hashtable_get(table, key);
 }
 
-void *dicey_hashtable_get(struct dicey_hashtable *table, const char *const key) {
-    struct table_entry *const entry = hash_get_entry(table, key);
+void *dicey_hashtable_get(const struct dicey_hashtable *const table, const char *const key) {
+    return dicey_hashtable_get_entry(table, key, &(struct dicey_hashtable_entry) { 0 });
+}
 
-    return entry ? entry->value : NULL;
+void *dicey_hashtable_get_entry(
+    const struct dicey_hashtable *const table,
+    const char *const key,
+    struct dicey_hashtable_entry *const entry
+) {
+    assert(entry);
+
+    // we know as a fact we aren't going to edit the table and that we are the only one able to allocate new tables
+    // we can thus cast away constness without ever incurring in UB
+    const struct table_entry *const table_entry = hash_get_entry((struct dicey_hashtable *) table, key);
+    if (!table_entry) {
+        return NULL;
+    }
+
+    *entry = (struct dicey_hashtable_entry) {
+        .key = table_entry->key,
+        .value = table_entry->value,
+    };
+
+    return table_entry->value;
 }
 
 void *dicey_hashtable_remove(struct dicey_hashtable *table, const char *const key) {
