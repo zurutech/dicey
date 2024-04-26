@@ -44,10 +44,12 @@ static uint32_t next_seq(const uint32_t cur_seq) {
     return cur_seq < UINT32_MAX - 2U ? cur_seq + 2U : FIRST_SEQ;
 }
 
-static void pending_request_invalidate(struct dicey_pending_requests *const reqs, const size_t i) {
+static void pending_request_invalidate(struct dicey_pending_requests *const reqs, const size_t m) {
     assert(reqs);
 
-    struct dicey_pending_request *const req = &reqs->reqs[index_of(reqs, i)];
+    const size_t i = index_of(reqs, m);
+
+    struct dicey_pending_request *const req = &reqs->reqs[i];
 
     assert(!is_hole(req));
 
@@ -70,6 +72,14 @@ static bool pending_request_is_valid(const struct dicey_pending_request *const r
     return req && req->op != DICEY_OP_INVALID && req->path && dicey_selector_is_valid(req->sel);
 }
 
+static size_t total_len(const struct dicey_pending_requests *const reqs) {
+    const size_t diff = (size_t) llabs((long long) reqs->end - (long long) reqs->start);
+
+    assert(diff <= reqs->cap);
+
+    return reqs->end >= reqs->start ? diff : reqs->cap - diff;
+}
+
 static struct dicey_pending_request *request_at(struct dicey_pending_requests *const reqs, const size_t i) {
     assert(reqs);
 
@@ -88,7 +98,7 @@ static struct search_result search_seq(struct dicey_pending_requests *const reqs
 
     size_t l = 0,
            // the actual length, including the holes
-        r = (size_t) (llabs((long long) reqs->end - (long long) reqs->start) % reqs->cap) - 1U;
+        r = total_len(reqs) - 1U;
 
     while (l <= r) {
         size_t m = (l + r) / 2;
