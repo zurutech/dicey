@@ -222,6 +222,7 @@ set(CORE_SOURCES
     # ipc/server
     src/ipc/server/client-data.c
     src/ipc/server/client-data.h
+    src/ipc/server/introspection.c
     src/ipc/server/pending-reqs.c
     src/ipc/server/pending-reqs.h
     src/ipc/server/registry.c

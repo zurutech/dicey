@@ -12,6 +12,8 @@
 #include <dicey/ipc/registry.h>
 #include <dicey/ipc/traits.h>
 
+#include "introspection.h"
+
 static_assert(sizeof(NULL) == sizeof(void *), "NULL is not a pointer");
 
 static void object_free(void *const ptr) {
@@ -24,12 +26,19 @@ static void object_free(void *const ptr) {
     }
 }
 
-static struct dicey_object *object_new_with(struct dicey_hashset *const traits) {
+static struct dicey_object *object_new_with(struct dicey_hashset *traits) {
     assert(traits);
 
     struct dicey_object *const object = malloc(sizeof *object);
     if (!object) {
         return NULL;
+    }
+
+    // add the introspection trait
+    if (dicey_hashset_add(&traits, DICEY_INTROSPECTION_TRAIT_NAME) == DICEY_HASH_SET_FAILED) {
+        free(object);
+
+        return NULL; // OOM
     }
 
     *object = (struct dicey_object) {
@@ -211,7 +220,12 @@ enum dicey_error dicey_registry_init(struct dicey_registry *const registry) {
         ._traits = traits,
     };
 
-    return DICEY_OK;
+    const enum dicey_error err = dicey_registry_populate_defaults(registry);
+    if (err) {
+        dicey_registry_deinit(registry);
+    }
+
+    return err;
 }
 
 enum dicey_error dicey_registry_add_object_with(struct dicey_registry *const registry, const char *const path, ...) {
@@ -296,7 +310,7 @@ enum dicey_error dicey_registry_add_object_with_trait_list(
         return DICEY_ENOMEM;
     }
 
-    for (; traits; ++traits) {
+    for (; *traits; ++traits) {
         const char *const trait = *traits;
         if (!registry_trait_exists(registry, trait)) {
             object_free(object);
