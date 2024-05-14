@@ -16,7 +16,7 @@ static bool arglist_copy(
     const struct dicey_arg *const src,
     const uint16_t nitems
 ) {
-    struct dicey_arg *const list_dup = calloc(sizeof *list_dup, nitems);
+    struct dicey_arg *const list_dup = calloc(nitems, sizeof *list_dup);
     if (!list_dup) {
         return false;
     }
@@ -37,7 +37,7 @@ struct dicey_arg *dicey_arg_dup(struct dicey_arg *dest, const struct dicey_arg *
     assert(src);
 
     if (!dest) {
-        dest = calloc(sizeof *dest, 1U);
+        dest = calloc(1U, sizeof *dest);
         if (!dest) {
             return NULL;
         }
@@ -146,7 +146,7 @@ struct dicey_arg *dicey_arg_move(struct dicey_arg *dest, struct dicey_arg *src) 
     assert(src);
 
     if (!dest) {
-        dest = calloc(sizeof *dest, 1U);
+        dest = calloc(1U, sizeof *dest);
         if (!dest) {
             return NULL;
         }

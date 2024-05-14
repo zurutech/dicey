@@ -435,7 +435,7 @@ enum dicey_error dicey_packet_bye(
 ) {
     assert(dest && dicey_bye_reason_is_valid(reason));
 
-    struct dtf_bye *const bye = calloc(sizeof *bye, 1U);
+    struct dtf_bye *const bye = calloc(1U, sizeof *bye);
     if (!bye) {
         return TRACE(DICEY_ENOMEM);
     }
@@ -536,7 +536,7 @@ enum dicey_error dicey_packet_hello(
 ) {
     assert(dest);
 
-    struct dtf_hello *const hello = calloc(sizeof *hello, 1U);
+    struct dtf_hello *const hello = calloc(1U, sizeof *hello);
     if (!hello) {
         return TRACE(DICEY_ENOMEM);
     }
