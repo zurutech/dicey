@@ -9,6 +9,7 @@
 #include "../core/hashset.h"
 #include "../core/hashtable.h"
 #include "../core/type.h"
+#include "../core/views.h"
 
 #include "traits.h"
 
@@ -23,6 +24,8 @@ extern "C" {
  */
 struct dicey_object {
     struct dicey_hashset *traits; /**< A set containing the names of traits that this object implements. */
+
+    void *_cached_xml; /**< A cached XML representation of the object. Internal, do not use. Lazily generated */
 };
 
 /**
@@ -65,6 +68,9 @@ struct dicey_registry {
     struct dicey_hashtable *_paths;
 
     struct dicey_hashtable *_traits;
+
+    // scratchpad buffer used when crafting strings. Non thread-safe like all the rest of the registry.
+    struct dicey_view_mut _buffer;
 };
 
 /**
@@ -186,6 +192,21 @@ DICEY_EXPORT enum dicey_error dicey_registry_add_trait_with_element_list(
     const char *name,
     const struct dicey_element_new_entry *elems,
     size_t count
+);
+
+/**
+ * @brief Checks if an element exists at a given path in the registry.
+ * @param registry The registry to get the element from.
+ * @param path     The path to the object.
+ * @param trait    The name of the trait.
+ * @param elem     The name of the element.
+ * @return         True if the element exists, false otherwise.
+ */
+DICEY_EXPORT bool dicey_registry_contains_element(
+    const struct dicey_registry *registry,
+    const char *path,
+    const char *trait_name,
+    const char *elem
 );
 
 /**
@@ -318,6 +339,49 @@ DICEY_EXPORT struct dicey_trait *dicey_registry_get_trait(const struct dicey_reg
  *                 - EPATH_NOT_FOUND: no object exists at the given path
  */
 DICEY_EXPORT enum dicey_error dicey_registry_remove_object(struct dicey_registry *registry, const char *path);
+
+/**
+ * @brief Represents an event that can occur during a registry walk.
+ */
+enum dicey_registry_walk_event {
+    DICEY_REGISTRY_WALK_EVENT_OBJECT_END,   /**< Reached the end of an object. */
+    DICEY_REGISTRY_WALK_EVENT_OBJECT_START, /**< Started walking over an object. */
+    DICEY_REGISTRY_WALK_EVENT_TRAIT_END,    /**< Reached the end of a trait. */
+    DICEY_REGISTRY_WALK_EVENT_TRAIT_START,  /**< Started walking over a trait. */
+    DICEY_REGISTRY_WALK_EVENT_ELEMENT,      /**< Encountered an element. */
+};
+
+/**
+ * @brief Callback called when walking over the registry, calling a callback for each object, trait, and element
+ * encountered.
+ * @param registry  The registry being walked over.
+ * @param event     The event that occurred.
+ * @param path      The path of the object being walked over.
+ * @param sel       The selector of the element being walked over. (may be invalid or lack an element)
+ * @param trait     The trait being walked over. If NULL, the trait field of `sel` is also NULL.
+ * @param element   The element being walked over. If NULL, the element field of `sel` is also NULL.
+ * @param user_data User data passed to the walk function.
+ * @return          True to continue walking, false to stop.
+ */
+typedef bool dicey_registry_walk_fn(
+    const struct dicey_registry *registry,
+    enum dicey_registry_walk_event event,
+    const char *path,
+    const struct dicey_selector sel,
+    const struct dicey_trait *trait,
+    const struct dicey_element *element,
+    void *user_data
+);
+
+/**
+ * @brief Walks over the elements of a given object.
+ */
+DICEY_EXPORT enum dicey_error dicey_registry_walk_object_elements(
+    const struct dicey_registry *registry,
+    const char *path,
+    dicey_registry_walk_fn *callback,
+    void *user_data
+);
 
 #if defined(__cplusplus)
 }

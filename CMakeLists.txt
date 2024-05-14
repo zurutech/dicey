@@ -222,12 +222,21 @@ set(CORE_SOURCES
     # ipc/server
     src/ipc/server/client-data.c
     src/ipc/server/client-data.h
-    src/ipc/server/introspection.c
     src/ipc/server/pending-reqs.c
     src/ipc/server/pending-reqs.h
     src/ipc/server/registry.c
+    src/ipc/server/registry-internal.h
     src/ipc/server/server.c
     src/ipc/server/traits.c
+
+    # ipc/server/introspection
+    src/ipc/server/introspection/commons.c
+    src/ipc/server/introspection/definitions.c
+    src/ipc/server/introspection/introspection.h
+    src/ipc/server/introspection/introspection-internal.h
+    src/ipc/server/introspection/registry.c
+    src/ipc/server/introspection/traits.c
+    src/ipc/server/introspection/xmlgen.c
 
     # ipc/tasks
     src/ipc/tasks/io.c

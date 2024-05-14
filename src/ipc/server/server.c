@@ -32,6 +32,8 @@
 #include "ipc/queue.h"
 #include "ipc/uvtools.h"
 
+#include "introspection/introspection.h"
+
 #include "client-data.h"
 #include "pending-reqs.h"
 
@@ -123,6 +125,10 @@ static void loop_request_delete(void *const ctx, void *const ptr) {
 }
 
 static void on_write(uv_write_t *req, int status);
+
+static bool is_introspection_req(const struct dicey_element_entry *const elem) {
+    return elem->element->_tag; // tag is used to identify introspection operations, invalid is 0
+}
 
 static enum dicey_error is_message_acceptable_for(
     const struct dicey_element elem,
@@ -673,6 +679,46 @@ static ptrdiff_t client_got_message(struct dicey_client_data *const client, stru
         return repl_err ? repl_err : CLIENT_STATE_RUNNING;
     }
 
+    if (is_introspection_req(&elem_entry)) {
+        // validate and skip the seq - otherwise the client state will misalign with the server
+        const enum dicey_error skip_err = dicey_pending_request_skip(&client->pending, seq);
+        if (skip_err) {
+            dicey_packet_deinit(&packet);
+
+            return skip_err;
+        }
+
+        struct dicey_packet response = { 0 };
+        const enum dicey_error introspect_err = dicey_registry_perform_introspection_op(
+            &server->registry, message.path, &elem_entry, &message.value, &response
+        );
+
+        // get rid of the request, we don't need it anymore
+        dicey_packet_deinit(&packet);
+
+        if (introspect_err) {
+            const enum dicey_error repl_err = server_report_error(server, client, packet, introspect_err);
+
+            // shortcircuit: the introspection failed and we've already sent an error response
+            return repl_err ? repl_err : CLIENT_STATE_RUNNING;
+        }
+
+        // set the seq number of the response to match the seq number of the request
+        const enum dicey_error set_err = dicey_packet_set_seq(response, seq);
+        if (set_err) {
+            dicey_packet_deinit(&response);
+
+            return set_err;
+        }
+
+        const enum dicey_error send_err = server_sendpkt(server, client, response);
+        if (send_err) {
+            dicey_packet_deinit(&response);
+        }
+
+        return send_err ? send_err : CLIENT_STATE_RUNNING;
+    }
+
     if (server->on_request) {
         const enum dicey_error accept_err = dicey_pending_requests_add(
             &client->pending,
@@ -886,7 +932,7 @@ static void loop_request_inbound(uv_async_t *const async) {
 
     assert(server);
 
-    void *item;
+    void *item = NULL;
     while (dicey_queue_pop(&server->queue, &item, DICEY_LOCKING_POLICY_NONBLOCKING)) {
         assert(item);
 
@@ -970,8 +1016,8 @@ static void loop_request_inbound(uv_async_t *const async) {
 
         if (req->sem) {
             // signal the waiting thread that the request has been processed
-            // this should not happen with STOP_SERVER, unless an early error happens - we want the request to return
-            // only when the server _actually_ stops that's why the case above has a return statement
+            // this is only necessary with STOP_SERVER, unless an early error happens - we want the request to return
+            // only when the server _actually_ stops. That's why the case above has a return statement
 
             uv_sem_post(req->sem);
         } else if (req->err) {
