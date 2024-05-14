@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    The traits schema defines an XML representation for Dicey traits.
+    Dicey traits are a named collection of related capabilities. Each trait may be associated with one or more
+    dicey objects.
+    Traits may contain one or more elements (operation, property, or signal), with a specific signature. An object is
+    required to implement all the elements of a trait in order to be considered as implementing the trait.
+-->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+    <xs:simpleType name="element-name">
+        <xs:restriction base="xs:string">
+            <xs:pattern value="[A-Z][A-Za-z0-9]+" />
+        </xs:restriction>
+    </xs:simpleType>
+
+    <xs:simpleType name="op-signature">
+        <xs:restriction base="xs:string">
+            <xs:pattern value="[bcefinsqutxy@$%\[\]\(\)\{\}]+\s*\->\s*[bcefinsqutxy@$%\[\]\(\)\{\}]+" />
+        </xs:restriction>
+    </xs:simpleType>
+
+    <xs:simpleType name="value-signature">
+        <xs:restriction base="xs:string">
+            <xs:pattern value="[bcefinsqutxy@$%\[\]\(\)\{\}]+" />
+        </xs:restriction>
+    </xs:simpleType>
+    
+    <xs:complexType name="element">
+        <xs:attribute name="name" type="element-name" use="required" />
+    </xs:complexType>
+    
+    <xs:complexType name="operation">
+        <xs:complexContent>
+            <xs:extension base="element">
+                <xs:attribute name="signature" type="op-signature" use="required" />
+            </xs:extension>
+        </xs:complexContent>
+    </xs:complexType>
+    
+    <xs:complexType name="value-element">
+        <xs:complexContent>
+            <xs:extension base="element">
+                <xs:attribute name="signature" type="value-signature" use="required" />
+            </xs:extension>
+        </xs:complexContent>
+    </xs:complexType>
+
+    <xs:complexType name="property">
+        <xs:complexContent>
+            <xs:extension base="value-element">
+                <xs:attribute name="read-only" type="xs:boolean" use="optional" default="false" />
+            </xs:extension>
+        </xs:complexContent>
+    </xs:complexType>
+    
+    <xs:group name="element-ops">
+        <xs:choice>
+            <xs:element name="operation" type="operation" />
+            <xs:element name="property" type="property" />
+            <xs:element name="signal" type="value-element" />
+        </xs:choice>
+    </xs:group>
+
+    <xs:simpleType name="trait-name">
+        <xs:restriction base="xs:string">
+            <xs:pattern value="\w+(\.\w+)*" />
+        </xs:restriction>
+    </xs:simpleType>
+    
+    <xs:complexType name="trait">
+        <xs:group ref="element-ops" minOccurs="0" maxOccurs="unbounded" />
+        <xs:attribute name="name" type="trait-name" use="required" />
+    </xs:complexType>
+
+    <xs:element name="trait" type="trait" />
+</xs:schema>

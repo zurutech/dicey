@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    The object schema defines an XML representation for Dicey objects.
+    Dicey objects are entities that reside under a given path on a Dicey server.
+    Every object may contain one or more traits, each one describing a set of capabilities exported through
+    the given object. 
+-->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+
+    <xs:include schemaLocation="trait.xsd" />
+
+    <xs:simpleType name="path">
+        <xs:restriction base="xs:string">
+            <xs:pattern value="(/[a-zA-Z]\w*)+" />
+        </xs:restriction>
+    </xs:simpleType>
+    
+    <xs:complexType name="object">
+        <xs:sequence>
+            <xs:element name="trait" type="trait" minOccurs="1" maxOccurs="unbounded" />
+        </xs:sequence>
+        <xs:attribute name="path" type="path" use="required" />
+    </xs:complexType>
+
+    <xs:element name="object" type="object" />
+
+</xs:schema>
