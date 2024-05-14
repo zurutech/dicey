@@ -177,7 +177,7 @@ struct dicey_trait *dicey_trait_new(const char *const name) {
     return trait;
 }
 
-struct dicey_trait_iter dicey_trait_iter_start(struct dicey_trait *const trait) {
+struct dicey_trait_iter dicey_trait_iter_start(const struct dicey_trait *const trait) {
     return (struct dicey_trait_iter) {
         ._inner = dicey_hashtable_iter_start(trait ? trait->elems : NULL),
     };

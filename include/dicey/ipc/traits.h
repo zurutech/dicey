@@ -4,6 +4,7 @@
 #define GFJABYMEEM_TRAITS_H
 
 #include <stdbool.h>
+#include <stdint.h>
 
 #include "../core/errors.h"
 #include "../core/hashtable.h"
@@ -35,6 +36,8 @@ struct dicey_element {
     const char *signature; /**< The signature of the element */
 
     bool readonly; /**< Whether a property is read-only or not. Has no effect on operations or signals. */
+
+    uintptr_t _tag; /**< Internal tag used to store element metadata. Do not use, do not set */
 };
 
 /**
@@ -66,7 +69,7 @@ struct dicey_trait {
  * @param trait The trait to iterate over.
  * @return An iterator over the elements of the trait.
  */
-DICEY_EXPORT struct dicey_trait_iter dicey_trait_iter_start(struct dicey_trait *trait);
+DICEY_EXPORT struct dicey_trait_iter dicey_trait_iter_start(const struct dicey_trait *trait);
 
 /**
  * @brief Get the next element in the trait iterator.
