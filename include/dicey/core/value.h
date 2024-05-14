@@ -60,7 +60,6 @@ DICEY_EXPORT enum dicey_error dicey_iterator_next(struct dicey_iterator *iter, s
 struct dicey_list {
     // internal data
     uint16_t _type;          // The array type or VARIANT_ID (for a tuple)
-    uint16_t _nitems;        // The number of items in the list.
     struct dicey_view _data; // Borrowed data associated with this list
 };
 
