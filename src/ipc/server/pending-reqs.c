@@ -189,6 +189,20 @@ quit:
     return reallocd ? REALLOCATION_HAPPENED : DICEY_OK;
 }
 
+static struct dicey_pending_requests *pending_requests_new(const uint32_t last_seq) {
+    // allocates a new pending_requests structure.
+    // the structure is allocated with a capacity of STARTING_CAP, which is a reasonable value for a new connection
+
+    struct dicey_pending_requests *const reqs = calloc(1U, sizeof *reqs + STARTING_CAP * sizeof *reqs->reqs);
+    if (!reqs) {
+        return NULL;
+    }
+
+    *reqs = (struct dicey_pending_requests) { .last_seq = last_seq, .cap = STARTING_CAP };
+
+    return reqs;
+}
+
 static bool room_available(const struct dicey_pending_requests *const reqs) {
     // the structure has room available if:
     // - it has a capacity (i.e. it's not empty)
@@ -197,20 +211,15 @@ static bool room_available(const struct dicey_pending_requests *const reqs) {
     return reqs->cap && reqs->start != reqs->end;
 }
 
-static bool validate_seqnum(
-    const struct dicey_pending_requests *const reqs,
-    const struct dicey_pending_request *const req
-) {
-    assert(req);
-
+static bool validate_seqnum(const struct dicey_pending_requests *const reqs, const uint32_t seq) {
     if (!reqs) {
         // if the list is empty, we can accept the request. It must have seq == 2
-        return req->packet_seq == FIRST_SEQ;
+        return seq == FIRST_SEQ;
     }
 
     // otherwise, the request must come after the latest request with a seq number incremented by 2
     const uint32_t expected = next_seq(reqs->last_seq);
-    if (req->packet_seq != expected) {
+    if (seq != expected) {
         return false;
     }
 
@@ -225,7 +234,7 @@ enum dicey_error dicey_pending_requests_add(
 
     struct dicey_pending_requests *reqs = *reqs_ptr;
 
-    if (!validate_seqnum(reqs, req)) {
+    if (!validate_seqnum(reqs, req->packet_seq)) {
         return TRACE(DICEY_ESEQNUM_MISMATCH);
     }
 
@@ -245,12 +254,10 @@ enum dicey_error dicey_pending_requests_add(
             }
         }
     } else {
-        *reqs_ptr = reqs = calloc(1U, sizeof *reqs + STARTING_CAP * sizeof *reqs->reqs);
+        *reqs_ptr = reqs = pending_requests_new(req->packet_seq);
         if (!reqs) {
             return TRACE(DICEY_ENOMEM);
         }
-
-        *reqs = (struct dicey_pending_requests) { .last_seq = req->packet_seq, .cap = STARTING_CAP };
     }
 
     reqs->reqs[reqs->end] = *req;
@@ -322,5 +329,24 @@ void dicey_pending_requests_prune(
             pending_request_invalidate(reqs, i);
             --reqs->len;
         }
+    }
+}
+
+enum dicey_error dicey_pending_request_skip(struct dicey_pending_requests **const reqs_ptr, const uint32_t seq) {
+    struct dicey_pending_requests *reqs = *reqs_ptr;
+
+    if (!validate_seqnum(reqs, seq)) {
+        return TRACE(DICEY_ESEQNUM_MISMATCH);
+    }
+
+    // store the skipped seq, allocating the requests struct if it doesn't exist
+    if (reqs) {
+        reqs->last_seq = seq;
+
+        return DICEY_OK;
+    } else {
+        *reqs_ptr = reqs = pending_requests_new(seq);
+
+        return reqs ? DICEY_OK : TRACE(DICEY_ENOMEM);
     }
 }
