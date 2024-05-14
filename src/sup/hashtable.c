@@ -429,7 +429,7 @@ void dicey_hashtable_delete(struct dicey_hashtable *const table, dicey_hashtable
     free(table);
 }
 
-struct dicey_hashtable_iter dicey_hashtable_iter_start(struct dicey_hashtable *const table) {
+struct dicey_hashtable_iter dicey_hashtable_iter_start(const struct dicey_hashtable *const table) {
     return (struct dicey_hashtable_iter) {
         ._table = table,
         ._current = table ? table->entries : NULL,

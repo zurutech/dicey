@@ -43,9 +43,9 @@ void dicey_hashset_delete(struct dicey_hashset *const table) {
     dicey_hashtable_delete((struct dicey_hashtable *) table, NULL);
 }
 
-struct dicey_hashset_iter dicey_hashset_iter_start(struct dicey_hashset *const table) {
+struct dicey_hashset_iter dicey_hashset_iter_start(const struct dicey_hashset *const table) {
     return (struct dicey_hashset_iter) {
-        ._inner = dicey_hashtable_iter_start((struct dicey_hashtable *) table),
+        ._inner = dicey_hashtable_iter_start((const struct dicey_hashtable *) table),
     };
 }
 

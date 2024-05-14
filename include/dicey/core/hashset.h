@@ -19,7 +19,7 @@ DICEY_EXPORT struct dicey_hashset *dicey_hashset_new(void);
 
 DICEY_EXPORT void dicey_hashset_delete(struct dicey_hashset *table);
 
-DICEY_EXPORT struct dicey_hashset_iter dicey_hashset_iter_start(struct dicey_hashset *table);
+DICEY_EXPORT struct dicey_hashset_iter dicey_hashset_iter_start(const struct dicey_hashset *table);
 DICEY_EXPORT bool dicey_hashset_iter_next(struct dicey_hashset_iter *iter, const char **key);
 
 DICEY_EXPORT bool dicey_hashset_contains(const struct dicey_hashset *table, const char *key);
