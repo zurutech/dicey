@@ -403,7 +403,7 @@ struct dtf_valueres dtf_value_write(struct dicey_view_mut dest, const struct dic
 
     const ptrdiff_t write_res = dtf_value_write_to(&writer, item);
     if (write_res < 0) {
-        if (alloc_res != DICEY_OK) {
+        if (!alloc_res) {
             free(dest.data);
         }
 

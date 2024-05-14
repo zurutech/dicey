@@ -272,7 +272,6 @@ enum dicey_error dicey_value_get_pair(const struct dicey_value *const value, str
     // hack: craft a tuple and use it to get the pair, given that in memory is identical to (vv) after the header
     struct dicey_list tuple = {
         ._type = DICEY_VARIANT_ID,
-        ._nitems = 2U,
         ._data = value->_data.list.data,
     };
 
