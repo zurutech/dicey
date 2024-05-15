@@ -182,8 +182,12 @@ static void print_trace(const enum dicey_error errnum) {
 
 #else
 static inline void print_trace(const enum dicey_error errnum) {
+    (void) errnum;
 }
 #endif
+
+static bool trace_enabled = false;
+static bool under_debug = false;
 
 #if defined(DICEY_TRACE_ENABLED)
 #include <stdlib.h>
@@ -192,8 +196,6 @@ static inline void print_trace(const enum dicey_error errnum) {
 #include <uv.h>
 
 static uv_once_t trace_enabled_flag = UV_ONCE_INIT;
-static bool trace_enabled = false;
-static bool under_debug = false;
 
 static void test_trace_enabled(void) {
     const char *const trace_env = getenv("DICEY_TRACE");
@@ -208,6 +210,13 @@ static bool check_trace_enabled(void) {
     return trace_enabled;
 }
 #else
+
+static inline bool check_trace_enabled(void) {
+    return false;
+}
+
+static inline void trigger_breakpoint(void) {
+}
 
 #endif
 
