@@ -186,7 +186,6 @@ static inline void print_trace(const enum dicey_error errnum) {
 }
 #endif
 
-static bool trace_enabled = false;
 static bool under_debug = false;
 
 #if defined(DICEY_TRACE_ENABLED)
@@ -195,6 +194,7 @@ static bool under_debug = false;
 
 #include <uv.h>
 
+static bool trace_enabled = false;
 static uv_once_t trace_enabled_flag = UV_ONCE_INIT;
 
 static void test_trace_enabled(void) {
