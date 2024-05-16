@@ -1,0 +1,14 @@
+.. _exhale_function_value_8h_1a4edd5b0c1db91c8708d1846803489905:
+
+Function dicey_value_get_byte
+=============================
+
+- Defined in :ref:`file__home_marco_Workspace_dicey_include_dicey_core_value.h`
+
+
+Function Documentation
+----------------------
+
+
+.. doxygenfunction:: dicey_value_get_byte(const struct dicey_value *, uint8_t *)
+   :project: dicey

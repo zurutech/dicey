@@ -1,0 +1,14 @@
+.. _exhale_enum_registry_8h_1a721340222d65d75ad946d012052e36ab:
+
+Enum dicey_registry_walk_event
+==============================
+
+- Defined in :ref:`file__home_marco_Workspace_dicey_include_dicey_ipc_registry.h`
+
+
+Enum Documentation
+------------------
+
+
+.. doxygenenum:: dicey_registry_walk_event
+   :project: dicey

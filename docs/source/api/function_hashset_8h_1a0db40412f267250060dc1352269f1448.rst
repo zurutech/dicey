@@ -1,0 +1,14 @@
+.. _exhale_function_hashset_8h_1a0db40412f267250060dc1352269f1448:
+
+Function dicey_hashset_delete
+=============================
+
+- Defined in :ref:`file__home_marco_Workspace_dicey_include_dicey_core_hashset.h`
+
+
+Function Documentation
+----------------------
+
+
+.. doxygenfunction:: dicey_hashset_delete(struct dicey_hashset *)
+   :project: dicey

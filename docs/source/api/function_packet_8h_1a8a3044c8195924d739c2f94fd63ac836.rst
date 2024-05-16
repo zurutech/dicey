@@ -1,0 +1,14 @@
+.. _exhale_function_packet_8h_1a8a3044c8195924d739c2f94fd63ac836:
+
+Function dicey_packet_as_message
+================================
+
+- Defined in :ref:`file__home_marco_Workspace_dicey_include_dicey_core_packet.h`
+
+
+Function Documentation
+----------------------
+
+
+.. doxygenfunction:: dicey_packet_as_message(struct dicey_packet, struct dicey_message *)
+   :project: dicey

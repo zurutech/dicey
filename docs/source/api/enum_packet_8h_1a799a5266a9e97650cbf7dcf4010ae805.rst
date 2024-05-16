@@ -1,0 +1,14 @@
+.. _exhale_enum_packet_8h_1a799a5266a9e97650cbf7dcf4010ae805:
+
+Enum dicey_bye_reason
+=====================
+
+- Defined in :ref:`file__home_marco_Workspace_dicey_include_dicey_core_packet.h`
+
+
+Enum Documentation
+------------------
+
+
+.. doxygenenum:: dicey_bye_reason
+   :project: dicey

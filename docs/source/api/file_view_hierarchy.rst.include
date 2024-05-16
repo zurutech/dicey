@@ -1,0 +1,18 @@
+
+File Hierarchy
+--------------
+
+
+.. raw:: html
+
+   <ul class="treeView" id="file-treeView">
+     <li>
+       <ul class="collapsibleList">
+         <li class="lastChild">Directory <a href="dir__home_marco_Workspace_dicey_include.html#dir-home-marco-Workspace-dicey-include">include</a><ul><li class="lastChild">Directory <a href="dir__home_marco_Workspace_dicey_include_dicey.html#dir-home-marco-Workspace-dicey-include-dicey">dicey</a><ul><li>Directory <a href="dir__home_marco_Workspace_dicey_include_dicey_core.html#dir-home-marco-Workspace-dicey-include-dicey-core">core</a><ul><li>File <a href="file__home_marco_Workspace_dicey_include_dicey_core_builders.h.html#file-home-marco-Workspace-dicey-include-dicey-core-builders.h">builders.h</a></li><li>File <a href="file__home_marco_Workspace_dicey_include_dicey_core_data-info.h.html#file-home-marco-Workspace-dicey-include-dicey-core-data-info.h">data-info.h</a></li><li>File <a href="file__home_marco_Workspace_dicey_include_dicey_core_errors.h.html#file-home-marco-Workspace-dicey-include-dicey-core-errors.h">errors.h</a></li><li>File <a href="file__home_marco_Workspace_dicey_include_dicey_core_hashset.h.html#file-home-marco-Workspace-dicey-include-dicey-core-hashset.h">hashset.h</a></li><li>File <a href="file__home_marco_Workspace_dicey_include_dicey_core_hashtable.h.html#file-home-marco-Workspace-dicey-include-dicey-core-hashtable.h">hashtable.h</a></li><li>File <a href="file__home_marco_Workspace_dicey_include_dicey_core_packet.h.html#file-home-marco-Workspace-dicey-include-dicey-core-packet.h">packet.h</a></li><li>File <a href="file__home_marco_Workspace_dicey_include_dicey_core_type.h.html#file-home-marco-Workspace-dicey-include-dicey-core-type.h">type.h</a></li><li>File <a href="file__home_marco_Workspace_dicey_include_dicey_core_typedescr.h.html#file-home-marco-Workspace-dicey-include-dicey-core-typedescr.h">typedescr.h</a></li><li>File <a href="file__home_marco_Workspace_dicey_include_dicey_core_value.h.html#file-home-marco-Workspace-dicey-include-dicey-core-value.h">value.h</a></li><li>File <a href="file__home_marco_Workspace_dicey_include_dicey_core_version.h.html#file-home-marco-Workspace-dicey-include-dicey-core-version.h">version.h</a></li><li class="lastChild">File <a href="file__home_marco_Workspace_dicey_include_dicey_core_views.h.html#file-home-marco-Workspace-dicey-include-dicey-core-views.h">views.h</a></li></ul></li><li>Directory <a href="dir__home_marco_Workspace_dicey_include_dicey_ipc.html#dir-home-marco-Workspace-dicey-include-dicey-ipc">ipc</a><ul><li>File <a href="file__home_marco_Workspace_dicey_include_dicey_ipc_address.h.html#file-home-marco-Workspace-dicey-include-dicey-ipc-address.h">address.h</a></li><li>File <a href="file__home_marco_Workspace_dicey_include_dicey_ipc_client.h.html#file-home-marco-Workspace-dicey-include-dicey-ipc-client.h">client.h</a></li><li>File <a href="file__home_marco_Workspace_dicey_include_dicey_ipc_registry.h.html#file-home-marco-Workspace-dicey-include-dicey-ipc-registry.h">registry.h</a></li><li>File <a href="file__home_marco_Workspace_dicey_include_dicey_ipc_server.h.html#file-home-marco-Workspace-dicey-include-dicey-ipc-server.h">server.h</a></li><li class="lastChild">File <a href="file__home_marco_Workspace_dicey_include_dicey_ipc_traits.h.html#file-home-marco-Workspace-dicey-include-dicey-ipc-traits.h">traits.h</a></li></ul></li><li class="lastChild">File <a href="file__home_marco_Workspace_dicey_include_dicey_dicey.h.html#file-home-marco-Workspace-dicey-include-dicey-dicey.h">dicey.h</a></li></ul></li></ul></li>
+       </ul>
+     </li><!-- only tree view element -->
+   </ul><!-- /treeView file-treeView -->
+
+.. end raw html for treeView
+
+

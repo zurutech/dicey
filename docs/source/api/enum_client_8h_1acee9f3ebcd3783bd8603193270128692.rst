@@ -1,0 +1,14 @@
+.. _exhale_enum_client_8h_1acee9f3ebcd3783bd8603193270128692:
+
+Enum dicey_client_event_type
+============================
+
+- Defined in :ref:`file__home_marco_Workspace_dicey_include_dicey_ipc_client.h`
+
+
+Enum Documentation
+------------------
+
+
+.. doxygenenum:: dicey_client_event_type
+   :project: dicey

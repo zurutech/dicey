@@ -1,0 +1,14 @@
+.. _exhale_function_registry_8h_1aa18121160d60208ab11759de1bb10546:
+
+Function dicey_registry_get_object
+==================================
+
+- Defined in :ref:`file__home_marco_Workspace_dicey_include_dicey_ipc_registry.h`
+
+
+Function Documentation
+----------------------
+
+
+.. doxygenfunction:: dicey_registry_get_object(const struct dicey_registry *, const char *)
+   :project: dicey

@@ -1,0 +1,14 @@
+.. _exhale_function_type_8h_1a347c06625660b1bd3df033d6b353494f:
+
+Function dicey_type_name
+========================
+
+- Defined in :ref:`file__home_marco_Workspace_dicey_include_dicey_core_type.h`
+
+
+Function Documentation
+----------------------
+
+
+.. doxygenfunction:: dicey_type_name(enum dicey_type)
+   :project: dicey

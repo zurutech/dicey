@@ -1,0 +1,14 @@
+.. _exhale_typedef_client_8h_1a79f653d2663176498b14b43b0eb28121:
+
+Typedef dicey_client_on_connect_fn
+==================================
+
+- Defined in :ref:`file__home_marco_Workspace_dicey_include_dicey_ipc_client.h`
+
+
+Typedef Documentation
+---------------------
+
+
+.. doxygentypedef:: dicey_client_on_connect_fn
+   :project: dicey

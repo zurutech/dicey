@@ -1,0 +1,14 @@
+.. _exhale_define_version_8h_1a18873e4de40f4826c51331804cde591e:
+
+Define DICEY_PROTO_VERSION_CURRENT
+==================================
+
+- Defined in :ref:`file__home_marco_Workspace_dicey_include_dicey_core_version.h`
+
+
+Define Documentation
+--------------------
+
+
+.. doxygendefine:: DICEY_PROTO_VERSION_CURRENT
+   :project: dicey

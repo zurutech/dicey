@@ -1,0 +1,14 @@
+.. _exhale_enum_traits_8h_1a78074aeddc9bdd47218699008d1bf294:
+
+Enum dicey_element_type
+=======================
+
+- Defined in :ref:`file__home_marco_Workspace_dicey_include_dicey_ipc_traits.h`
+
+
+Enum Documentation
+------------------
+
+
+.. doxygenenum:: dicey_element_type
+   :project: dicey

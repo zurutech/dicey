@@ -1,0 +1,14 @@
+.. _exhale_enum_errors_8h_1aad536a5d28307ab72e73a41559622ea6:
+
+Enum dicey_error
+================
+
+- Defined in :ref:`file__home_marco_Workspace_dicey_include_dicey_core_errors.h`
+
+
+Enum Documentation
+------------------
+
+
+.. doxygenenum:: dicey_error
+   :project: dicey

@@ -1,0 +1,14 @@
+.. _exhale_function_traits_8h_1ac70f72785880bf8e768206b29f03875c:
+
+Function dicey_trait_iter_start
+===============================
+
+- Defined in :ref:`file__home_marco_Workspace_dicey_include_dicey_ipc_traits.h`
+
+
+Function Documentation
+----------------------
+
+
+.. doxygenfunction:: dicey_trait_iter_start(const struct dicey_trait *)
+   :project: dicey

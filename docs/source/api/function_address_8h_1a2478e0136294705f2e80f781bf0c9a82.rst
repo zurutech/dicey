@@ -1,0 +1,14 @@
+.. _exhale_function_address_8h_1a2478e0136294705f2e80f781bf0c9a82:
+
+Function dicey_addr_dup
+=======================
+
+- Defined in :ref:`file__home_marco_Workspace_dicey_include_dicey_ipc_address.h`
+
+
+Function Documentation
+----------------------
+
+
+.. doxygenfunction:: dicey_addr_dup(struct dicey_addr *, struct dicey_addr)
+   :project: dicey

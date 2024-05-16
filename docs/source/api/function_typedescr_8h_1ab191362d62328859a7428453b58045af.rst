@@ -1,0 +1,14 @@
+.. _exhale_function_typedescr_8h_1ab191362d62328859a7428453b58045af:
+
+Function dicey_typedescr_parse
+==============================
+
+- Defined in :ref:`file__home_marco_Workspace_dicey_include_dicey_core_typedescr.h`
+
+
+Function Documentation
+----------------------
+
+
+.. doxygenfunction:: dicey_typedescr_parse(const char *, struct dicey_typedescr *)
+   :project: dicey

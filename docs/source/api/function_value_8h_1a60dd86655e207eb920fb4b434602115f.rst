@@ -1,0 +1,14 @@
+.. _exhale_function_value_8h_1a60dd86655e207eb920fb4b434602115f:
+
+Function dicey_iterator_has_next
+================================
+
+- Defined in :ref:`file__home_marco_Workspace_dicey_include_dicey_core_value.h`
+
+
+Function Documentation
+----------------------
+
+
+.. doxygenfunction:: dicey_iterator_has_next(struct dicey_iterator)
+   :project: dicey

@@ -1,0 +1,14 @@
+.. _exhale_typedef_hashtable_8h_1a5fce486f151d0c7216844b3a60339683:
+
+Typedef dicey_hashtable_free_fn
+===============================
+
+- Defined in :ref:`file__home_marco_Workspace_dicey_include_dicey_core_hashtable.h`
+
+
+Typedef Documentation
+---------------------
+
+
+.. doxygentypedef:: dicey_hashtable_free_fn
+   :project: dicey

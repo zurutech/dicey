@@ -1,0 +1,14 @@
+.. _exhale_function_traits_8h_1a6832405833598135420732546ea3ca53:
+
+Function dicey_trait_new
+========================
+
+- Defined in :ref:`file__home_marco_Workspace_dicey_include_dicey_ipc_traits.h`
+
+
+Function Documentation
+----------------------
+
+
+.. doxygenfunction:: dicey_trait_new(const char *)
+   :project: dicey

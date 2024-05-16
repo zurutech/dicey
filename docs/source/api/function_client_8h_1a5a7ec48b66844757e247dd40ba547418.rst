@@ -1,0 +1,14 @@
+.. _exhale_function_client_8h_1a5a7ec48b66844757e247dd40ba547418:
+
+Function dicey_client_disconnect
+================================
+
+- Defined in :ref:`file__home_marco_Workspace_dicey_include_dicey_ipc_client.h`
+
+
+Function Documentation
+----------------------
+
+
+.. doxygenfunction:: dicey_client_disconnect(struct dicey_client *)
+   :project: dicey

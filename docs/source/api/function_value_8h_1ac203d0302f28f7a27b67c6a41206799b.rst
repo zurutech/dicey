@@ -1,0 +1,14 @@
+.. _exhale_function_value_8h_1ac203d0302f28f7a27b67c6a41206799b:
+
+Function dicey_value_get_u64
+============================
+
+- Defined in :ref:`file__home_marco_Workspace_dicey_include_dicey_core_value.h`
+
+
+Function Documentation
+----------------------
+
+
+.. doxygenfunction:: dicey_value_get_u64(const struct dicey_value *, uint64_t *)
+   :project: dicey

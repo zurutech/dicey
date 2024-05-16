@@ -99,6 +99,8 @@ Packets are variable in size, and come in three different types, identified by t
         | ERROR               | 2             | A serious error has happened        |
         +---------------------+---------------+-------------------------------------+
 
+.. _messages:
+
 **Messages (GET, SET, EXEC, RESPONSE, EVENT)**:
     |message|
 
@@ -110,8 +112,20 @@ Packets are variable in size, and come in three different types, identified by t
 
     *trailer*
         The *trailer* field is a variable length field that contains the actual data of the message. 
-        The trailer itself has a header
 
+        |trailer|
+
+        *Path*
+            A unique identifier for the message. The path is a null-terminated string (see the *path* type for more info)
+
+        *Selector*
+            A pair of strings that uniquely identifies an element in a given trait. 
+            The selector is represented as two consecutive null-terminated strings.
+
+        *Value*
+            The value of the message, or none if the message is a ``GET``. See the :ref:`value section <value>` below for more info. 
+
+.. _value:
 
 .. |bye| image:: ../_static/bye.svg
   :align: middle
@@ -128,3 +142,7 @@ Packets are variable in size, and come in three different types, identified by t
 .. |packet| image:: ../_static/packet.svg
   :align: middle
   :alt: Dicey generic packet overview
+
+.. |trailer| image:: ../_static/trailer.svg
+  :align: middle
+  :alt: Dicey message trailer overview
