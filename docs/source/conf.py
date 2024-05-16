@@ -15,7 +15,7 @@ author = 'Zuru Tech'
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
 
-extensions = ["myst_parser"]
+extensions = ["breathe", "exhale"]
 
 templates_path = ['_templates']
 exclude_patterns = []
@@ -27,3 +27,30 @@ exclude_patterns = []
 
 html_theme = 'alabaster'
 html_static_path = ['_static']
+
+breathe_projects = {
+    "dicey": "../../build/doxygen/xml"
+}
+
+breathe_default_project = "dicey"
+
+# Setup the exhale extension
+exhale_args = {
+    # These arguments are required
+    "containmentFolder":     "./api",
+    "rootFileName":          "dicey.rst",
+    "doxygenStripFromPath":  "..",
+    # Heavily encouraged optional argument (see docs)
+    "rootFileTitle":         "Library API",
+    # Suggested optional arguments
+    "createTreeView":        True,
+    # TIP: if using the sphinx-bootstrap-theme, you need
+    # "treeViewIsBootstrap": True,
+    "exhaleExecutesDoxygen": False,
+}
+
+# Tell sphinx what the primary language being documented is.
+primary_domain = 'c'
+
+# Tell sphinx what the pygments highlight language should be.
+highlight_language = 'c'

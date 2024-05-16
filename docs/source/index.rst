@@ -20,6 +20,7 @@ In its current incarnation Dicey runs on Windows and most Unix-like systems, inc
 
    /intro/overview
    /dtf/dtf
+   /api/dicey
 
 
 Indices and tables
