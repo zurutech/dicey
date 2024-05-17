@@ -262,7 +262,7 @@ A sequence of bytes, akin to `&[u8]` in Rust or `bytes` in Python. Bytes are use
 specified as a length-prefixed sequence of bytes. The length is encoded as a ``uint32``.
 
 String (``str``)
-^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^
 
 |string|
 
