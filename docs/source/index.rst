@@ -15,11 +15,12 @@ In its current incarnation Dicey runs on Windows and most Unix-like systems, inc
    This project is under active development and is currently in a pre-alpha state.
 
 .. toctree::
+   :glob:
    :maxdepth: 2
    :caption: Contents:
 
    /intro/overview
-   /dtf/dtf
+   /dtf/*
    /api/dicey
 
 

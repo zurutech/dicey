@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+   width="191.16501mm"
+   height="20.265001mm"
+   viewBox="0 0 191.16501 20.265002"
+   version="1.1"
+   id="svg1"
+   inkscape:version="1.3.2 (091e20ef0f, 2023-11-25, custom)"
+   sodipodi:docname="bytes.svg"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <sodipodi:namedview
+     id="namedview1"
+     pagecolor="#ffffff"
+     bordercolor="#666666"
+     borderopacity="1.0"
+     inkscape:showpageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#d1d1d1"
+     inkscape:document-units="mm"
+     inkscape:zoom="0.74835465"
+     inkscape:cx="712.89728"
+     inkscape:cy="236.51887"
+     inkscape:window-width="2560"
+     inkscape:window-height="1374"
+     inkscape:window-x="0"
+     inkscape:window-y="0"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="layer1"
+     showgrid="false" />
+  <defs
+     id="defs1" />
+  <g
+     inkscape:label="Layer 1"
+     inkscape:groupmode="layer"
+     id="layer1"
+     transform="translate(-32.582344,-45.384102)">
+    <rect
+       style="fill:#f6ffb2;fill-opacity:1;stroke:#a87e00;stroke-width:0.228106"
+       id="rect1-50"
+       width="110.93689"
+       height="20.036892"
+       x="112.6964"
+       y="45.498158" />
+    <rect
+       style="fill:#ffcb87;fill-opacity:1;stroke:#843c00;stroke-width:0.264999;stroke-opacity:1"
+       id="rect1-5-3"
+       width="80"
+       height="20"
+       x="32.714844"
+       y="45.516602" />
+    <text
+       xml:space="preserve"
+       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:11.2889px;line-height:1.25;font-family:Helvetica;-inkscape-font-specification:Helvetica;letter-spacing:0px;word-spacing:0px;stroke-width:0.264583"
+       x="125.03496"
+       y="56.058136"
+       id="text4-6"><tspan
+         sodipodi:role="line"
+         id="tspan4-1"
+         style="font-style:oblique;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:11.2889px;font-family:Helvetica;-inkscape-font-specification:'Helvetica Oblique';stroke-width:0.264583"
+         x="125.03496"
+         y="56.058136">Variable payload</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-style:normal;font-weight:normal;font-size:9.87778px;line-height:1.25;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.264583"
+       x="45.189213"
+       y="55.701569"
+       id="text2-2-0"><tspan
+         sodipodi:role="line"
+         id="tspan2-9-6"
+         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:9.87778px;font-family:Helvetica;-inkscape-font-specification:Helvetica;stroke-width:0.264583"
+         x="45.189213"
+         y="55.701569">payload size</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-size:4.23333px;line-height:1.25;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;stroke-width:0.264583"
+       x="147.44159"
+       y="62.130417"
+       id="text3-2-3"><tspan
+         sodipodi:role="line"
+         id="tspan3-2-2"
+         style="font-style:oblique;font-variant:normal;font-weight:normal;font-stretch:normal;font-family:Helvetica;-inkscape-font-specification:'Helvetica Oblique';stroke-width:0.264583"
+         x="147.44159"
+         y="62.130417">byte[<tspan
+   style="font-style:italic;font-variant:normal;font-weight:bold;font-stretch:normal;font-family:'Courier New';-inkscape-font-specification:'Courier New Bold Italic'"
+   id="tspan1-0">payload_size</tspan>]</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-size:4.23333px;line-height:1.25;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;stroke-width:0.264583"
+       x="68.848457"
+       y="62.382179"
+       id="text3-0-6"><tspan
+         sodipodi:role="line"
+         id="tspan3-9-1"
+         style="font-style:oblique;font-variant:normal;font-weight:normal;font-stretch:normal;font-family:Helvetica;-inkscape-font-specification:'Helvetica Oblique';stroke-width:0.264583"
+         x="68.848457"
+         y="62.382179">u32</tspan></text>
+  </g>
+</svg>

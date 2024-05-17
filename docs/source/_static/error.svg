@@ -1,0 +1,154 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+   width="140.26501mm"
+   height="20.265034mm"
+   viewBox="0 0 140.26502 20.265034"
+   version="1.1"
+   id="svg1"
+   inkscape:version="1.3.2 (091e20ef0f, 2023-11-25, custom)"
+   sodipodi:docname="error.svg"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <sodipodi:namedview
+     id="namedview1"
+     pagecolor="#ffffff"
+     bordercolor="#666666"
+     borderopacity="1.0"
+     inkscape:showpageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#d1d1d1"
+     inkscape:document-units="mm"
+     inkscape:zoom="2"
+     inkscape:cx="327.25"
+     inkscape:cy="28.5"
+     inkscape:window-width="2560"
+     inkscape:window-height="1374"
+     inkscape:window-x="0"
+     inkscape:window-y="0"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="layer1"
+     showgrid="false" />
+  <defs
+     id="defs1">
+    <rect
+       x="-31.455078"
+       y="-85.384766"
+       width="186.6875"
+       height="205.29492"
+       id="rect2" />
+    <rect
+       x="69.921875"
+       y="-71.800781"
+       width="493.48438"
+       height="245.23438"
+       id="rect1" />
+  </defs>
+  <g
+     inkscape:label="Layer 1"
+     inkscape:groupmode="layer"
+     id="layer1"
+     transform="translate(-32.582344,-45.384101)">
+    <rect
+       style="fill:#b2b2ff;fill-opacity:1;stroke:#000257;stroke-width:0.264999;stroke-opacity:1"
+       id="rect2-5"
+       width="40"
+       height="20"
+       x="32.714844"
+       y="45.516636" />
+    <text
+       xml:space="preserve"
+       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:11.2889px;line-height:1.25;font-family:Helvetica;-inkscape-font-specification:Helvetica;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.264583"
+       x="39.218323"
+       y="55.659531"
+       id="text2-7"><tspan
+         sodipodi:role="line"
+         id="tspan2-1"
+         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:11.2889px;font-family:Helvetica;-inkscape-font-specification:Helvetica;stroke-width:0.264583"
+         x="39.218323"
+         y="55.659531">Code</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-size:4.23333px;line-height:1.25;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;stroke-width:0.264583"
+       x="48.866592"
+       y="62.130447"
+       id="text3-72"><tspan
+         sodipodi:role="line"
+         id="tspan3-7"
+         style="font-style:oblique;font-variant:normal;font-weight:normal;font-stretch:normal;font-family:Helvetica;-inkscape-font-specification:'Helvetica Oblique';stroke-width:0.264583"
+         x="48.866592"
+         y="62.130447">u16</tspan></text>
+    <rect
+       style="fill:#f6ffb2;fill-opacity:1;stroke:#a87e00;stroke-width:0.246302;stroke-dasharray:1.97042, 0.246302;stroke-dashoffset:0"
+       id="rect1-4"
+       width="80.459"
+       height="20"
+       x="72.70549"
+       y="45.507252" />
+    <rect
+       style="fill:#ffb2f8;fill-opacity:1;stroke:#8300a8;stroke-width:0.264999;stroke-dasharray:2.11999, 0.264999;stroke-dashoffset:0;stroke-opacity:1"
+       id="rect2-7"
+       width="20"
+       height="20"
+       x="152.71486"
+       y="45.516636" />
+    <text
+       xml:space="preserve"
+       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:11.2889px;line-height:1.25;font-family:Helvetica;-inkscape-font-specification:Helvetica;letter-spacing:0px;word-spacing:0px;stroke-width:0.264583;stroke-dasharray:2.11666, 0.264583;stroke-dashoffset:0"
+       x="91.252914"
+       y="55.736355"
+       id="text4-4"><tspan
+         sodipodi:role="line"
+         id="tspan4-4"
+         style="font-style:oblique;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:11.2889px;font-family:Helvetica;-inkscape-font-specification:'Helvetica Oblique';stroke-width:0.264583;stroke-dasharray:2.11666, 0.264583;stroke-dashoffset:0"
+         x="91.252914"
+         y="55.736355">Message</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-style:normal;font-weight:normal;font-size:8.46667px;line-height:1.25;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.264583;stroke-dasharray:2.11666, 0.264583;stroke-dashoffset:0"
+       x="155.24037"
+       y="55.965061"
+       id="text2-3"><tspan
+         sodipodi:role="line"
+         id="tspan2-0"
+         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:8.46667px;font-family:'Courier New';-inkscape-font-specification:'Courier New';stroke-width:0.264583;stroke-dasharray:2.11666, 0.264583;stroke-dashoffset:0"
+         x="155.24037"
+         y="55.965061">NUL</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-size:4.23333px;line-height:1.25;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;stroke-width:0.264583;stroke-dasharray:2.11666, 0.264583;stroke-dashoffset:0"
+       x="160.06805"
+       y="62.130436"
+       id="text3-7"><tspan
+         sodipodi:role="line"
+         id="tspan3-8"
+         style="font-style:oblique;font-variant:normal;font-weight:normal;font-stretch:normal;font-family:Helvetica;-inkscape-font-specification:'Helvetica Oblique';stroke-width:0.264583;stroke-dasharray:2.11666, 0.264583;stroke-dashoffset:0"
+         x="160.06805"
+         y="62.130436">u8</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-size:4.23333px;line-height:1.25;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;stroke-width:0.264583;stroke-dasharray:2.11666, 0.264583;stroke-dashoffset:0"
+       x="109.03111"
+       y="61.800751"
+       id="text3-72-1-9"><tspan
+         sodipodi:role="line"
+         id="tspan3-7-0-4"
+         style="font-style:oblique;font-variant:normal;font-weight:normal;font-stretch:normal;font-family:Helvetica;-inkscape-font-specification:'Helvetica Oblique';stroke-width:0.264583;stroke-dasharray:2.11666, 0.264583;stroke-dashoffset:0"
+         x="109.03111"
+         y="61.800751">u8[]</tspan></text>
+    <text
+       xml:space="preserve"
+       transform="matrix(0.26458333,0,0,0.26458333,32.582343,45.384101)"
+       id="text1"
+       style="font-size:16px;line-height:1.25;font-family:'Courier New';-inkscape-font-specification:'Courier New';letter-spacing:0px;word-spacing:0px;white-space:pre;shape-inside:url(#rect1)" />
+    <text
+       xml:space="preserve"
+       transform="matrix(0.26458333,0,0,0.26458333,32.582343,45.384101)"
+       id="text2"
+       style="font-size:16px;line-height:1.25;font-family:'Courier New';-inkscape-font-specification:'Courier New';letter-spacing:0px;word-spacing:0px;white-space:pre;shape-inside:url(#rect2)" />
+  </g>
+</svg>
