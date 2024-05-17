@@ -1,7 +1,7 @@
 # Copyright (c) 2014-2024 Zuru Tech HK Limited, All rights reserved.
 
 from dataclasses import dataclass as _dataclass
-from typing import Iterable as _Iterable, Optional as _Optional
+from typing import Any as _Any, Iterable as _Iterable, Optional as _Optional
 
 from libc.stdint cimport INT16_MIN, INT16_MAX, INT32_MIN, INT32_MAX, INT64_MIN, INT64_MAX, \
                          UINT8_MAX, UINT16_MAX, UINT32_MAX, UINT64_MAX
@@ -12,6 +12,15 @@ from .errors import DiceyError
 class Array:
     type: type
     values: _Iterable
+
+    def __iter__(self) -> _Iterable:
+        return iter(self.values)
+
+    def __len__(self) -> int:
+        return len(self.values)
+
+    def __getitem__(self, index: int) -> _Any:
+        return self.values[index]
 
 @_dataclass(frozen=True)
 class Byte:

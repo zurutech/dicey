@@ -177,7 +177,6 @@ set(CORE_SOURCES
     src/wirefmt/packet-args.c
     src/wirefmt/packet-args.h
     src/wirefmt/packet.c
-    src/wirefmt/typedescr.c
     src/wirefmt/value-validate.c
     src/wirefmt/value.c
 
@@ -211,6 +210,7 @@ set(CORE_SOURCES
     src/ipc/chunk.h
     src/ipc/queue.c
     src/ipc/queue.h
+    src/ipc/typedescr.c
     src/ipc/uvtools.c
     src/ipc/uvtools.h
     
@@ -225,8 +225,18 @@ set(CORE_SOURCES
     src/ipc/server/pending-reqs.c
     src/ipc/server/pending-reqs.h
     src/ipc/server/registry.c
+    src/ipc/server/registry-internal.h
     src/ipc/server/server.c
     src/ipc/server/traits.c
+
+    # ipc/server/introspection
+    src/ipc/server/introspection/commons.c
+    src/ipc/server/introspection/definitions.c
+    src/ipc/server/introspection/introspection.h
+    src/ipc/server/introspection/introspection-internal.h
+    src/ipc/server/introspection/registry.c
+    src/ipc/server/introspection/traits.c
+    src/ipc/server/introspection/xmlgen.c
 
     # ipc/tasks
     src/ipc/tasks/io.c

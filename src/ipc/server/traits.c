@@ -13,6 +13,8 @@
 #include <dicey/core/typedescr.h>
 #include <dicey/ipc/traits.h>
 
+#include "sup/trace.h"
+
 static struct dicey_element *elem_dup(const struct dicey_element *const elem) {
     if (!elem) {
         return NULL;
@@ -55,7 +57,7 @@ enum dicey_error dicey_trait_add_element(
     struct dicey_typedescr descr = { 0 };
 
     if (!dicey_typedescr_parse(elem.signature, &descr)) {
-        return DICEY_ESIGNATURE_MALFORMED;
+        return TRACE(DICEY_ESIGNATURE_MALFORMED);
     }
 
     const bool is_op = elem.type == DICEY_ELEMENT_TYPE_OPERATION,
@@ -64,17 +66,17 @@ enum dicey_error dicey_trait_add_element(
     // if the element is an operation, the signature must be a function signature
     // conversely, if the element is a property or signal, the signature must be a value signature
     if (is_op != is_func_sig) {
-        return DICEY_ESIGNATURE_MISMATCH;
+        return TRACE(DICEY_ESIGNATURE_MISMATCH);
     }
 
     // todo: optimise this by implementing an "add-or-fail" function in hashtable
     if (dicey_hashtable_contains(trait->elems, name)) {
-        return DICEY_EINVAL;
+        return TRACE(DICEY_EINVAL);
     }
 
     struct dicey_element *const elem_val = elem_dup(&elem);
     if (!elem_val) {
-        return DICEY_ENOMEM;
+        return TRACE(DICEY_ENOMEM);
     }
 
     void *old_val = NULL;
@@ -82,11 +84,11 @@ enum dicey_error dicey_trait_add_element(
     case DICEY_HASH_SET_FAILED:
         free(elem_val);
 
-        return DICEY_ENOMEM;
+        return TRACE(DICEY_ENOMEM);
 
     case DICEY_HASH_SET_UPDATED:
         assert(false); // should never be reached
-        return DICEY_EINVAL;
+        return TRACE(DICEY_EINVAL);
 
     case DICEY_HASH_SET_ADDED:
         assert(!old_val);
@@ -175,7 +177,7 @@ struct dicey_trait *dicey_trait_new(const char *const name) {
     return trait;
 }
 
-struct dicey_trait_iter dicey_trait_iter_start(struct dicey_trait *const trait) {
+struct dicey_trait_iter dicey_trait_iter_start(const struct dicey_trait *const trait) {
     return (struct dicey_trait_iter) {
         ._inner = dicey_hashtable_iter_start(trait ? trait->elems : NULL),
     };

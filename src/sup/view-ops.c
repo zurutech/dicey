@@ -114,6 +114,8 @@ ptrdiff_t dicey_view_mut_advance(struct dicey_view_mut *const view, const ptrdif
 
 ptrdiff_t dicey_view_mut_ensure_cap(struct dicey_view_mut *const dest, const size_t required) {
     if (dest->len < required) {
+        // this function is designed to work on uninitialized buffers. If the buffer is initialised, we
+        // return EAGAIN.
         if (dest->data) {
             return TRACE(DICEY_EAGAIN);
         }

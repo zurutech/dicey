@@ -36,7 +36,7 @@ static bool match_exact(const char **const cur, const char *const end, const cha
 static void skip_whitespace(const char **const cur, const char *const end) {
     assert(cur && *cur && end);
 
-    while (*cur != end && isspace(**cur)) {
+    while (*cur != end && isspace((unsigned short) **cur)) {
         ++*cur;
     }
 }

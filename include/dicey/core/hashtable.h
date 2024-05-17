@@ -15,7 +15,7 @@ extern "C" {
 struct dicey_hashtable;
 
 struct dicey_hashtable_iter {
-    struct dicey_hashtable *_table;
+    const struct dicey_hashtable *_table;
     const void *_current;
 };
 
@@ -29,7 +29,7 @@ DICEY_EXPORT struct dicey_hashtable *dicey_hashtable_new(void);
 typedef void dicey_hashtable_free_fn(void *value);
 DICEY_EXPORT void dicey_hashtable_delete(struct dicey_hashtable *table, dicey_hashtable_free_fn *free_fn);
 
-DICEY_EXPORT struct dicey_hashtable_iter dicey_hashtable_iter_start(struct dicey_hashtable *table);
+DICEY_EXPORT struct dicey_hashtable_iter dicey_hashtable_iter_start(const struct dicey_hashtable *table);
 DICEY_EXPORT bool dicey_hashtable_iter_next(struct dicey_hashtable_iter *iter, const char **key, void **value);
 
 DICEY_EXPORT bool dicey_hashtable_contains(const struct dicey_hashtable *table, const char *key);

@@ -81,6 +81,8 @@ static bool checksig(struct dicey_view *const sig, const struct dicey_value *con
 
             const int cpar = skip_char(sig);
             assert(cpar == ']'); // TODO: export this as a constant, this requires a new header though
+            (void) cpar; // MSVC discards the assert before parsing it, so cpar appears unused: (void) is the historic
+                         // way to do [[maybe_unused]]
 
             return true;
         }
@@ -102,6 +104,7 @@ static bool checksig(struct dicey_view *const sig, const struct dicey_value *con
 
             const int cpar = skip_char(sig);
             assert(cpar == ')'); // TODO: export this as a constant, this requires a new header though
+            (void) cpar;         // thank you again MSVC!
 
             return true;
         }
@@ -121,6 +124,7 @@ static bool checksig(struct dicey_view *const sig, const struct dicey_value *con
 
             const int cpar = skip_char(sig);
             assert(cpar == '}'); // TODO: export this as a constant, this requires a new header though
+            (void) cpar;         // MSVC best compiler ever /s
 
             return true;
         }

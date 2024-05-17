@@ -257,7 +257,7 @@ enum dicey_error dicey_message_builder_set_value(
     struct dicey_value_builder value_builder = { 0 };
 
     enum dicey_error err = dicey_message_builder_value_start(builder, &value_builder);
-    if (err != DICEY_OK) {
+    if (err) {
         return err;
     }
 
@@ -279,7 +279,7 @@ enum dicey_error dicey_message_builder_value_start(
 
     builder_state_set(builder, BUILDER_STATE_VALUE);
 
-    struct dicey_arg *const root = calloc(sizeof(struct dicey_arg), 1U);
+    struct dicey_arg *const root = calloc(1U, sizeof(struct dicey_arg));
     if (!root) {
         return TRACE(DICEY_ENOMEM);
     }
