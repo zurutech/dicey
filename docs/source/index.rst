@@ -4,7 +4,7 @@
 The Dicey IPC library
 =====================
 
-**Dicey** is library for quick and easy IPC (Inter-Process Communication), written in C.
+**Dicey** is a library for quick and easy IPC (Inter-Process Communication), written in C.
 
 Dicey is heavily inspired by D-Bus, with a strong focus on providing *multi-platform, 1:N IPC* in a simple and easy to use manner. 
 
