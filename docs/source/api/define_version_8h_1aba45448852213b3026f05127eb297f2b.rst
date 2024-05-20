@@ -1,0 +1,14 @@
+.. _exhale_define_version_8h_1aba45448852213b3026f05127eb297f2b:
+
+Define DICEY_LIB_VERSION_PATCH
+==============================
+
+- Defined in :ref:`file__home_marco_Workspace_dicey_include_dicey_core_version.h`
+
+
+Define Documentation
+--------------------
+
+
+.. doxygendefine:: DICEY_LIB_VERSION_PATCH
+   :project: dicey

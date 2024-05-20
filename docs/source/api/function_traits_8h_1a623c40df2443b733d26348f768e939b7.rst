@@ -1,0 +1,14 @@
+.. _exhale_function_traits_8h_1a623c40df2443b733d26348f768e939b7:
+
+Function dicey_trait_delete
+===========================
+
+- Defined in :ref:`file__home_marco_Workspace_dicey_include_dicey_ipc_traits.h`
+
+
+Function Documentation
+----------------------
+
+
+.. doxygenfunction:: dicey_trait_delete(struct dicey_trait *)
+   :project: dicey

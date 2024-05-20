@@ -1,0 +1,14 @@
+.. _exhale_function_packet_8h_1a76c514567d91487338d41b6ec0b4835a:
+
+Function dicey_op_is_valid
+==========================
+
+- Defined in :ref:`file__home_marco_Workspace_dicey_include_dicey_core_packet.h`
+
+
+Function Documentation
+----------------------
+
+
+.. doxygenfunction:: dicey_op_is_valid(enum dicey_op)
+   :project: dicey

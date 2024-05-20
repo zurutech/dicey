@@ -1,0 +1,171 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+   width="184.19534mm"
+   height="20.266039mm"
+   viewBox="0 0 184.19534 20.266039"
+   version="1.1"
+   id="svg1"
+   inkscape:version="1.3.2 (091e20ef0f, 2023-11-25, custom)"
+   sodipodi:docname="trailer.svg"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <sodipodi:namedview
+     id="namedview1"
+     pagecolor="#ffffff"
+     bordercolor="#666666"
+     borderopacity="1.0"
+     inkscape:showpageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#d1d1d1"
+     inkscape:document-units="mm"
+     inkscape:zoom="0.52916665"
+     inkscape:cx="-76.535435"
+     inkscape:cy="360.94489"
+     inkscape:window-width="2560"
+     inkscape:window-height="1374"
+     inkscape:window-x="0"
+     inkscape:window-y="0"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="layer1"
+     showgrid="false" />
+  <defs
+     id="defs1" />
+  <g
+     inkscape:label="Layer 1"
+     inkscape:groupmode="layer"
+     id="layer1"
+     transform="translate(-15.553966,-78.098358)">
+    <rect
+       style="fill:#ffb2c1;fill-opacity:1;stroke:#590010;stroke-width:0.349831;stroke-opacity:1"
+       id="rect2-5-5"
+       width="35.002991"
+       height="19.915167"
+       x="95.568832"
+       y="78.274315" />
+    <text
+       xml:space="preserve"
+       style="font-size:4.23333px;line-height:1.25;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;stroke-width:0.264583"
+       x="106.69346"
+       y="95.38961"
+       id="text3-6-6"><tspan
+         sodipodi:role="line"
+         id="tspan3-2-2"
+         style="font-style:oblique;font-variant:normal;font-weight:normal;font-stretch:normal;font-family:Helvetica;-inkscape-font-specification:'Helvetica Oblique';stroke-width:0.264583"
+         x="106.69346"
+         y="95.38961">zstring</tspan></text>
+    <rect
+       style="fill:#ffccaa;fill-opacity:1;stroke:#a82e00;stroke-width:0.264999;stroke-opacity:1"
+       id="rect2-0"
+       width="40"
+       height="20"
+       x="15.686465"
+       y="78.230858" />
+    <text
+       xml:space="preserve"
+       style="font-style:normal;font-weight:normal;font-size:8.46667px;line-height:1.25;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.264583"
+       x="27.59206"
+       y="85.975777"
+       id="text2-2"><tspan
+         sodipodi:role="line"
+         id="tspan2-3"
+         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:8.46667px;font-family:Helvetica;-inkscape-font-specification:Helvetica;stroke-width:0.264583"
+         x="27.59206"
+         y="85.975777">path</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-size:4.23333px;line-height:1.25;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;stroke-width:0.264583"
+       x="29.309599"
+       y="95.38961"
+       id="text3-7"><tspan
+         sodipodi:role="line"
+         id="tspan3-5"
+         style="font-style:oblique;font-variant:normal;font-weight:normal;font-stretch:normal;font-family:Helvetica;-inkscape-font-specification:'Helvetica Oblique';stroke-width:0.264583"
+         x="29.309599"
+         y="95.38961">zstring</tspan></text>
+    <rect
+       style="fill:#aafbff;fill-opacity:1;stroke:#0082a8;stroke-width:0.34734;stroke-opacity:1"
+       id="rect2-0-1"
+       width="69.003639"
+       height="19.91766"
+       x="130.57201"
+       y="78.272041" />
+    <text
+       xml:space="preserve"
+       style="font-style:normal;font-weight:normal;font-size:8.46667px;line-height:1.25;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.264583"
+       x="155.11475"
+       y="85.975792"
+       id="text2-2-0"><tspan
+         sodipodi:role="line"
+         id="tspan2-3-6"
+         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:8.46667px;font-family:Helvetica;-inkscape-font-specification:Helvetica;stroke-width:0.264583"
+         x="155.11475"
+         y="85.975792">value</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-size:4.23333px;line-height:1.25;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;stroke-width:0.264583"
+       x="147.65544"
+       y="95.389626"
+       id="text3-7-1"><tspan
+         sodipodi:role="line"
+         id="tspan3-5-5"
+         style="font-style:oblique;font-variant:normal;font-weight:normal;font-stretch:normal;font-family:Helvetica;-inkscape-font-specification:'Helvetica Oblique';stroke-width:0.264583"
+         x="147.65544"
+         y="95.389626">variable (0 if GET)</tspan></text>
+    <rect
+       style="fill:#baffb2;fill-opacity:1;stroke:#225900;stroke-width:0.264999;stroke-opacity:1"
+       id="rect2-5-9"
+       width="40"
+       height="20"
+       x="55.602783"
+       y="78.230858" />
+    <text
+       xml:space="preserve"
+       style="font-style:normal;font-weight:normal;font-size:8.46667px;line-height:1.25;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.264583"
+       x="80.443024"
+       y="85.188622"
+       id="text2-3-2"><tspan
+         sodipodi:role="line"
+         id="tspan2-5-2"
+         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:8.46667px;font-family:Helvetica;-inkscape-font-specification:Helvetica;stroke-width:0.264583"
+         x="80.443024"
+         y="85.188622">selector</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-size:4.23333px;line-height:1.25;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;stroke-width:0.264583"
+       x="69.225914"
+       y="95.38961"
+       id="text3-6-8"><tspan
+         sodipodi:role="line"
+         id="tspan3-2-9"
+         style="font-style:oblique;font-variant:normal;font-weight:normal;font-stretch:normal;font-family:Helvetica;-inkscape-font-specification:'Helvetica Oblique';stroke-width:0.264583"
+         x="69.225914"
+         y="95.38961">zstring</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-size:4.23333px;line-height:1.25;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;stroke-width:0.264583"
+       x="71.521851"
+       y="89.594452"
+       id="text1"><tspan
+         sodipodi:role="line"
+         id="tspan1"
+         style="stroke-width:0.264583"
+         x="71.521851"
+         y="89.594452">trait</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-size:4.23333px;line-height:1.25;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;stroke-width:0.264583"
+       x="104.82169"
+       y="90.173065"
+       id="text2"><tspan
+         sodipodi:role="line"
+         id="tspan2"
+         style="stroke-width:0.264583"
+         x="104.82169"
+         y="90.173065">element</tspan></text>
+  </g>
+</svg>

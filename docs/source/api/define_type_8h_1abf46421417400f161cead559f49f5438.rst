@@ -1,0 +1,14 @@
+.. _exhale_define_type_8h_1abf46421417400f161cead559f49f5438:
+
+Define DICEY_VARIANT_ID
+=======================
+
+- Defined in :ref:`file__home_marco_Workspace_dicey_include_dicey_core_type.h`
+
+
+Define Documentation
+--------------------
+
+
+.. doxygendefine:: DICEY_VARIANT_ID
+   :project: dicey

@@ -1,0 +1,14 @@
+.. _exhale_function_packet_8h_1ae119bf9859a2989f0f81e6f8f2816747:
+
+Function dicey_op_to_string
+===========================
+
+- Defined in :ref:`file__home_marco_Workspace_dicey_include_dicey_core_packet.h`
+
+
+Function Documentation
+----------------------
+
+
+.. doxygenfunction:: dicey_op_to_string(enum dicey_op)
+   :project: dicey

@@ -1,0 +1,14 @@
+.. _exhale_function_client_8h_1a90898a2fc46d72e6961d30036cc61104:
+
+Function dicey_client_set_context
+=================================
+
+- Defined in :ref:`file__home_marco_Workspace_dicey_include_dicey_ipc_client.h`
+
+
+Function Documentation
+----------------------
+
+
+.. doxygenfunction:: dicey_client_set_context(struct dicey_client *, void *)
+   :project: dicey

@@ -1,0 +1,14 @@
+.. _exhale_function_value_8h_1ac1b59d36de351d2f6945d321c6229807:
+
+Function dicey_list_type
+========================
+
+- Defined in :ref:`file__home_marco_Workspace_dicey_include_dicey_core_value.h`
+
+
+Function Documentation
+----------------------
+
+
+.. doxygenfunction:: dicey_list_type(const struct dicey_list *)
+   :project: dicey

@@ -1,0 +1,14 @@
+.. _exhale_function_value_8h_1a9b0c62d7b3b9a16c9161c09653213669:
+
+Function dicey_value_get_bool
+=============================
+
+- Defined in :ref:`file__home_marco_Workspace_dicey_include_dicey_core_value.h`
+
+
+Function Documentation
+----------------------
+
+
+.. doxygenfunction:: dicey_value_get_bool(const struct dicey_value *, bool *)
+   :project: dicey

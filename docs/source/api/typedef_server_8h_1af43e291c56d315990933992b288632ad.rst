@@ -1,0 +1,14 @@
+.. _exhale_typedef_server_8h_1af43e291c56d315990933992b288632ad:
+
+Typedef dicey_server_on_error_fn
+================================
+
+- Defined in :ref:`file__home_marco_Workspace_dicey_include_dicey_ipc_server.h`
+
+
+Typedef Documentation
+---------------------
+
+
+.. doxygentypedef:: dicey_server_on_error_fn
+   :project: dicey

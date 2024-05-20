@@ -1,0 +1,14 @@
+.. _exhale_function_traits_8h_1a960e6163b80b034d832f84c86235346c:
+
+Function dicey_trait_add_element
+================================
+
+- Defined in :ref:`file__home_marco_Workspace_dicey_include_dicey_ipc_traits.h`
+
+
+Function Documentation
+----------------------
+
+
+.. doxygenfunction:: dicey_trait_add_element(struct dicey_trait *, const char *, struct dicey_element)
+   :project: dicey

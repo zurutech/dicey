@@ -1,0 +1,14 @@
+.. _exhale_function_version_8h_1ac27043938171275970ec0f6e06726107:
+
+Function dicey_version_cmp
+==========================
+
+- Defined in :ref:`file__home_marco_Workspace_dicey_include_dicey_core_version.h`
+
+
+Function Documentation
+----------------------
+
+
+.. doxygenfunction:: dicey_version_cmp(struct dicey_version, struct dicey_version)
+   :project: dicey

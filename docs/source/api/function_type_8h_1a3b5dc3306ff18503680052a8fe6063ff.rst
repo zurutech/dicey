@@ -1,0 +1,14 @@
+.. _exhale_function_type_8h_1a3b5dc3306ff18503680052a8fe6063ff:
+
+Function dicey_selector_is_valid
+================================
+
+- Defined in :ref:`file__home_marco_Workspace_dicey_include_dicey_core_type.h`
+
+
+Function Documentation
+----------------------
+
+
+.. doxygenfunction:: dicey_selector_is_valid(struct dicey_selector)
+   :project: dicey
