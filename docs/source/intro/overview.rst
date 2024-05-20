@@ -1,3 +1,4 @@
+========
 Overview
 ========
 
@@ -5,13 +6,33 @@ Overview
 Dicey provides ready-to-use tools that allow existing programs to expose functionalities to other processes running on the 
 same machine.
 
+Objects
+-------
+
+.. figure:: ../_static/object.svg
+    :alt: Dicey Object
+    :align: center
+
+    Dicey Objects reside on one path and have one or more traits. 
+
 Dicey is built around the concept of **objects**, lightweight entities capable of exposing a set of properties and operations
-to clients. Objects are identified by a unique path, which clients can use to access the functionalities exported by one
+to clients. Objects are identified by a unique **path**, which clients can use to access the functionalities exported by one
 or more **traits** implemented by the object. 
+
+For all intents and purposes, a Dicey Object can be represented as a tuple of the form:
+
+    ``(path, [traits])``
+
+
+Traits
+------
 
 **Traits** loosely represent a concept and associates the properties, events and operations which are related to it to a
 given *trait name*. 
 Every object may implement one or more traits; in the same fashion, a trait may be implemented by multiple entities. 
+
+Elements
+--------
 
 Each trait contains one or more **elements**, small pieces of functionality identified by unique name. 
 
