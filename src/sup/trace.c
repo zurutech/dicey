@@ -96,12 +96,12 @@ static void print_trace(const enum dicey_error errnum) {
 
 #include <unistd.h>
 
+#include <execinfo.h>
+
 #if defined(__linux__)
 
 #include <ctype.h>
 #include <string.h>
-
-#include <execinfo.h>
 
 static bool is_debugger_present(void) {
     const int status_fd = open("/proc/self/status", O_RDONLY);
