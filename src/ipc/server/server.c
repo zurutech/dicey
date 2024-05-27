@@ -671,6 +671,14 @@ static ptrdiff_t client_got_message(struct dicey_client_data *const client, stru
     struct dicey_element_entry elem_entry = { 0 };
 
     if (!dicey_registry_get_element_entry_from_sel(&server->registry, message.path, message.selector, &elem_entry)) {
+        // not a fatal error: skip the seq and send an error response
+        const enum dicey_error skip_err = dicey_pending_request_skip(&client->pending, seq);
+        if (skip_err) {
+            dicey_packet_deinit(&packet);
+
+            return skip_err;
+        }
+
         const enum dicey_error repl_err = server_report_error(server, client, packet, DICEY_EELEMENT_NOT_FOUND);
 
         // get rid of packet
