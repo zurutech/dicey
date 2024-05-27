@@ -25,6 +25,7 @@ static const struct dicey_error_def error_info[] = {
     ERROR_INFO_FOR(DICEY_EPIPE, "BrokenPipe", "broken pipe"),
     ERROR_INFO_FOR(DICEY_ECONNRESET, "ConnectionReset", "connection reset by peer"),
     ERROR_INFO_FOR(DICEY_EEXIST, "ObjectExists", "objects or file already exists"),
+    ERROR_INFO_FOR(DICEY_EADDRINUSE, "AddressInUse", "address already in use"),
     ERROR_INFO_FOR(DICEY_EPATH_TOO_LONG, "PathTooLong", "path too long"),
     ERROR_INFO_FOR(DICEY_ETUPLE_TOO_LONG, "TupleTooLong", "tuple too long"),
     ERROR_INFO_FOR(DICEY_EARRAY_TOO_LONG, "ArrayTooLong", "array too long"),
@@ -73,6 +74,7 @@ bool dicey_error_is_valid(enum dicey_error errnum) {
     case DICEY_EPIPE:
     case DICEY_ECONNRESET:
     case DICEY_EEXIST:
+    case DICEY_EADDRINUSE:
     case DICEY_EPATH_TOO_LONG:
     case DICEY_ETUPLE_TOO_LONG:
     case DICEY_EARRAY_TOO_LONG:
