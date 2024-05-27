@@ -1432,7 +1432,7 @@ enum dicey_error dicey_server_send(
 ) {
     assert(server);
 
-    if (can_send(packet)) {
+    if (!can_send(packet)) {
         return TRACE(DICEY_EINVAL);
     }
 
