@@ -202,6 +202,18 @@ static bool is_server_msg(const struct dicey_packet pkt) {
     return is_server_op(msg.type);
 }
 
+static bool can_send(const struct dicey_packet packet) {
+    if (!packet.nbytes || !packet.payload) {
+        return false;
+    }
+
+    uint32_t seq = UINT32_MAX;
+    const enum dicey_error err = dicey_packet_get_seq(packet, &seq);
+
+    // disallow sending packets with seq number 0
+    return !err && seq && is_server_msg(packet);
+}
+
 static enum dicey_error make_error(
     struct dicey_packet *const dest,
     uint32_t seq,
@@ -1412,11 +1424,7 @@ enum dicey_error dicey_server_send(
 ) {
     assert(server);
 
-    if (!packet.nbytes || !packet.payload) {
-        return TRACE(DICEY_EINVAL);
-    }
-
-    if (!is_server_msg(packet)) {
+    if (can_send(packet)) {
         return TRACE(DICEY_EINVAL);
     }
 
@@ -1441,11 +1449,7 @@ enum dicey_error dicey_server_send_and_wait(
 ) {
     assert(server);
 
-    if (!packet.nbytes || !packet.payload) {
-        return TRACE(DICEY_EINVAL);
-    }
-
-    if (!is_server_msg(packet)) {
+    if (!can_send(packet)) {
         return TRACE(DICEY_EINVAL);
     }
 

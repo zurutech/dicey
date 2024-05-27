@@ -92,6 +92,8 @@ struct search_result {
 };
 
 static struct search_result search_seq(struct dicey_pending_requests *const reqs, const uint32_t seq) {
+    assert(seq); // if seq is 0, the request will break the binary search
+
     if (!reqs->len) {
         return (struct search_result) { 0 };
     }
