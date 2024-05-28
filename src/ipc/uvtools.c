@@ -40,7 +40,7 @@ enum dicey_error dicey_error_from_uv(const int uv_error) {
 
     case UV_ECONNREFUSED:
         return TRACE(DICEY_ECONNREFUSED);
-    
+
     case UV_EADDRINUSE:
         return TRACE(DICEY_EADDRINUSE);
 
