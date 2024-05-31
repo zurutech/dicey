@@ -99,7 +99,7 @@ static const struct dicey_default_element trait_elements[] = {
      },
 };
 
-static const struct dicey_default_object default_objects[] = {
+static const struct dicey_default_object introspection_objects[] = {
     {
      .path = DICEY_REGISTRY_PATH,
      .traits = (const char *[]) { DICEY_REGISTRY_TRAIT_NAME, NULL },
@@ -107,7 +107,7 @@ static const struct dicey_default_object default_objects[] = {
 };
 
 // note that the order here is critical, as `dicey.Trait` must exist before any trait can be created
-static const struct dicey_default_trait default_traits[] = {
+static const struct dicey_default_trait introspection_traits[] = {
     { .name = DICEY_TRAIT_TRAIT_NAME, .elements = trait_elements, .num_elements = DICEY_LENOF(trait_elements) },
     {
      .name = DICEY_INTROSPECTION_TRAIT_NAME,
@@ -300,9 +300,9 @@ enum dicey_error dicey_registry_perform_introspection_op(
 }
 
 const struct dicey_registry_builtin_set dicey_registry_introspection_builtins = {
-    .objects = default_objects,
-    .nobjects = DICEY_LENOF(default_objects),
+    .objects = introspection_objects,
+    .nobjects = DICEY_LENOF(introspection_objects),
 
-    .traits = default_traits,
-    .ntraits = DICEY_LENOF(default_traits),
+    .traits = introspection_traits,
+    .ntraits = DICEY_LENOF(introspection_traits),
 };

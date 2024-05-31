@@ -9,11 +9,13 @@
 #include "sup/trace.h"
 
 #include "introspection/introspection.h"
+#include "server/server.h"
 
 #include "builtins.h"
 
 static const struct dicey_registry_builtin_set *default_builtins[] = {
     &dicey_registry_introspection_builtins,
+    &dicey_registry_server_builtins,
 };
 
 static enum dicey_error populate_objects(

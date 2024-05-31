@@ -244,6 +244,10 @@ set(CORE_SOURCES
     src/ipc/server/builtins/introspection/traits.c
     src/ipc/server/builtins/introspection/xmlgen.c
 
+    # ipc/server/builtins/server
+    src/ipc/server/builtins/server/server.c
+    src/ipc/server/builtins/server/server.h
+
     # ipc/tasks
     src/ipc/tasks/io.c
     src/ipc/tasks/io.h
