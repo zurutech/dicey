@@ -231,14 +231,18 @@ set(CORE_SOURCES
     src/ipc/server/shared-packet.h
     src/ipc/server/traits.c
 
-    # ipc/server/introspection
-    src/ipc/server/introspection/commons.c
-    src/ipc/server/introspection/definitions.c
-    src/ipc/server/introspection/introspection.h
-    src/ipc/server/introspection/introspection-internal.h
-    src/ipc/server/introspection/registry.c
-    src/ipc/server/introspection/traits.c
-    src/ipc/server/introspection/xmlgen.c
+    # ipc/server/builtins
+    src/ipc/server/builtins/builtins.c
+    src/ipc/server/builtins/builtins.h
+
+    # ipc/server/builtins/introspection
+    src/ipc/server/builtins/introspection/commons.c
+    src/ipc/server/builtins/introspection/definitions.c
+    src/ipc/server/builtins/introspection/introspection.h
+    src/ipc/server/builtins/introspection/introspection-internal.h
+    src/ipc/server/builtins/introspection/registry.c
+    src/ipc/server/builtins/introspection/traits.c
+    src/ipc/server/builtins/introspection/xmlgen.c
 
     # ipc/tasks
     src/ipc/tasks/io.c

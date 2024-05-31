@@ -15,109 +15,91 @@
 #include "dicey/core/value.h"
 #include "sup/trace.h"
 
+#include "../builtins.h"
+
 #include "introspection.h"
 
 #include "introspection-internal.h"
 
 #define METATRAITS_PREFIX DICEY_REGISTRY_TRAITS_PATH "/"
-#define LEN_OF(ARR) (sizeof(ARR) / sizeof(ARR)[0])
 
-struct default_element {
-    const char *name;
-    enum dicey_element_type type;
-    const char *signature;
-    bool readonly;
-    enum dicey_introspection_op op;
-};
-
-struct default_object {
-    const char *path;
-    const char **traits;
-};
-
-struct default_trait {
-    const char *name;
-    const struct default_element *elements;
-    size_t num_elements;
-};
-
-static const struct default_element introspection_elements[] = {
+static const struct dicey_default_element introspection_elements[] = {
     {
      .name = DICEY_INTROSPECTION_DATA_PROP_NAME,
      .type = DICEY_ELEMENT_TYPE_PROPERTY,
      .signature = DICEY_INTROSPECTION_DATA_PROP_SIG,
      .readonly = true,
-     .op = DICEY_INTROSPECTION_OP_GET_DATA,
+     .tag = DICEY_INTROSPECTION_OP_GET_DATA,
      },
     {
      .name = DICEY_INTROSPECTION_XML_PROP_NAME,
      .type = DICEY_ELEMENT_TYPE_PROPERTY,
      .signature = DICEY_INTROSPECTION_XML_PROP_SIG,
      .readonly = true,
-     .op = DICEY_INTROSPECTION_OP_GET_XML,
+     .tag = DICEY_INTROSPECTION_OP_GET_XML,
      },
 };
 
-static const struct default_element registry_elements[] = {
+static const struct dicey_default_element registry_elements[] = {
     {
      .name = DICEY_REGISTRY_OBJECTS_PROP_NAME,
      .type = DICEY_ELEMENT_TYPE_PROPERTY,
      .signature = DICEY_REGISTRY_OBJECTS_PROP_SIG,
      .readonly = true,
-     .op = DICEY_INTROSPECTION_OP_REGISTRY_GET_OBJS,
+     .tag = DICEY_INTROSPECTION_OP_REGISTRY_GET_OBJS,
      },
     {
      .name = DICEY_REGISTRY_TRAITS_PROP_NAME,
      .type = DICEY_ELEMENT_TYPE_PROPERTY,
      .signature = DICEY_REGISTRY_TRAITS_PROP_SIG,
      .readonly = true,
-     .op = DICEY_INTROSPECTION_OP_REGISTRY_GET_TRAITS,
+     .tag = DICEY_INTROSPECTION_OP_REGISTRY_GET_TRAITS,
      },
     {
      .name = DICEY_REGISTRY_ELEMENT_EXISTS_OP_NAME,
      .type = DICEY_ELEMENT_TYPE_OPERATION,
      .signature = DICEY_REGISTRY_ELEMENT_EXISTS_OP_SIG,
-     .op = DICEY_INTROSPECTION_OP_REGISTRY_ELEMENT_EXISTS,
+     .tag = DICEY_INTROSPECTION_OP_REGISTRY_ELEMENT_EXISTS,
      },
     {
      .name = DICEY_REGISTRY_PATH_EXISTS_OP_NAME,
      .type = DICEY_ELEMENT_TYPE_OPERATION,
      .signature = DICEY_REGISTRY_PATH_EXISTS_OP_SIG,
-     .op = DICEY_INTROSPECTION_OP_REGISTRY_PATH_EXISTS,
+     .tag = DICEY_INTROSPECTION_OP_REGISTRY_PATH_EXISTS,
      },
     {
      .name = DICEY_REGISTRY_TRAIT_EXISTS_OP_NAME,
      .type = DICEY_ELEMENT_TYPE_OPERATION,
      .signature = DICEY_REGISTRY_TRAIT_EXISTS_OP_SIG,
-     .op = DICEY_INTROSPECTION_OP_REGISTRY_TRAIT_EXISTS,
+     .tag = DICEY_INTROSPECTION_OP_REGISTRY_TRAIT_EXISTS,
      },
 };
 
-static const struct default_element trait_elements[] = {
+static const struct dicey_default_element trait_elements[] = {
     {
      .name = DICEY_TRAIT_OPERATIONS_PROP_NAME,
      .type = DICEY_ELEMENT_TYPE_PROPERTY,
      .signature = DICEY_TRAIT_OPERATIONS_PROP_SIG,
      .readonly = true,
-     .op = DICEY_INTROSPECTION_OP_TRAIT_GET_OPERATIONS,
+     .tag = DICEY_INTROSPECTION_OP_TRAIT_GET_OPERATIONS,
      },
     {
      .name = DICEY_TRAIT_PROPERTIES_PROP_NAME,
      .type = DICEY_ELEMENT_TYPE_PROPERTY,
      .signature = DICEY_TRAIT_PROPERTIES_PROP_SIG,
      .readonly = true,
-     .op = DICEY_INTROSPECTION_OP_TRAIT_GET_PROPERTIES,
+     .tag = DICEY_INTROSPECTION_OP_TRAIT_GET_PROPERTIES,
      },
     {
      .name = DICEY_TRAIT_SIGNALS_PROP_NAME,
      .type = DICEY_ELEMENT_TYPE_PROPERTY,
      .signature = DICEY_TRAIT_SIGNALS_PROP_SIG,
      .readonly = true,
-     .op = DICEY_INTROSPECTION_OP_TRAIT_GET_SIGNALS,
+     .tag = DICEY_INTROSPECTION_OP_TRAIT_GET_SIGNALS,
      },
 };
 
-static const struct default_object default_objects[] = {
+static const struct dicey_default_object default_objects[] = {
     {
      .path = DICEY_REGISTRY_PATH,
      .traits = (const char *[]) { DICEY_REGISTRY_TRAIT_NAME, NULL },
@@ -125,70 +107,17 @@ static const struct default_object default_objects[] = {
 };
 
 // note that the order here is critical, as `dicey.Trait` must exist before any trait can be created
-static const struct default_trait default_traits[] = {
-    { .name = DICEY_TRAIT_TRAIT_NAME, .elements = trait_elements, .num_elements = LEN_OF(trait_elements) },
+static const struct dicey_default_trait default_traits[] = {
+    { .name = DICEY_TRAIT_TRAIT_NAME, .elements = trait_elements, .num_elements = DICEY_LENOF(trait_elements) },
     {
      .name = DICEY_INTROSPECTION_TRAIT_NAME,
      .elements = introspection_elements,
-     .num_elements = LEN_OF(introspection_elements),
+     .num_elements = DICEY_LENOF(introspection_elements),
      },
-    { .name = DICEY_REGISTRY_TRAIT_NAME, .elements = registry_elements, .num_elements = LEN_OF(registry_elements) },
+    { .name = DICEY_REGISTRY_TRAIT_NAME,
+     .elements = registry_elements,
+     .num_elements = DICEY_LENOF(registry_elements) },
 };
-
-static enum dicey_error populate_default_objects(struct dicey_registry *const registry) {
-    assert(registry);
-
-    const struct default_object *const end = default_objects + LEN_OF(default_objects);
-    for (const struct default_object *obj_def = default_objects; obj_def < end; ++obj_def) {
-        const enum dicey_error err =
-            dicey_registry_add_object_with_trait_list(registry, obj_def->path, obj_def->traits);
-        if (err) {
-            return err;
-        }
-    }
-
-    return DICEY_OK;
-}
-
-static enum dicey_error populate_default_traits(struct dicey_registry *const registry) {
-    assert(registry);
-
-    const struct default_trait *const end = default_traits + LEN_OF(default_traits);
-
-    for (const struct default_trait *trait_def = default_traits; trait_def < end; ++trait_def) {
-        struct dicey_trait *const trait = dicey_trait_new(trait_def->name);
-        if (!trait) {
-            return TRACE(DICEY_ENOMEM);
-        }
-
-        const struct default_element *const tend = trait_def->elements + trait_def->num_elements;
-        for (const struct default_element *elem_def = trait_def->elements; elem_def < tend; ++elem_def) {
-            enum dicey_error err = dicey_trait_add_element(
-                trait,
-                elem_def->name,
-                (struct dicey_element) {
-                    .type = elem_def->type,
-                    .signature = elem_def->signature,
-                    .readonly = elem_def->readonly,
-                    ._tag = elem_def->op, // use tag to identify that this is a builtin operation with a specific opcode
-                }
-            );
-
-            if (err) {
-                dicey_trait_delete(trait);
-                return err;
-            }
-        }
-
-        const enum dicey_error err = dicey_registry_add_trait(registry, trait);
-        if (err) {
-            dicey_trait_delete(trait);
-            return err;
-        }
-    }
-
-    return DICEY_OK;
-}
 
 static enum dicey_error validate_metatrait_name(const char *const path, const char **const trait_name) {
     assert(path && trait_name);
@@ -370,13 +299,10 @@ enum dicey_error dicey_registry_perform_introspection_op(
     return DICEY_OK;
 }
 
-enum dicey_error dicey_registry_populate_defaults(struct dicey_registry *const registry) {
-    assert(registry);
+const struct dicey_registry_builtin_set dicey_registry_introspection_builtins = {
+    .objects = default_objects,
+    .nobjects = DICEY_LENOF(default_objects),
 
-    enum dicey_error err = populate_default_traits(registry);
-    if (err) {
-        return err;
-    }
-
-    return populate_default_objects(registry);
-}
+    .traits = default_traits,
+    .ntraits = DICEY_LENOF(default_traits),
+};

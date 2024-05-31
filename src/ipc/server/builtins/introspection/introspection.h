@@ -106,6 +106,6 @@ enum dicey_error dicey_registry_perform_introspection_op(
     struct dicey_packet *response
 );
 
-enum dicey_error dicey_registry_populate_defaults(struct dicey_registry *registry);
+extern const struct dicey_registry_builtin_set dicey_registry_introspection_builtins;
 
 #endif // ZYTIHTXNPP_INTROSPECTION_H

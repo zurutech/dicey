@@ -32,7 +32,7 @@
 #include "ipc/queue.h"
 #include "ipc/uvtools.h"
 
-#include "introspection/introspection.h"
+#include "builtins/introspection/introspection.h"
 
 #include "client-data.h"
 #include "pending-reqs.h"

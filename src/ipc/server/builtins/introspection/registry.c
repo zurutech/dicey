@@ -16,7 +16,7 @@
 
 #include "sup/trace.h"
 
-#include "../registry-internal.h"
+#include "../../registry-internal.h"
 
 #include "introspection.h"
 
