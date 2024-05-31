@@ -363,7 +363,7 @@ static enum dicey_error send_reply(
         return err;
     }
 
-    err = dicey_server_send(server, cln->id, packet);
+    err = dicey_server_send_response(server, cln->id, packet);
     if (err) {
         dicey_packet_deinit(&packet);
         return err;
@@ -390,7 +390,7 @@ static enum dicey_error on_echo_req(
         return err;
     }
 
-    return dicey_server_send(server, cln->id, fixed);
+    return dicey_server_send_response(server, cln->id, fixed);
 }
 
 static enum dicey_error on_sval_req(

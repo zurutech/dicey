@@ -227,6 +227,8 @@ set(CORE_SOURCES
     src/ipc/server/registry.c
     src/ipc/server/registry-internal.h
     src/ipc/server/server.c
+    src/ipc/server/shared-packet.c
+    src/ipc/server/shared-packet.h
     src/ipc/server/traits.c
 
     # ipc/server/introspection

@@ -203,37 +203,39 @@ DICEY_EXPORT struct dicey_registry *dicey_server_get_registry(struct dicey_serve
 DICEY_EXPORT enum dicey_error dicey_server_kick(struct dicey_server *server, size_t id);
 
 /**
- * @brief Sends a packet to a client. This functions is asynchronous and won't wait for the packet to actually be sent.
+ * @brief Replies to a client. This functions is asynchronous and won't wait for the packet to actually be sent.
  * @param server The server to send the packet from.
  * @param id     The unique identifier of the client to send the packet to.
  * @param packet The packet to send. The ownership of the packet is transferred to the server, which will free it when
- * done. This packet must be either a response, in which case it must have the same sequence number, path and selector
- * as a previous request, or a signal, in which case it must have a new odd sequence number.
+ * done. This packet must be response matching the sequence number, path and selector of a previously received request.
  * @return       Error code. The possible values are several and include:
  *               - OK: the packet was successfully sent
  *               - ENOMEM: memory allocation failed
- *               - EINVAL: the packet is invalid (e.g. the sequence number is even for a signal or the operations is not
- *                         a server operation)
+ *               - EINVAL: the packet is invalid (e.g. it is not a response or the sequence number does not match any
+ *                         request)
  */
-DICEY_EXPORT enum dicey_error dicey_server_send(struct dicey_server *server, size_t id, struct dicey_packet packet);
+DICEY_EXPORT enum dicey_error dicey_server_send_response(
+    struct dicey_server *server,
+    size_t id,
+    struct dicey_packet packet
+);
 
 /**
- * @brief Sends a packet to a client and waits for a response. This function is synchronous and will block until the
- *        message is sent.
+ * @brief Replies to a client and waits for a response. This function is synchronous and will block until the message is
+ *        sent.
  * @note  Even if this function returns, there is no guarantee that the client actually received anything. This function
  *        only guarantees that the `write()` syscall is actually performed and that it succeeded.
  * @param server The server to send the packet from.
  * @param id     The unique identifier of the client to send the packet to.
  * @param packet The packet to send. The ownership of the packet is transferred to the server, which will free it when
- * done. This packet must be either a response, in which case it must have the same sequence number, path and selector
- * as a previous request, or a signal, in which case it must have a new odd sequence number.
+ * done. This packet must be response matching the sequence number, path and selector of a previously received request.
  * @return       Error code. The possible values are several and include:
  *               - OK: the packet was successfully sent
  *               - ENOMEM: memory allocation failed
- *               - EINVAL: the packet is invalid (e.g. the sequence number is even for a signal or the operations is not
- *                         a server operation)
+ *               - EINVAL: the packet is invalid (e.g. it is not a response or the sequence number does not match any
+ *                         request)
  */
-DICEY_EXPORT enum dicey_error dicey_server_send_and_wait(
+DICEY_EXPORT enum dicey_error dicey_server_send_response_and_wait(
     struct dicey_server *server,
     size_t id,
     struct dicey_packet packet

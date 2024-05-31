@@ -36,6 +36,7 @@
 
 #include "client-data.h"
 #include "pending-reqs.h"
+#include "shared-packet.h"
 
 #define DICEY_SET_RESPONSE_SIG                                                                                         \
     (const char[]) { (char) DICEY_TYPE_UNIT, '\0' }
@@ -44,7 +45,7 @@ enum loop_request_kind {
     LOOP_REQ_ADD_OBJECT,
     LOOP_REQ_ADD_TRAIT,
     LOOP_REQ_DEL_OBJECT,
-    LOOP_REQ_SEND_PACKET,
+    LOOP_REQ_SEND_RESPONSE,
     LOOP_REQ_KICK_CLIENT,
     LOOP_REQ_STOP_SERVER,
 };
@@ -78,13 +79,108 @@ enum server_state {
     SERVER_STATE_QUITTING,
 };
 
+struct outbound_packet {
+    enum dicey_op kind;
+
+    union {
+        struct dicey_shared_packet *shared;
+        struct dicey_packet single;
+    };
+};
+
+static struct dicey_packet outbound_packet_borrow(const struct outbound_packet packet) {
+    switch (packet.kind) {
+    case DICEY_OP_RESPONSE:
+        return packet.single;
+
+    case DICEY_OP_EVENT:
+        return dicey_shared_packet_borrow(packet.shared);
+
+    default:
+        assert(false);
+
+        return (struct dicey_packet) { 0 };
+    }
+}
+
+// utility function that either deallocates or decrements the refcount of the packet, depending if it's shared or not
+static void outbound_packet_cleanup(struct outbound_packet *const packet) {
+    assert(packet);
+
+    switch (packet->kind) {
+    case DICEY_OP_RESPONSE:
+        dicey_packet_deinit(&packet->single);
+
+        break;
+
+    case DICEY_OP_EVENT:
+        dicey_shared_packet_unref(packet->shared);
+
+        break;
+
+    default:
+        assert(false);
+
+        break;
+    }
+
+    *packet = (struct outbound_packet) { 0 };
+}
+
+static bool outbound_packet_is_valid(const struct outbound_packet packet) {
+    switch (packet.kind) {
+    case DICEY_OP_RESPONSE:
+        return dicey_packet_is_valid(packet.single);
+
+    case DICEY_OP_EVENT:
+        return dicey_shared_packet_is_valid(packet.shared);
+
+    default:
+        assert(false);
+
+        return false;
+    }
+}
+
+static void *outbound_packet_payload(const struct outbound_packet packet) {
+    switch (packet.kind) {
+    case DICEY_OP_RESPONSE:
+        return packet.single.payload;
+
+    case DICEY_OP_EVENT:
+        return dicey_shared_packet_borrow(packet.shared).payload;
+
+    default:
+        assert(false);
+
+        return NULL;
+    }
+}
+
+static size_t outbound_packet_size(const struct outbound_packet packet) {
+    switch (packet.kind) {
+    case DICEY_OP_RESPONSE:
+        return packet.single.nbytes;
+
+    case DICEY_OP_EVENT:
+        return dicey_shared_packet_size(packet.shared);
+
+    default:
+        assert(false);
+
+        return 0U;
+    }
+}
+
 struct write_request {
     uv_write_t req;
     struct dicey_server *server;
 
     ptrdiff_t client_id;
 
-    struct dicey_packet packet;
+    enum dicey_packet_kind kind;
+
+    struct outbound_packet packet;
 };
 
 struct dicey_server {
@@ -193,16 +289,16 @@ static bool is_server_op(const enum dicey_op op) {
     }
 }
 
-static bool is_server_msg(const struct dicey_packet pkt) {
+static bool is_response_msg(const struct dicey_packet pkt) {
     struct dicey_message msg = { 0 };
     if (dicey_packet_as_message(pkt, &msg) != DICEY_OK) {
         return false;
     }
 
-    return is_server_op(msg.type);
+    return msg.type == DICEY_OP_RESPONSE;
 }
 
-static bool can_send(const struct dicey_packet packet) {
+static bool can_send_as_response(const struct dicey_packet packet) {
     if (!packet.nbytes || !packet.payload) {
         return false;
     }
@@ -211,7 +307,7 @@ static bool can_send(const struct dicey_packet packet) {
     const enum dicey_error err = dicey_packet_get_seq(packet, &seq);
 
     // disallow sending packets with seq number 0
-    return !err && seq && is_server_msg(packet);
+    return !err && seq && is_response_msg(packet);
 }
 
 static enum dicey_error make_error(
@@ -273,11 +369,12 @@ fail:
 static enum dicey_error server_sendpkt(
     struct dicey_server *const server,
     struct dicey_client_data *const client,
-    struct dicey_packet packet
+    struct outbound_packet packet
 ) {
-    assert(server && client && dicey_packet_is_valid(packet));
+    assert(server && client && outbound_packet_is_valid(packet));
 
-    if (packet.nbytes > UINT_MAX) {
+    const size_t nbytes = outbound_packet_size(packet);
+    if (nbytes > UINT_MAX) {
         return TRACE(DICEY_EOVERFLOW);
     }
 
@@ -296,50 +393,77 @@ static enum dicey_error server_sendpkt(
         .packet = packet,
     };
 
-    uv_buf_t buf = uv_buf_init(packet.payload, (unsigned int) packet.nbytes);
+    void *const payload = outbound_packet_payload(packet);
+    assert(payload);
+
+    uv_buf_t buf = uv_buf_init(payload, (unsigned int) nbytes);
 
     return dicey_error_from_uv(uv_write((uv_write_t *) req, (uv_stream_t *) client, &buf, 1, &on_write));
 
 fail:
-    dicey_packet_deinit(&packet);
     free(req);
 
     return err;
 }
 
-static enum dicey_error client_send_message(
+static enum dicey_error client_send_response(
     struct dicey_server *const server,
     struct dicey_client_data *const client,
-    const struct dicey_packet packet,
+    struct dicey_packet packet,
     const struct dicey_message *const msg // packet, parsed as msg
 ) {
     assert(server && client && msg);
 
-    if (msg->type == DICEY_OP_RESPONSE) {
-        uint32_t seq = 0U;
-        enum dicey_error err = dicey_packet_get_seq(packet, &seq);
-        if (err) {
-            return err;
-        }
+    enum dicey_error err = DICEY_OK;
 
-        // match the packet back with the request
-        struct dicey_pending_request req = { 0 };
+    if (msg->type != DICEY_OP_RESPONSE) {
+        dicey_packet_deinit(&packet);
 
-        err = dicey_pending_requests_complete(client->pending, seq, &req);
-        if (err) {
-            return err;
-        }
+        err = TRACE(DICEY_EINVAL);
 
-        // if the request was a set, the response must have a unit signature, while in all other cases, the response
-        // must have the same signature as the request
-        const char *sig = req.op == DICEY_OP_SET ? DICEY_SET_RESPONSE_SIG : req.signature;
-
-        if (!dicey_value_can_be_returned_from(&msg->value, sig)) {
-            return TRACE(DICEY_ESIGNATURE_MISMATCH);
-        }
+        goto quit;
     }
 
-    return server_sendpkt(server, client, packet);
+    uint32_t seq = 0U;
+
+    err = dicey_packet_get_seq(packet, &seq);
+    if (err) {
+        goto quit;
+    }
+
+    // match the packet back with the request
+    struct dicey_pending_request req = { 0 };
+
+    err = dicey_pending_requests_complete(client->pending, seq, &req);
+    if (err) {
+        goto quit;
+    }
+
+    // if the request was a set, the response must have a unit signature, while in all other cases, the response
+    // must have the same signature as the request
+    const char *sig = req.op == DICEY_OP_SET ? DICEY_SET_RESPONSE_SIG : req.signature;
+
+    if (!dicey_value_can_be_returned_from(&msg->value, sig)) {
+        err = TRACE(DICEY_ESIGNATURE_MISMATCH);
+
+        goto quit;
+    }
+
+    err = server_sendpkt(
+        server,
+        client,
+        (struct outbound_packet) {
+            .kind = DICEY_OP_RESPONSE,
+            .single = packet, // responses are always single packets
+        }
+    );
+
+quit:
+    if (err) {
+        dicey_packet_deinit(&packet);
+    }
+
+    return err;
 }
 
 #define READ_MINBUF 256U // 256B
@@ -454,13 +578,20 @@ static enum dicey_error server_kick_client(
 ) {
     assert(server);
 
-    struct dicey_packet packet = { 0 };
-    enum dicey_error err = dicey_packet_bye(&packet, dicey_client_data_next_seq(client), reason);
+    struct outbound_packet packet = { .kind = DICEY_OP_RESPONSE };
+
+    enum dicey_error err = dicey_packet_bye(&packet.single, dicey_client_data_next_seq(client), reason);
     if (err) {
         return err;
     }
 
-    return server_sendpkt(server, client, packet);
+    err = server_sendpkt(server, client, packet);
+
+    if (err) {
+        outbound_packet_cleanup(&packet);
+    }
+
+    return err;
 }
 
 static enum dicey_error server_remove_client(struct dicey_server *const server, const size_t index) {
@@ -487,7 +618,7 @@ static enum dicey_error server_report_error(
 ) {
     assert(server && client);
 
-    struct dicey_packet packet = { 0 };
+    struct outbound_packet packet = { .kind = DICEY_OP_RESPONSE };
 
     uint32_t seq = UINT32_MAX;
     enum dicey_error err = dicey_packet_get_seq(req, &seq);
@@ -501,12 +632,18 @@ static enum dicey_error server_report_error(
         return err;
     }
 
-    err = make_error(&packet, seq, msg.path, msg.selector, report_err);
+    err = make_error(&packet.single, seq, msg.path, msg.selector, report_err);
     if (err) {
         return err;
     }
 
-    return server_sendpkt(server, client, packet);
+    err = server_sendpkt(server, client, packet);
+
+    if (err) {
+        outbound_packet_cleanup(&packet);
+    }
+
+    return err;
 }
 
 struct prune_ctx {
@@ -521,15 +658,16 @@ static bool request_targets_path(const struct dicey_pending_request *const req, 
     const struct prune_ctx *const pctx = ctx;
 
     if (!strcmp(req->path, pctx->path_to_prune)) {
-        struct dicey_packet packet = { 0 };
-        enum dicey_error err = make_error(&packet, req->packet_seq, req->path, req->sel, DICEY_EPATH_DELETED);
+        struct outbound_packet packet = { .kind = DICEY_OP_RESPONSE };
+        enum dicey_error err = make_error(&packet.single, req->packet_seq, req->path, req->sel, DICEY_EPATH_DELETED);
         if (!err) {
             // if err is true, the client will timeout, but we are clearly OOM, so we can't do anything about it
 
             // best effort send - we can't really do anything else
             err = server_sendpkt(pctx->server, pctx->client, packet);
+
             if (err) {
-                dicey_packet_deinit(&packet);
+                outbound_packet_cleanup(&packet);
             }
         }
 
@@ -620,16 +758,18 @@ static ptrdiff_t client_got_hello(
         return TRACE(DICEY_ECLIENT_TOO_OLD);
     }
 
-    struct dicey_packet hello_repl = { 0 };
+    struct outbound_packet hello_repl = { .kind = DICEY_OP_RESPONSE };
 
     // reply with the same seq
-    enum dicey_error err = dicey_packet_hello(&hello_repl, seq, DICEY_PROTO_VERSION_CURRENT);
+    enum dicey_error err = dicey_packet_hello(&hello_repl.single, seq, DICEY_PROTO_VERSION_CURRENT);
     if (err) {
         return err;
     }
 
     err = server_sendpkt(server, client, hello_repl);
+
     if (err) {
+        outbound_packet_cleanup(&hello_repl);
         return err;
     }
 
@@ -708,9 +848,9 @@ static ptrdiff_t client_got_message(struct dicey_client_data *const client, stru
             return skip_err;
         }
 
-        struct dicey_packet response = { 0 };
+        struct outbound_packet response = { .kind = DICEY_OP_RESPONSE };
         const enum dicey_error introspect_err = dicey_registry_perform_introspection_op(
-            &server->registry, message.path, &elem_entry, &message.value, &response
+            &server->registry, message.path, &elem_entry, &message.value, &response.single
         );
 
         // get rid of the request, we don't need it anymore
@@ -724,16 +864,17 @@ static ptrdiff_t client_got_message(struct dicey_client_data *const client, stru
         }
 
         // set the seq number of the response to match the seq number of the request
-        const enum dicey_error set_err = dicey_packet_set_seq(response, seq);
+        const enum dicey_error set_err = dicey_packet_set_seq(response.single, seq);
         if (set_err) {
-            dicey_packet_deinit(&response);
+            outbound_packet_cleanup(&response);
 
             return set_err;
         }
 
         const enum dicey_error send_err = server_sendpkt(server, client, response);
+
         if (send_err) {
-            dicey_packet_deinit(&response);
+            outbound_packet_cleanup(&response);
         }
 
         return send_err ? send_err : CLIENT_STATE_RUNNING;
@@ -851,14 +992,18 @@ static void on_write(uv_write_t *const req, const int status) {
         server->on_error(server, dicey_error_from_uv(status), info, "write error %s\n", uv_strerror(status));
     }
 
-    if (dicey_packet_get_kind(write_req->packet) == DICEY_PACKET_KIND_BYE) {
+    // temporarily borrow the packet
+    const struct dicey_packet packet = outbound_packet_borrow(write_req->packet);
+
+    if (dicey_packet_get_kind(packet) == DICEY_PACKET_KIND_BYE) {
         const enum dicey_error err = server_remove_client(write_req->server, write_req->client_id);
         if (err) {
             server->on_error(server, err, info, "server_remove_client: %s\n", dicey_error_name(err));
         }
     }
 
-    dicey_packet_deinit(&write_req->packet);
+    // either cleans up the packet or decrements the refcount
+    outbound_packet_cleanup(&write_req->packet);
     free(write_req);
 
     if (server->state == SERVER_STATE_QUITTING && dicey_client_list_is_empty(server->clients)) {
@@ -992,7 +1137,7 @@ static void loop_request_inbound(uv_async_t *const async) {
             free((char *) req->object_info.name);
             break;
 
-        case LOOP_REQ_SEND_PACKET:
+        case LOOP_REQ_SEND_RESPONSE:
             assert(dicey_packet_is_valid(req->packet));
 
             if (client) {
@@ -1004,7 +1149,7 @@ static void loop_request_inbound(uv_async_t *const async) {
                 }
 
                 // TODO: validate that we are sending a valid response
-                req->err = client_send_message(server, client, req->packet, &msg);
+                req->err = client_send_response(server, client, req->packet, &msg);
             } else {
                 req->err = DICEY_EPEER_NOT_FOUND;
             }
@@ -1425,14 +1570,14 @@ enum dicey_error dicey_server_kick(struct dicey_server *const server, const size
     return server_blocking_request(server, req);
 }
 
-enum dicey_error dicey_server_send(
+enum dicey_error dicey_server_send_response(
     struct dicey_server *const server,
     const size_t id,
     const struct dicey_packet packet
 ) {
     assert(server);
 
-    if (!can_send(packet)) {
+    if (!can_send_as_response(packet)) {
         return TRACE(DICEY_EINVAL);
     }
 
@@ -1442,7 +1587,7 @@ enum dicey_error dicey_server_send(
     }
 
     *req = (struct loop_request) {
-        .kind = LOOP_REQ_SEND_PACKET,
+        .kind = LOOP_REQ_SEND_RESPONSE,
         .target = id,
         .packet = packet,
     };
@@ -1450,14 +1595,14 @@ enum dicey_error dicey_server_send(
     return server_submit_request(server, req);
 }
 
-enum dicey_error dicey_server_send_and_wait(
+enum dicey_error dicey_server_send_response_and_wait(
     struct dicey_server *const server,
     const size_t id,
     const struct dicey_packet packet
 ) {
     assert(server);
 
-    if (!can_send(packet)) {
+    if (!can_send_as_response(packet)) {
         return TRACE(DICEY_EINVAL);
     }
 
@@ -1467,7 +1612,7 @@ enum dicey_error dicey_server_send_and_wait(
     }
 
     *req = (struct loop_request) {
-        .kind = LOOP_REQ_SEND_PACKET,
+        .kind = LOOP_REQ_SEND_RESPONSE,
         .target = id,
         .packet = packet,
     };
