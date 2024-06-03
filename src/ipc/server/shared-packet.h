@@ -4,6 +4,7 @@
 #define AJGCFSQAPA_SHARED_PACKET_H
 
 #include <stdbool.h>
+#include <stddef.h>
 
 #include <dicey/core/packet.h>
 
@@ -15,7 +16,7 @@
 
 struct dicey_shared_packet;
 
-struct dicey_shared_packet *dicey_shared_packet_from(struct dicey_packet packet);
+struct dicey_shared_packet *dicey_shared_packet_from(struct dicey_packet packet, size_t starting_refcount);
 
 /**
  * Borrows the shared packet as a packet. This DOES NOT increase the refcount.

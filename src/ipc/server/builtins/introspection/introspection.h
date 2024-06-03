@@ -9,22 +9,6 @@
 #include <dicey/ipc/registry.h>
 #include <dicey/ipc/traits.h>
 
-// this enum represents all the introspection operations that can be performed
-// this is the value stored in the _tag field of `dicey_element`, and it's used to dispatch
-enum dicey_introspection_op {
-    DICEY_INTROSPECTION_OP_INVALID = 0,
-    DICEY_INTROSPECTION_OP_GET_DATA,
-    DICEY_INTROSPECTION_OP_GET_XML,
-    DICEY_INTROSPECTION_OP_REGISTRY_GET_OBJS,
-    DICEY_INTROSPECTION_OP_REGISTRY_GET_TRAITS,
-    DICEY_INTROSPECTION_OP_REGISTRY_ELEMENT_EXISTS,
-    DICEY_INTROSPECTION_OP_REGISTRY_PATH_EXISTS,
-    DICEY_INTROSPECTION_OP_REGISTRY_TRAIT_EXISTS,
-    DICEY_INTROSPECTION_OP_TRAIT_GET_OPERATIONS,
-    DICEY_INTROSPECTION_OP_TRAIT_GET_PROPERTIES,
-    DICEY_INTROSPECTION_OP_TRAIT_GET_SIGNALS,
-};
-
 /**
  * object "/dicey/registry" : dicey.Registry
  */
@@ -97,14 +81,6 @@ enum dicey_introspection_op {
 
 #define DICEY_TRAIT_OPERATIONS_PROP_NAME "Operations"
 #define DICEY_TRAIT_OPERATIONS_PROP_SIG "[(ss)]"
-
-enum dicey_error dicey_registry_perform_introspection_op(
-    struct dicey_registry *registry,
-    const char *path,
-    const struct dicey_element_entry *element,
-    const struct dicey_value *value,
-    struct dicey_packet *response
-);
 
 extern const struct dicey_registry_builtin_set dicey_registry_introspection_builtins;
 

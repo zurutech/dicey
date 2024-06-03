@@ -23,20 +23,36 @@
 
 #define METATRAITS_PREFIX DICEY_REGISTRY_TRAITS_PATH "/"
 
+// this enum represents all the introspection operations that can be performed
+// this is the value stored in the _tag field of `dicey_element`, and it's used to dispatch
+enum introspection_op {
+    INTROSPECTION_OP_INVALID = 0,
+    INTROSPECTION_OP_GET_DATA,
+    INTROSPECTION_OP_GET_XML,
+    INTROSPECTION_OP_REGISTRY_GET_OBJS,
+    INTROSPECTION_OP_REGISTRY_GET_TRAITS,
+    INTROSPECTION_OP_REGISTRY_ELEMENT_EXISTS,
+    INTROSPECTION_OP_REGISTRY_PATH_EXISTS,
+    INTROSPECTION_OP_REGISTRY_TRAIT_EXISTS,
+    INTROSPECTION_OP_TRAIT_GET_OPERATIONS,
+    INTROSPECTION_OP_TRAIT_GET_PROPERTIES,
+    INTROSPECTION_OP_TRAIT_GET_SIGNALS,
+};
+
 static const struct dicey_default_element introspection_elements[] = {
     {
      .name = DICEY_INTROSPECTION_DATA_PROP_NAME,
      .type = DICEY_ELEMENT_TYPE_PROPERTY,
      .signature = DICEY_INTROSPECTION_DATA_PROP_SIG,
      .readonly = true,
-     .tag = DICEY_INTROSPECTION_OP_GET_DATA,
+     .opcode = INTROSPECTION_OP_GET_DATA,
      },
     {
      .name = DICEY_INTROSPECTION_XML_PROP_NAME,
      .type = DICEY_ELEMENT_TYPE_PROPERTY,
      .signature = DICEY_INTROSPECTION_XML_PROP_SIG,
      .readonly = true,
-     .tag = DICEY_INTROSPECTION_OP_GET_XML,
+     .opcode = INTROSPECTION_OP_GET_XML,
      },
 };
 
@@ -46,32 +62,32 @@ static const struct dicey_default_element registry_elements[] = {
      .type = DICEY_ELEMENT_TYPE_PROPERTY,
      .signature = DICEY_REGISTRY_OBJECTS_PROP_SIG,
      .readonly = true,
-     .tag = DICEY_INTROSPECTION_OP_REGISTRY_GET_OBJS,
+     .opcode = INTROSPECTION_OP_REGISTRY_GET_OBJS,
      },
     {
      .name = DICEY_REGISTRY_TRAITS_PROP_NAME,
      .type = DICEY_ELEMENT_TYPE_PROPERTY,
      .signature = DICEY_REGISTRY_TRAITS_PROP_SIG,
      .readonly = true,
-     .tag = DICEY_INTROSPECTION_OP_REGISTRY_GET_TRAITS,
+     .opcode = INTROSPECTION_OP_REGISTRY_GET_TRAITS,
      },
     {
      .name = DICEY_REGISTRY_ELEMENT_EXISTS_OP_NAME,
      .type = DICEY_ELEMENT_TYPE_OPERATION,
      .signature = DICEY_REGISTRY_ELEMENT_EXISTS_OP_SIG,
-     .tag = DICEY_INTROSPECTION_OP_REGISTRY_ELEMENT_EXISTS,
+     .opcode = INTROSPECTION_OP_REGISTRY_ELEMENT_EXISTS,
      },
     {
      .name = DICEY_REGISTRY_PATH_EXISTS_OP_NAME,
      .type = DICEY_ELEMENT_TYPE_OPERATION,
      .signature = DICEY_REGISTRY_PATH_EXISTS_OP_SIG,
-     .tag = DICEY_INTROSPECTION_OP_REGISTRY_PATH_EXISTS,
+     .opcode = INTROSPECTION_OP_REGISTRY_PATH_EXISTS,
      },
     {
      .name = DICEY_REGISTRY_TRAIT_EXISTS_OP_NAME,
      .type = DICEY_ELEMENT_TYPE_OPERATION,
      .signature = DICEY_REGISTRY_TRAIT_EXISTS_OP_SIG,
-     .tag = DICEY_INTROSPECTION_OP_REGISTRY_TRAIT_EXISTS,
+     .opcode = INTROSPECTION_OP_REGISTRY_TRAIT_EXISTS,
      },
 };
 
@@ -81,21 +97,21 @@ static const struct dicey_default_element trait_elements[] = {
      .type = DICEY_ELEMENT_TYPE_PROPERTY,
      .signature = DICEY_TRAIT_OPERATIONS_PROP_SIG,
      .readonly = true,
-     .tag = DICEY_INTROSPECTION_OP_TRAIT_GET_OPERATIONS,
+     .opcode = INTROSPECTION_OP_TRAIT_GET_OPERATIONS,
      },
     {
      .name = DICEY_TRAIT_PROPERTIES_PROP_NAME,
      .type = DICEY_ELEMENT_TYPE_PROPERTY,
      .signature = DICEY_TRAIT_PROPERTIES_PROP_SIG,
      .readonly = true,
-     .tag = DICEY_INTROSPECTION_OP_TRAIT_GET_PROPERTIES,
+     .opcode = INTROSPECTION_OP_TRAIT_GET_PROPERTIES,
      },
     {
      .name = DICEY_TRAIT_SIGNALS_PROP_NAME,
      .type = DICEY_ELEMENT_TYPE_PROPERTY,
      .signature = DICEY_TRAIT_SIGNALS_PROP_SIG,
      .readonly = true,
-     .tag = DICEY_INTROSPECTION_OP_TRAIT_GET_SIGNALS,
+     .opcode = INTROSPECTION_OP_TRAIT_GET_SIGNALS,
      },
 };
 
@@ -192,8 +208,9 @@ static enum dicey_error value_get_element_info(
     return DICEY_OK;
 }
 
-enum dicey_error dicey_registry_perform_introspection_op(
+static enum dicey_error perform_introspection_op(
     struct dicey_registry *const registry,
+    const uint8_t opcode,
     const char *const path,
     const struct dicey_element_entry *const entry,
     const struct dicey_value *const value,
@@ -203,27 +220,25 @@ enum dicey_error dicey_registry_perform_introspection_op(
 
     assert(registry && path && entry && entry->element && response);
 
-    const enum dicey_introspection_op op = entry->element->_tag;
-
     // do not validate the path, as it is not necessary for introspection operations. We assume the registry
     // already performed such validations before invoking this function.
-    switch (op) {
-    case DICEY_INTROSPECTION_OP_INVALID:
+    switch (opcode) {
+    case INTROSPECTION_OP_INVALID:
         return TRACE(DICEY_EINVAL);
 
-    case DICEY_INTROSPECTION_OP_GET_DATA:
+    case INTROSPECTION_OP_GET_DATA:
         return introspection_dump_object(registry, path, response);
 
-    case DICEY_INTROSPECTION_OP_GET_XML:
+    case INTROSPECTION_OP_GET_XML:
         return introspection_dump_xml(registry, path, response);
 
-    case DICEY_INTROSPECTION_OP_REGISTRY_GET_OBJS:
+    case INTROSPECTION_OP_REGISTRY_GET_OBJS:
         return introspection_craft_pathlist(registry, response);
 
-    case DICEY_INTROSPECTION_OP_REGISTRY_GET_TRAITS:
+    case INTROSPECTION_OP_REGISTRY_GET_TRAITS:
         return introspection_craft_traitlist(registry, response);
 
-    case DICEY_INTROSPECTION_OP_REGISTRY_ELEMENT_EXISTS:
+    case INTROSPECTION_OP_REGISTRY_ELEMENT_EXISTS:
         {
             assert(value);
 
@@ -235,7 +250,7 @@ enum dicey_error dicey_registry_perform_introspection_op(
             return err ? err : introspection_check_element_exists(registry, tpath, tsel, response);
         }
 
-    case DICEY_INTROSPECTION_OP_REGISTRY_PATH_EXISTS:
+    case INTROSPECTION_OP_REGISTRY_PATH_EXISTS:
         {
             assert(value);
 
@@ -247,7 +262,7 @@ enum dicey_error dicey_registry_perform_introspection_op(
             return err ? err : introspection_check_path_exists(registry, target, response);
         }
 
-    case DICEY_INTROSPECTION_OP_REGISTRY_TRAIT_EXISTS:
+    case INTROSPECTION_OP_REGISTRY_TRAIT_EXISTS:
         {
             assert(value);
 
@@ -259,7 +274,7 @@ enum dicey_error dicey_registry_perform_introspection_op(
             return err ? err : introspection_check_trait_exists(registry, target, response);
         }
 
-    case DICEY_INTROSPECTION_OP_TRAIT_GET_OPERATIONS:
+    case INTROSPECTION_OP_TRAIT_GET_OPERATIONS:
         {
             const char *tname = NULL;
 
@@ -271,7 +286,7 @@ enum dicey_error dicey_registry_perform_introspection_op(
                          );
         }
 
-    case DICEY_INTROSPECTION_OP_TRAIT_GET_PROPERTIES:
+    case INTROSPECTION_OP_TRAIT_GET_PROPERTIES:
         {
             const char *tname = NULL;
 
@@ -283,7 +298,7 @@ enum dicey_error dicey_registry_perform_introspection_op(
                          );
         }
 
-    case DICEY_INTROSPECTION_OP_TRAIT_GET_SIGNALS:
+    case INTROSPECTION_OP_TRAIT_GET_SIGNALS:
         {
             const char *tname = NULL;
 
@@ -294,6 +309,10 @@ enum dicey_error dicey_registry_perform_introspection_op(
                              registry, path, tname, DICEY_ELEMENT_TYPE_SIGNAL, response
                          );
         }
+
+    default:
+        assert(false);
+        return TRACE(DICEY_EINVAL);
     }
 
     return DICEY_OK;
@@ -305,4 +324,6 @@ const struct dicey_registry_builtin_set dicey_registry_introspection_builtins = 
 
     .traits = introspection_traits,
     .ntraits = DICEY_LENOF(introspection_traits),
+
+    .handler = &perform_introspection_op,
 };

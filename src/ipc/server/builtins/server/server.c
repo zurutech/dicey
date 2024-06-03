@@ -8,16 +8,23 @@
 
 #include "server.h"
 
+enum server_op {
+    SERVER_OP_EVENT_SUBSCRIBE = 0,
+    SERVER_OP_EVENT_UNSUBSCRIBE,
+};
+
 static const struct dicey_default_element em_elements[] = {
     {
      .name = DICEY_EVENTMANAGER_SUBSCRIBE_OP_NAME,
      .type = DICEY_ELEMENT_TYPE_OPERATION,
      .signature = DICEY_EVENTMANAGER_SUBSCRIBE_OP_SIG,
+     .opcode = SERVER_OP_EVENT_SUBSCRIBE,
      },
     {
      .name = DICEY_EVENTMANAGER_UNSUBSCRIBE_OP_NAME,
      .type = DICEY_ELEMENT_TYPE_OPERATION,
      .signature = DICEY_EVENTMANAGER_UNSUBSCRIBE_OP_SIG,
+     .opcode = SERVER_OP_EVENT_UNSUBSCRIBE,
      },
 };
 

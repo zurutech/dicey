@@ -32,7 +32,7 @@
 #include "ipc/queue.h"
 #include "ipc/uvtools.h"
 
-#include "builtins/introspection/introspection.h"
+#include "builtins/builtins.h"
 
 #include "client-data.h"
 #include "pending-reqs.h"
@@ -45,6 +45,7 @@ enum loop_request_kind {
     LOOP_REQ_ADD_OBJECT,
     LOOP_REQ_ADD_TRAIT,
     LOOP_REQ_DEL_OBJECT,
+    LOOP_REQ_RAISE_EVENT,
     LOOP_REQ_SEND_RESPONSE,
     LOOP_REQ_KICK_CLIENT,
     LOOP_REQ_STOP_SERVER,
@@ -53,7 +54,7 @@ enum loop_request_kind {
 struct loop_request {
     enum loop_request_kind kind;
 
-    size_t target;
+    ptrdiff_t target;
 
     uv_sem_t *sem;
     enum dicey_error err;
@@ -222,8 +223,22 @@ static void loop_request_delete(void *const ctx, void *const ptr) {
 
 static void on_write(uv_write_t *req, int status);
 
-static bool is_introspection_req(const struct dicey_element_entry *const elem) {
-    return elem->element->_tag; // tag is used to identify introspection operations, invalid is 0
+static bool is_event_msg(const struct dicey_packet pkt) {
+    struct dicey_message msg = { 0 };
+    if (dicey_packet_as_message(pkt, &msg) != DICEY_OK) {
+        return false;
+    }
+
+    return msg.type == DICEY_OP_EVENT;
+}
+
+static bool can_send_as_event(const struct dicey_packet packet) {
+    if (!dicey_packet_is_valid(packet)) {
+        return false;
+    }
+
+    // all seqs will do - we will set a new one anyway
+    return is_event_msg(packet);
 }
 
 static enum dicey_error is_message_acceptable_for(
@@ -299,7 +314,7 @@ static bool is_response_msg(const struct dicey_packet pkt) {
 }
 
 static bool can_send_as_response(const struct dicey_packet packet) {
-    if (!packet.nbytes || !packet.payload) {
+    if (!dicey_packet_is_valid(packet)) {
         return false;
     }
 
@@ -839,7 +854,11 @@ static ptrdiff_t client_got_message(struct dicey_client_data *const client, stru
         return repl_err ? repl_err : CLIENT_STATE_RUNNING;
     }
 
-    if (is_introspection_req(&elem_entry)) {
+    struct dicey_registry_builtin_info binfo = { 0 };
+    if (dicey_registry_get_builtin_info_for(&elem_entry, &binfo)) {
+        assert(binfo.handler);
+
+        // we hit on a builtin
         // validate and skip the seq - otherwise the client state will misalign with the server
         const enum dicey_error skip_err = dicey_pending_request_skip(&client->pending, seq);
         if (skip_err) {
@@ -849,9 +868,8 @@ static ptrdiff_t client_got_message(struct dicey_client_data *const client, stru
         }
 
         struct outbound_packet response = { .kind = DICEY_OP_RESPONSE };
-        const enum dicey_error introspect_err = dicey_registry_perform_introspection_op(
-            &server->registry, message.path, &elem_entry, &message.value, &response.single
-        );
+        const enum dicey_error introspect_err =
+            binfo.handler(&server->registry, binfo.opcode, message.path, &elem_entry, &message.value, &response.single);
 
         // get rid of the request, we don't need it anymore
         dicey_packet_deinit(&packet);
@@ -1135,6 +1153,11 @@ static void loop_request_inbound(uv_async_t *const async) {
 
             // free the name we strdup'd earlier
             free((char *) req->object_info.name);
+            break;
+
+        case LOOP_REQ_RAISE_EVENT:
+            assert(!"not implemented");
+
             break;
 
         case LOOP_REQ_SEND_RESPONSE:
@@ -1570,6 +1593,48 @@ enum dicey_error dicey_server_kick(struct dicey_server *const server, const size
     return server_blocking_request(server, req);
 }
 
+enum dicey_error dicey_server_raise(struct dicey_server *const server, const struct dicey_packet packet) {
+    assert(server && dicey_packet_is_valid(packet));
+
+    if (!can_send_as_event(packet)) {
+        return TRACE(DICEY_EINVAL);
+    }
+
+    struct loop_request *const req = malloc(sizeof *req);
+    if (!req) {
+        return TRACE(DICEY_ENOMEM);
+    }
+
+    *req = (struct loop_request) {
+        .kind = LOOP_REQ_RAISE_EVENT,
+        .target = -1,
+        .packet = packet,
+    };
+
+    return server_submit_request(server, req);
+}
+
+enum dicey_error dicey_server_raise_and_wait(struct dicey_server *const server, const struct dicey_packet packet) {
+    assert(server && dicey_packet_is_valid(packet));
+
+    if (!can_send_as_event(packet)) {
+        return TRACE(DICEY_EINVAL);
+    }
+
+    struct loop_request *const req = malloc(sizeof *req);
+    if (!req) {
+        return TRACE(DICEY_ENOMEM);
+    }
+
+    *req = (struct loop_request) {
+        .kind = LOOP_REQ_RAISE_EVENT,
+        .target = -1,
+        .packet = packet,
+    };
+
+    return server_blocking_request(server, req);
+}
+
 enum dicey_error dicey_server_send_response(
     struct dicey_server *const server,
     const size_t id,
@@ -1579,6 +1644,10 @@ enum dicey_error dicey_server_send_response(
 
     if (!can_send_as_response(packet)) {
         return TRACE(DICEY_EINVAL);
+    }
+
+    if (id > (size_t) PTRDIFF_MAX) {
+        return TRACE(DICEY_EOVERFLOW);
     }
 
     struct loop_request *const req = malloc(sizeof *req);
@@ -1604,6 +1673,10 @@ enum dicey_error dicey_server_send_response_and_wait(
 
     if (!can_send_as_response(packet)) {
         return TRACE(DICEY_EINVAL);
+    }
+
+    if (id > (size_t) PTRDIFF_MAX) {
+        return TRACE(DICEY_EOVERFLOW);
     }
 
     struct loop_request *const req = malloc(sizeof *req);

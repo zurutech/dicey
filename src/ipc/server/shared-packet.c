@@ -13,13 +13,13 @@ struct dicey_shared_packet {
     struct dicey_packet packet;
 };
 
-struct dicey_shared_packet *dicey_shared_packet_from(const struct dicey_packet packet) {
+struct dicey_shared_packet *dicey_shared_packet_from(const struct dicey_packet packet, const size_t starting_refcount) {
     assert(dicey_packet_is_valid(packet));
 
     struct dicey_shared_packet *const shared_packet = malloc(sizeof *shared_packet);
     if (shared_packet) {
         *shared_packet = (struct dicey_shared_packet) {
-            .refc = 1U,
+            .refc = starting_refcount,
             .packet = packet,
         };
     }

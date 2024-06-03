@@ -13,6 +13,11 @@
 
 #include "builtins.h"
 
+#define BASE_OF(X) ((size_t) (((X) &0xFF00U) >> 8U))
+#define OPCODE_OF(X) ((uint8_t) ((X) &0xFFU))
+
+#define TAGGED(TAG, OPID) ((uintptr_t) ((TAG) << 8U | ((OPID) &0xFFU)))
+
 static const struct dicey_registry_builtin_set *default_builtins[] = {
     &dicey_registry_introspection_builtins,
     &dicey_registry_server_builtins,
@@ -39,8 +44,9 @@ static enum dicey_error populate_objects(
 
 static enum dicey_error populate_traits(
     struct dicey_registry *const registry,
+    const size_t tag,
     const struct dicey_default_trait *const traits,
-    size_t ntraits
+    const size_t ntraits
 ) {
     assert(registry);
 
@@ -54,6 +60,7 @@ static enum dicey_error populate_traits(
 
         const struct dicey_default_element *const tend = trait_def->elements + trait_def->num_elements;
         for (const struct dicey_default_element *elem_def = trait_def->elements; elem_def < tend; ++elem_def) {
+            assert(elem_def->opcode <= 0xFF);
             enum dicey_error err = dicey_trait_add_element(
                 trait,
                 elem_def->name,
@@ -61,8 +68,8 @@ static enum dicey_error populate_traits(
                     .type = elem_def->type,
                     .signature = elem_def->signature,
                     .readonly = elem_def->readonly,
-                    ._tag =
-                        elem_def->tag, // use tag to identify that this is a builtin operation with a specific opcode
+                    // use tag to identify that this is a builtin operation with a specific opcode
+                    ._tag = TAGGED(tag, elem_def->opcode),
                 }
             );
 
@@ -84,11 +91,12 @@ static enum dicey_error populate_traits(
 
 static enum dicey_error populate_registry_with(
     struct dicey_registry *const registry,
-    const struct dicey_registry_builtin_set *const set
+    const struct dicey_registry_builtin_set *const set,
+    const size_t tag
 ) {
     assert(registry && set);
 
-    const enum dicey_error err = populate_traits(registry, set->traits, set->ntraits);
+    const enum dicey_error err = populate_traits(registry, tag, set->traits, set->ntraits);
     if (err) {
         return err;
     }
@@ -96,12 +104,43 @@ static enum dicey_error populate_registry_with(
     return populate_objects(registry, set->objects, set->nobjects);
 }
 
+bool dicey_registry_get_builtin_info_for(
+    const struct dicey_element_entry *elem,
+    struct dicey_registry_builtin_info *target
+) {
+    if (!elem) {
+        return false;
+    }
+
+    // the tag is used to identify which elements are builtins
+    const uintptr_t tag = elem->element->_tag;
+
+    if (!tag) {
+        return false;
+    }
+
+    // every builtin set has a base tag, so we can use this to match the element back to its set
+    const size_t ix = BASE_OF(tag);
+    assert(ix < DICEY_LENOF(default_builtins));
+
+    const struct dicey_registry_builtin_set *const set = default_builtins[ix];
+    assert(set && set->handler);
+
+    *target = (struct dicey_registry_builtin_info) {
+        .handler = set->handler,
+        .opcode = OPCODE_OF(tag),
+    };
+
+    return true;
+}
+
 enum dicey_error dicey_registry_populate_builtins(struct dicey_registry *const registry) {
     assert(registry);
 
-    const struct dicey_registry_builtin_set *const *const end = default_builtins + DICEY_LENOF(default_builtins);
-    for (const struct dicey_registry_builtin_set *const *set = default_builtins; set < end; ++set) {
-        const enum dicey_error err = populate_registry_with(registry, *set);
+    for (size_t i = 0U; i < DICEY_LENOF(default_builtins); ++i) {
+        const struct dicey_registry_builtin_set *const set = default_builtins[i];
+
+        const enum dicey_error err = populate_registry_with(registry, set, i);
         if (err) {
             return err;
         }
