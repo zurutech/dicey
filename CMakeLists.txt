@@ -120,7 +120,7 @@ if (NOT LibXml2_FOUND)
     FetchContent_Declare(
         libxml2
         GIT_REPOSITORY https://gitlab.gnome.org/GNOME/libxml2.git
-        GIT_TAG        v2.12.5
+        GIT_TAG        v2.12.7
     )
 
     FetchContent_MakeAvailable(libxml2)
@@ -208,6 +208,8 @@ set(CORE_SOURCES
     src/ipc/address.c
     src/ipc/chunk.c
     src/ipc/chunk.h
+    src/ipc/elemdescr.c
+    src/ipc/elemdescr.h
     src/ipc/queue.c
     src/ipc/queue.h
     src/ipc/typedescr.c

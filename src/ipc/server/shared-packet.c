@@ -42,6 +42,8 @@ bool dicey_shared_packet_is_valid(const struct dicey_shared_packet *const shared
 
 void dicey_shared_packet_ref(struct dicey_shared_packet *const shared_packet) {
     assert(dicey_shared_packet_is_valid(shared_packet));
+
+    ++shared_packet->refc;
 }
 
 size_t dicey_shared_packet_size(const struct dicey_shared_packet *const shared_packet) {

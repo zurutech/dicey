@@ -7,8 +7,11 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <dicey/core/errors.h>
+#include <dicey/core/hashset.h>
 #include <dicey/ipc/server.h>
 
+#include "sup/trace.h"
 #include "sup/unsafe.h"
 
 #include "client-data.h"
@@ -79,6 +82,35 @@ uint32_t dicey_client_data_next_seq(struct dicey_client_data *const client) {
     }
 
     return next;
+}
+
+bool dicey_client_data_is_subscribed(const struct dicey_client_data *client, const char *elemdescr) {
+    return dicey_hashset_contains(client->subscriptions, elemdescr);
+}
+
+enum dicey_error dicey_client_data_subscribe(struct dicey_client_data *const client, const char *const elemdescr) {
+    assert(client && elemdescr);
+
+    switch (dicey_hashset_add(&client->subscriptions, elemdescr)) {
+    case DICEY_HASH_SET_FAILED:
+        // assume that all hashset failures are due to OOM
+        return TRACE(DICEY_ENOMEM);
+
+    case DICEY_HASH_SET_ADDED:
+        return DICEY_OK;
+
+    case DICEY_HASH_SET_UPDATED:
+        return DICEY_EEXIST; // do not trace EEXIST - it is a possible condition
+
+    default:
+        abort(); // unreachable
+    }
+}
+
+bool dicey_client_data_unsubscribe(struct dicey_client_data *const client, const char *const elemdescr) {
+    assert(client && elemdescr);
+
+    return dicey_hashset_remove(client->subscriptions, elemdescr);
 }
 
 struct dicey_client_data *const *dicey_client_list_begin(const struct dicey_client_list *const list) {

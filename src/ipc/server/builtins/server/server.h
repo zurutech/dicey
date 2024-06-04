@@ -26,17 +26,6 @@
 #define DICEY_EVENTMANAGER_UNSUBSCRIBE_OP_NAME "Unsubscribe"
 #define DICEY_EVENTMANAGER_UNSUBSCRIBE_OP_SIG "(@%) -> u"
 
-enum dicey_error dicey_server_subscribe_client_to_event(
-    size_t id,
-    const char *path,
-    const struct dicey_selector selector
-);
-enum dicey_error dicey_server_unsubscribe_client_from_event(
-    size_t id,
-    const char *path,
-    const struct dicey_selector selector
-);
-
 extern const struct dicey_registry_builtin_set dicey_registry_server_builtins;
 
 #endif // GFBAZEDZQQ_SERVER_H

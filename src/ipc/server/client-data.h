@@ -8,6 +8,9 @@
 
 #include <uv.h>
 
+#include <dicey/core/errors.h>
+#include <dicey/core/hashset.h>
+#include <dicey/core/type.h>
 #include <dicey/core/version.h>
 #include <dicey/ipc/server.h>
 
@@ -40,11 +43,17 @@ struct dicey_client_data {
     struct dicey_server *parent;
 
     struct dicey_pending_requests *pending;
+
+    struct dicey_hashset *subscriptions;
 };
 
 void dicey_client_data_delete(struct dicey_client_data *client);
 struct dicey_client_data *dicey_client_data_new(struct dicey_server *parent, size_t id);
 uint32_t dicey_client_data_next_seq(struct dicey_client_data *client);
+
+bool dicey_client_data_is_subscribed(const struct dicey_client_data *client, const char *elemdescr);
+enum dicey_error dicey_client_data_subscribe(struct dicey_client_data *client, const char *elemdescr);
+bool dicey_client_data_unsubscribe(struct dicey_client_data *client, const char *elemdescr);
 
 struct dicey_client_list;
 

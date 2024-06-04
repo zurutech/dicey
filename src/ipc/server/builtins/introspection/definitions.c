@@ -9,13 +9,14 @@
 #include <dicey/core/errors.h>
 #include <dicey/core/hashtable.h>
 #include <dicey/core/packet.h>
+#include <dicey/core/value.h>
 #include <dicey/ipc/registry.h>
 #include <dicey/ipc/traits.h>
 
-#include "dicey/core/value.h"
 #include "sup/trace.h"
 
-#include "../builtins.h"
+#include "ipc/server/builtins/builtins.h"
+#include "ipc/server/client-data.h"
 
 #include "introspection.h"
 
@@ -209,16 +210,21 @@ static enum dicey_error value_get_element_info(
 }
 
 static enum dicey_error perform_introspection_op(
-    struct dicey_registry *const registry,
+    struct dicey_builtin_context *const context,
     const uint8_t opcode,
+    struct dicey_client_data *const client,
     const char *const path,
     const struct dicey_element_entry *const entry,
     const struct dicey_value *const value,
     struct dicey_packet *const response
 ) {
+    (void) client;
+    (void) entry;
     (void) path;
 
-    assert(registry && path && entry && entry->element && response);
+    assert(context && path && entry && entry->element && response);
+
+    struct dicey_registry *const registry = context->registry;
 
     // do not validate the path, as it is not necessary for introspection operations. We assume the registry
     // already performed such validations before invoking this function.

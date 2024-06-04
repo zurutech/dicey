@@ -60,7 +60,9 @@ static enum dicey_error populate_traits(
 
         const struct dicey_default_element *const tend = trait_def->elements + trait_def->num_elements;
         for (const struct dicey_default_element *elem_def = trait_def->elements; elem_def < tend; ++elem_def) {
+            // assert that all opcodes are within the allowed 8-bit range
             assert(elem_def->opcode <= 0xFF);
+
             enum dicey_error err = dicey_trait_add_element(
                 trait,
                 elem_def->name,
@@ -120,6 +122,7 @@ bool dicey_registry_get_builtin_info_for(
     }
 
     // every builtin set has a base tag, so we can use this to match the element back to its set
+    // the tag is the index of the builtin set in the default_builtins array
     const size_t ix = BASE_OF(tag);
     assert(ix < DICEY_LENOF(default_builtins));
 

@@ -203,6 +203,36 @@ DICEY_EXPORT struct dicey_registry *dicey_server_get_registry(struct dicey_serve
 DICEY_EXPORT enum dicey_error dicey_server_kick(struct dicey_server *server, size_t id);
 
 /**
+ * @brief Raises an event, notifying all clients subscribed to it. This function is asynchronous and won't wait for the
+ *        event to actually be sent.
+ * @param server The server to raise the event from.
+ * @param event  The event to raise. The ownership of the packet is transferred to the server, which will free it when
+ *               done. This packet must be an event packet.
+ * @return       Error code. The possible values are several and include:
+ *               - OK: the event was successfully raised
+ *               - ENOMEM: memory allocation failed
+ *               - EINVAL: the packet is invalid (e.g. it is not an event)
+ *               - EELEMENT_NOT_FOUND: the event's element is not found
+ */
+DICEY_EXPORT enum dicey_error dicey_server_raise(struct dicey_server *server, struct dicey_packet packet);
+
+/*
+ * @brief Raises an event, notifying all clients subscribed to it. This function is synchronous and will block until the
+ *        event is actually sent.
+ * @note  Even if this function returns, there is no guarantee that the clients actually received anything. This
+ * function only guarantees that the `write()` syscall is actually performed and that it succeeded.
+ * @param server The server to raise the event from.
+ * @param event  The event to raise. The ownership of the packet is transferred to the server, which will free it when
+ *               done. This packet must be an event packet.
+ * @return       Error code. The possible values are several and include:
+ *               - OK: the event was successfully raised
+ *               - ENOMEM: memory allocation failed
+ *               - EINVAL: the packet is invalid (e.g. it is not an event)
+ *               - EELEMENT_NOT_FOUND: the event's element is not found
+ */
+DICEY_EXPORT enum dicey_error dicey_server_raise_and_wait(struct dicey_server *server, struct dicey_packet packet);
+
+/**
  * @brief Replies to a client. This functions is asynchronous and won't wait for the packet to actually be sent.
  * @param server The server to send the packet from.
  * @param id     The unique identifier of the client to send the packet to.

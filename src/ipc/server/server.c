@@ -128,6 +128,7 @@ static void outbound_packet_cleanup(struct outbound_packet *const packet) {
     *packet = (struct outbound_packet) { 0 };
 }
 
+#if !defined(NDEBUG)
 static bool outbound_packet_is_valid(const struct outbound_packet packet) {
     switch (packet.kind) {
     case DICEY_OP_RESPONSE:
@@ -142,6 +143,7 @@ static bool outbound_packet_is_valid(const struct outbound_packet packet) {
         return false;
     }
 }
+#endif
 
 static void *outbound_packet_payload(const struct outbound_packet packet) {
     switch (packet.kind) {
@@ -207,6 +209,8 @@ struct dicey_server {
 
     struct dicey_client_list *clients;
     struct dicey_registry registry;
+
+    struct dicey_view_mut scratchpad;
 
     void *ctx;
 };
@@ -667,6 +671,46 @@ struct prune_ctx {
     const char *path_to_prune;
 };
 
+static enum dicey_error raise_event(
+    struct dicey_server *const server,
+    struct dicey_packet packet,
+    const struct dicey_message *const msg
+) {
+    assert(server && msg);
+
+    struct dicey_shared_packet *shared_pkt = dicey_shared_packet_from(packet, 1U);
+    if (!shared_pkt) {
+        dicey_packet_deinit(&packet);
+
+        return TRACE(DICEY_ENOMEM);
+    }
+
+    // iterate all clients and check if they should receive the event
+    struct dicey_client_data *const *const end = dicey_client_list_end(server->clients);
+    for (struct dicey_client_data *const *client = dicey_client_list_begin(server->clients); client < end; ++client) {
+        if (!*client) {
+            continue;
+        }
+
+        if (!dicey_client_data_is_subscribed(*client, msg->path)) {
+            continue;
+        }
+
+        // hold the packet. We know the refcount will be equal to the number of events sent (because we hold the thread)
+        dicey_shared_packet_ref(shared_pkt);
+
+        struct outbound_packet event = { .kind = DICEY_OP_EVENT, .shared = shared_pkt };
+
+        const enum dicey_error err = server_sendpkt(server, *client, event);
+        if (err) {
+            // deref, we failed this send
+            dicey_shared_packet_unref(shared_pkt);
+        }
+    }
+
+    return DICEY_OK;
+}
+
 static bool request_targets_path(const struct dicey_pending_request *const req, void *const ctx) {
     assert(req && ctx);
 
@@ -696,16 +740,20 @@ static enum dicey_error remove_object(struct dicey_server *server, const char *c
     // before removing an object from the registry, we must prune all pending requests to it from all clients
     struct dicey_client_data *const *const end = dicey_client_list_end(server->clients);
 
-    for (struct dicey_client_data *const *client = dicey_client_list_begin(server->clients); client < end; ++client) {
-        assert(*client);
+    for (struct dicey_client_data *const *cur = dicey_client_list_begin(server->clients); cur < end; ++cur) {
+        struct dicey_client_data *client = *cur;
+
+        if (!client) {
+            continue;
+        }
 
         struct prune_ctx ctx = {
             .server = server,
-            .client = *client,
+            .client = client,
             .path_to_prune = path,
         };
 
-        dicey_pending_requests_prune((*client)->pending, &request_targets_path, &ctx);
+        dicey_pending_requests_prune(client->pending, &request_targets_path, &ctx);
     }
 
     return dicey_registry_delete_object(&server->registry, path);
@@ -868,8 +916,14 @@ static ptrdiff_t client_got_message(struct dicey_client_data *const client, stru
         }
 
         struct outbound_packet response = { .kind = DICEY_OP_RESPONSE };
+
+        struct dicey_builtin_context context = {
+            .registry = &server->registry,
+            .scratchpad = &server->scratchpad,
+        };
+
         const enum dicey_error introspect_err =
-            binfo.handler(&server->registry, binfo.opcode, message.path, &elem_entry, &message.value, &response.single);
+            binfo.handler(&context, binfo.opcode, client, message.path, &elem_entry, &message.value, &response.single);
 
         // get rid of the request, we don't need it anymore
         dicey_packet_deinit(&packet);
@@ -1156,9 +1210,19 @@ static void loop_request_inbound(uv_async_t *const async) {
             break;
 
         case LOOP_REQ_RAISE_EVENT:
-            assert(!"not implemented");
+            {
+                assert(dicey_packet_is_valid(req->packet));
 
-            break;
+                struct dicey_message msg = { 0 };
+                req->err = dicey_packet_as_message(req->packet, &msg);
+                if (req->err) {
+                    break;
+                }
+
+                req->err = raise_event(server, req->packet, &msg);
+
+                break;
+            }
 
         case LOOP_REQ_SEND_RESPONSE:
             assert(dicey_packet_is_valid(req->packet));
@@ -1402,6 +1466,7 @@ enum dicey_error dicey_server_add_object(
 
     // TODO: analyse the thread safety of this approach
     switch ((enum server_state) server->state) {
+    case SERVER_STATE_UNINIT:
     case SERVER_STATE_INIT:
         {
             struct dicey_registry *const registry = dicey_server_get_registry(server);
@@ -1496,6 +1561,7 @@ enum dicey_error dicey_server_add_trait(struct dicey_server *const server, struc
     assert(server && trait);
 
     switch ((enum server_state) server->state) {
+    case SERVER_STATE_UNINIT:
     case SERVER_STATE_INIT:
         {
             struct dicey_registry *const registry = dicey_server_get_registry(server);
@@ -1529,6 +1595,7 @@ enum dicey_error dicey_server_delete_object(struct dicey_server *const server, c
 
     // TODO: analyse the thread safety of this approach
     switch ((enum server_state) server->state) {
+    case SERVER_STATE_UNINIT:
     case SERVER_STATE_INIT:
         {
             struct dicey_registry *const registry = dicey_server_get_registry(server);
