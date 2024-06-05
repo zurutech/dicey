@@ -320,8 +320,6 @@ static enum dicey_error perform_introspection_op(
         assert(false);
         return TRACE(DICEY_EINVAL);
     }
-
-    return DICEY_OK;
 }
 
 const struct dicey_registry_builtin_set dicey_registry_introspection_builtins = {
