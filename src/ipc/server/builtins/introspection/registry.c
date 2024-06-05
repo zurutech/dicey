@@ -34,18 +34,11 @@ static enum dicey_error craft_bool_response(
     struct dicey_message_builder builder = { 0 };
     enum dicey_error err = introspection_init_builder(&builder, path, trait, elem);
     if (err) {
-        return err;
+        goto fail;
     }
 
-    struct dicey_value_builder value_builder = { 0 };
-    err = dicey_message_builder_value_start(&builder, &value_builder);
-
-    if (err) {
-        return err;
-    }
-
-    err = dicey_value_builder_set(
-        &value_builder,
+    err = dicey_message_builder_set_value(
+        &builder,
         (struct dicey_arg) {
             .type = DICEY_TYPE_BOOL,
             .boolean = value,
@@ -53,15 +46,15 @@ static enum dicey_error craft_bool_response(
     );
 
     if (err) {
-        return err;
-    }
-
-    err = dicey_message_builder_value_end(&builder, &value_builder);
-    if (err) {
-        return err;
+        goto fail;
     }
 
     return dicey_message_builder_build(&builder, dest);
+
+fail:
+    dicey_message_builder_discard(&builder);
+
+    return err;
 }
 
 static enum dicey_error populate_element_kind(
@@ -368,19 +361,20 @@ enum dicey_error introspection_craft_pathlist(
     enum dicey_error err = introspection_init_builder(
         &builder, DICEY_REGISTRY_PATH, DICEY_REGISTRY_TRAIT_NAME, DICEY_REGISTRY_OBJECTS_PROP_NAME
     );
+
     if (err) {
-        return err;
+        goto fail;
     }
 
     struct dicey_value_builder value_builder = { 0 };
     err = dicey_message_builder_value_start(&builder, &value_builder);
     if (err) {
-        return err;
+        goto fail;
     }
 
     err = dicey_value_builder_array_start(&value_builder, DICEY_TYPE_PATH);
     if (err) {
-        return err;
+        goto fail;
     }
 
     // TODO: implement an actual API to iterate over the registry's paths. We can do this here because this is a private
@@ -394,7 +388,7 @@ enum dicey_error introspection_craft_pathlist(
         struct dicey_value_builder element = { 0 };
         err = dicey_value_builder_next(&value_builder, &element);
         if (err) {
-            return err;
+            goto fail;
         }
 
         err = dicey_value_builder_set(
@@ -406,21 +400,26 @@ enum dicey_error introspection_craft_pathlist(
         );
 
         if (err) {
-            return err;
+            goto fail;
         }
     }
 
     err = dicey_value_builder_array_end(&value_builder);
     if (err) {
-        return err;
+        goto fail;
     }
 
     err = dicey_message_builder_value_end(&builder, &value_builder);
     if (err) {
-        return err;
+        goto fail;
     }
 
     return dicey_message_builder_build(&builder, dest);
+
+fail:
+    dicey_message_builder_discard(&builder);
+
+    return err;
 }
 
 enum dicey_error introspection_craft_traitlist(

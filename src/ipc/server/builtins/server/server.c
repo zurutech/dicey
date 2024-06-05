@@ -3,6 +3,7 @@
 #include <assert.h>
 #include <stdbool.h>
 
+#include <dicey/core/builders.h>
 #include <dicey/core/errors.h>
 #include <dicey/core/packet.h>
 #include <dicey/core/type.h>
@@ -49,6 +50,48 @@ static const struct dicey_default_trait server_traits[] = {
     {.name = DICEY_EVENTMANAGER_TRAIT_NAME, .elements = em_elements, .num_elements = DICEY_LENOF(em_elements)},
 };
 
+static enum dicey_error unit_message_for(
+    struct dicey_packet *const dest,
+    const char *const path,
+    const struct dicey_selector sel
+) {
+    assert(dest && path && dicey_selector_is_valid(sel));
+
+    struct dicey_message_builder builder = { 0 };
+
+    enum dicey_error err = dicey_message_builder_init(&builder);
+    if (err) {
+        goto fail;
+    }
+
+    err = dicey_message_builder_begin(&builder, DICEY_OP_RESPONSE);
+    if (err) {
+        goto fail;
+    }
+
+    err = dicey_message_builder_set_path(&builder, path);
+    if (err) {
+        goto fail;
+    }
+
+    err = dicey_message_builder_set_selector(&builder, sel);
+    if (err) {
+        goto fail;
+    }
+
+    err = dicey_message_builder_set_value(&builder, (struct dicey_arg) { .type = DICEY_TYPE_UNIT });
+    if (err) {
+        goto fail;
+    }
+
+    return dicey_message_builder_build(&builder, dest);
+
+fail:
+    dicey_message_builder_discard(&builder);
+
+    return err;
+}
+
 static enum dicey_error handle_sub_operation(
     struct dicey_builtin_context *const context,
     const uint8_t opcode,
@@ -79,17 +122,26 @@ static enum dicey_error handle_sub_operation(
 
     switch (opcode) {
     case SERVER_OP_EVENT_SUBSCRIBE:
-        return dicey_client_data_subscribe(client, elemdescr);
+        err = dicey_client_data_subscribe(client, elemdescr);
+        break;
 
     case SERVER_OP_EVENT_UNSUBSCRIBE:
         // do not trace the result of this operation, the ENOENT should be reported to the client without blocking
         // the server
-        return dicey_client_data_unsubscribe(client, elemdescr) ? DICEY_OK : DICEY_ENOENT;
+        err = dicey_client_data_unsubscribe(client, elemdescr) ? DICEY_OK : DICEY_ENOENT;
+
+        break;
 
     default:
         assert(false);
         return TRACE(DICEY_EINVAL);
     }
+
+    if (err) {
+        return err;
+    }
+
+    return unit_message_for(response, path, entry->sel);
 }
 
 const struct dicey_registry_builtin_set dicey_registry_server_builtins = {
