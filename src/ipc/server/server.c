@@ -29,6 +29,7 @@
 #include "sup/trace.h"
 
 #include "ipc/chunk.h"
+#include "ipc/elemdescr.h"
 #include "ipc/queue.h"
 #include "ipc/uvtools.h"
 
@@ -685,6 +686,13 @@ static enum dicey_error raise_event(
         return TRACE(DICEY_ENOMEM);
     }
 
+    const char *const elemdescr = dicey_element_descriptor_format_to(&server->scratchpad, msg->path, msg->selector);
+    if (!elemdescr) {
+        dicey_shared_packet_unref(shared_pkt);
+
+        return TRACE(DICEY_ENOMEM);
+    }
+
     // iterate all clients and check if they should receive the event
     struct dicey_client_data *const *const end = dicey_client_list_end(server->clients);
     for (struct dicey_client_data *const *client = dicey_client_list_begin(server->clients); client < end; ++client) {
@@ -692,7 +700,7 @@ static enum dicey_error raise_event(
             continue;
         }
 
-        if (!dicey_client_data_is_subscribed(*client, msg->path)) {
+        if (!dicey_client_data_is_subscribed(*client, elemdescr)) {
             continue;
         }
 
@@ -1272,14 +1280,20 @@ static void loop_request_inbound(uv_async_t *const async) {
             // only when the server _actually_ stops. That's why the case above has a return statement
 
             uv_sem_post(req->sem);
-        } else if (req->err) {
-            // if the request is not blocking, and an error happened, we must report it otherwise it will be lost
-            server->on_error(server, req->err, &client->info, "loop_request_inbound: %s", dicey_error_name(req->err));
+
+            // don't free the request here, it's the caller's responsibility if they are waiting
+        } else {
+            if (req->err) {
+                // if the request is not blocking, and an error happened, we must report it otherwise it will be lost
+                server->on_error(
+                    server, req->err, &client->info, "loop_request_inbound: %s", dicey_error_name(req->err)
+                );
+            }
+
+            // the request is not blocking, so we must free it
+            // the packet, if any, will be freed in on_write
+            free(req);
         }
-
-        free(req); // the packet, if any, will be freed in on_write
-
-        // don't free the request here, it's the caller's responsibility
     }
 }
 
