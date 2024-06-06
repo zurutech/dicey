@@ -92,20 +92,74 @@ fail:
     return err;
 }
 
+static enum dicey_error extract_path_sel(
+    const struct dicey_value *const value,
+    const char **const path,
+    struct dicey_selector *const sel
+) {
+    assert(value && path && sel);
+
+    struct dicey_list lst = { 0 };
+
+    enum dicey_error err = dicey_value_get_tuple(value, &lst);
+    if (err) {
+        return err;
+    }
+
+    struct dicey_iterator it = dicey_list_iter(&lst);
+    struct dicey_value elem = { 0 };
+
+    err = dicey_iterator_next(&it, &elem);
+    if (err) {
+        return err;
+    }
+
+    err = dicey_value_get_path(&elem, path);
+    if (err) {
+        return err;
+    }
+
+    err = dicey_iterator_next(&it, &elem);
+    if (err) {
+        return err;
+    }
+
+    err = dicey_value_get_selector(&elem, sel);
+    if (err) {
+        return err;
+    }
+
+    if (dicey_iterator_has_next(it)) {
+        return TRACE(DICEY_ESIGNATURE_MISMATCH);
+    }
+
+    return DICEY_OK;
+}
+
 static enum dicey_error handle_sub_operation(
     struct dicey_builtin_context *const context,
     const uint8_t opcode,
     struct dicey_client_data *const client,
-    const char *const path,
-    const struct dicey_element_entry *const entry,
+    const char *const src_path,
+    const struct dicey_element_entry *const src_entry,
     const struct dicey_value *const value,
     struct dicey_packet *const response
 ) {
-    (void) value;
+    (void) src_path;
+    (void) src_entry;
 
-    assert(context && client && path && entry && value && response && dicey_selector_is_valid(entry->sel));
+    assert(context && client && value && response);
+    const char *path = NULL;
+    struct dicey_selector sel = { 0 };
 
-    if (entry->element->type != DICEY_ELEMENT_TYPE_SIGNAL) {
+    enum dicey_error err = extract_path_sel(value, &path, &sel);
+    if (err) {
+        return err;
+    }
+
+    const struct dicey_element *elem = dicey_registry_get_element(context->registry, path, sel.trait, sel.elem);
+
+    if (!elem || elem->type != DICEY_ELEMENT_TYPE_SIGNAL) {
         return TRACE(DICEY_EINVAL);
     }
 
@@ -113,12 +167,10 @@ static enum dicey_error handle_sub_operation(
     struct dicey_view_mut *const scratchpad = context->scratchpad;
     assert(scratchpad);
 
-    enum dicey_error err = dicey_element_descriptor_format_to(scratchpad, path, entry->sel);
-    if (err) {
-        return err;
+    const char *const elemdescr = dicey_element_descriptor_format_to(scratchpad, path, sel);
+    if (!elemdescr) {
+        return TRACE(DICEY_ENOMEM);
     }
-
-    const char *const elemdescr = scratchpad->data;
 
     switch (opcode) {
     case SERVER_OP_EVENT_SUBSCRIBE:
@@ -141,7 +193,7 @@ static enum dicey_error handle_sub_operation(
         return err;
     }
 
-    return unit_message_for(response, path, entry->sel);
+    return unit_message_for(response, path, sel);
 }
 
 const struct dicey_registry_builtin_set dicey_registry_server_builtins = {
