@@ -18,6 +18,7 @@
 #include <util/packet-dump.h>
 
 #include "sval.h"
+#include "timer.h"
 
 #if defined(__linux__) || defined(_WIN32)
 #define PIPE_NEEDS_CLEANUP false
@@ -60,13 +61,6 @@
 #define TEST_OBJ_TRAIT "dicey.test.Object"
 #define TEST_OBJ_NAME_ELEMENT "Name"
 #define TEST_OBJ_NAME_SIGNATURE "s"
-
-#define TEST_TIMER_PATH "/dicey/test/timer"
-#define TEST_TIMER_TRAIT "dicey.test.Timer"
-#define TEST_TIMER_START_ELEMENT "Start"
-#define TEST_TIMER_START_SIGNATURE "i -> $"
-#define TEST_TIMER_TIMERFIRED_ELEMENT "TimerFired"
-#define TEST_TIMER_TIMERFIRED_SIGNATURE "(xi)"
 
 static struct dicey_server *global_server = NULL;
 
