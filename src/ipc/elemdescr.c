@@ -18,10 +18,10 @@
 char *dicey_element_descriptor_format(const char *const path, const struct dicey_selector sel) {
     struct dicey_view_mut dest = { 0 };
 
-    return dicey_element_descriptor_format_to(&dest, path, sel) != DICEY_OK ? NULL : dest.data;
+    return dicey_element_descriptor_format_to(&dest, path, sel);
 }
 
-enum dicey_error dicey_element_descriptor_format_to(
+char *dicey_element_descriptor_format_to(
     struct dicey_view_mut *const dest,
     const char *const path,
     const struct dicey_selector sel
@@ -34,7 +34,7 @@ enum dicey_error dicey_element_descriptor_format_to(
     if ((size_t) required > dest->len) {
         char *const new_data = realloc(dest->data, (size_t) required);
         if (!new_data) {
-            return TRACE(DICEY_ENOMEM);
+            return NULL;
         }
 
         *dest = dicey_view_mut_from(new_data, (size_t) required);
@@ -42,5 +42,5 @@ enum dicey_error dicey_element_descriptor_format_to(
 
     snprintf(dest->data, dest->len, DICEY_ELEMENT_DESCR_FMT, path, sel.trait, sel.elem);
 
-    return DICEY_OK;
+    return dest->data;
 }

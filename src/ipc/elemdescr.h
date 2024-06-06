@@ -8,10 +8,6 @@
 #include <dicey/core/views.h>
 
 char *dicey_element_descriptor_format(const char *path, struct dicey_selector sel);
-enum dicey_error dicey_element_descriptor_format_to(
-    struct dicey_view_mut *dest,
-    const char *path,
-    struct dicey_selector sel
-);
+char *dicey_element_descriptor_format_to(struct dicey_view_mut *dest, const char *path, struct dicey_selector sel);
 
 #endif // NICMLMFZJN_ELEMDESCR_H
