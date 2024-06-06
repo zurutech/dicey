@@ -339,51 +339,13 @@ static enum dicey_error make_error(
 ) {
     assert(dest && path && dicey_selector_is_valid(sel) && msg_err);
 
-    struct dicey_message_builder builder = { 0 };
-
-    enum dicey_error err = dicey_message_builder_init(&builder);
-    if (err) {
-        return err;
-    }
-
-    err = dicey_message_builder_begin(&builder, DICEY_OP_RESPONSE);
-    if (err) {
-        goto fail;
-    }
-
-    err = dicey_message_builder_set_seq(&builder, seq);
-    if (err) {
-        goto fail;
-    }
-
-    err = dicey_message_builder_set_path(&builder, path);
-    if (err) {
-        goto fail;
-    }
-
-    err = dicey_message_builder_set_selector(&builder, sel);
-    if (err) {
-        goto fail;
-    }
-
-    err = dicey_message_builder_set_value(&builder, (struct dicey_arg) {
+    return dicey_packet_message(dest, seq, DICEY_OP_RESPONSE, path, sel, (struct dicey_arg) {
         .type = DICEY_TYPE_ERROR,
         .error = {
             .code = (uint16_t) msg_err,
             .message = dicey_error_msg(msg_err),
         },
     });
-
-    if (err) {
-        goto fail;
-    }
-
-    return dicey_message_builder_build(&builder, dest);
-
-fail:
-    dicey_message_builder_discard(&builder);
-
-    return err;
 }
 
 static enum dicey_error server_sendpkt(
