@@ -22,16 +22,37 @@ class Array:
     def __getitem__(self, index: int) -> _Any:
         return self.values[index]
 
-@_dataclass(frozen=True)
+@_dataclass(frozen=True, init=False, repr=False)
 class Byte:
-    value: int
+    value: int 
+
+    def __init__(self, value: int | str):
+        if isinstance(value, str):
+            if len(value) != 1 or not value.isascii():
+                raise ValueError("byte only accepts uint8 or ASCII characters")
+
+            value = ord(value)
+
+        elif not 0 <= value <= UINT8_MAX:
+            raise ValueError("byte value out of range")
+
+        object.__setattr__(self, 'value', int(value))
 
     def __int__(self):
         return self.value
 
-    def __post_init__(self):
-        if not 0 <= self.value <= UINT8_MAX:
-            raise ValueError("byte value out of range")
+    def __str__(self):
+        return chr(self.value)
+
+    def __repr__(self):
+        pv = str(self)
+
+        if pv.isprintable():
+            pv = f"'{pv}'"
+        else:
+            pv = int(self)
+
+        return f"Byte({pv})"        
 
 @_dataclass(frozen=True)
 class ErrorMessage(DiceyError):
