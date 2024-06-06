@@ -54,8 +54,15 @@ void dicey_client_data_delete(struct dicey_client_data *const client) {
 }
 
 struct dicey_client_data *dicey_client_data_new(struct dicey_server *const parent, const size_t id) {
+    struct dicey_hashset *const subscriptions = dicey_hashset_new();
+    if (!subscriptions) {
+        return NULL;
+    }
+
     struct dicey_client_data *new_client = calloc(1U, sizeof *new_client);
     if (!new_client) {
+        dicey_hashset_delete(subscriptions);
+
         return NULL;
     }
 
@@ -67,6 +74,7 @@ struct dicey_client_data *dicey_client_data_new(struct dicey_server *const paren
         },
 
         .parent = parent,
+        .subscriptions = subscriptions,
     };
 
     return new_client;
