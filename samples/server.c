@@ -31,6 +31,8 @@
 #define PIPE_NAME "/tmp/.uvsock"
 #endif
 
+#define TIMER_STATE_KEY "$timer.state"
+
 #define DUMMY_PATH "/foo/bar"
 #define DUMMY_TRAIT "a.street.trait.named.Bob"
 #define DUMMY_ELEMENT "Bobbable"
@@ -58,6 +60,13 @@
 #define TEST_OBJ_TRAIT "dicey.test.Object"
 #define TEST_OBJ_NAME_ELEMENT "Name"
 #define TEST_OBJ_NAME_SIGNATURE "s"
+
+#define TEST_TIMER_PATH "/dicey/test/timer"
+#define TEST_TIMER_TRAIT "dicey.test.Timer"
+#define TEST_TIMER_START_ELEMENT "Start"
+#define TEST_TIMER_START_SIGNATURE "i -> $"
+#define TEST_TIMER_TIMERFIRED_ELEMENT "TimerFired"
+#define TEST_TIMER_TIMERFIRED_SIGNATURE "(xi)"
 
 static struct dicey_server *global_server = NULL;
 
@@ -193,6 +202,22 @@ static const struct test_trait test_traits[] = {
                 },
                 NULL,
             }, },
+    {
+     .name = TEST_TIMER_TRAIT,
+     .elements =
+            (const struct test_element *[]) {
+                &(struct test_element) {
+                    .type = DICEY_ELEMENT_TYPE_OPERATION,
+                    .name = TEST_TIMER_START_ELEMENT,
+                    .signature = TEST_TIMER_START_SIGNATURE,
+                },
+                &(struct test_element) {
+                    .type = DICEY_ELEMENT_TYPE_SIGNAL,
+                    .name = TEST_TIMER_TIMERFIRED_ELEMENT,
+                    .signature = TEST_TIMER_TIMERFIRED_SIGNATURE,
+                },
+                NULL,
+            }, },
 };
 
 struct test_object {
@@ -201,12 +226,166 @@ struct test_object {
 };
 
 static const struct test_object test_objects[] = {
-    {.path = DUMMY_PATH,     .traits = (const char *[]) { DUMMY_TRAIT, NULL }   },
-    { .path = SVAL_PATH,     .traits = (const char *[]) { SVAL_TRAIT, NULL }    },
-    { .path = SELF_PATH,     .traits = (const char *[]) { SELF_TRAIT, NULL }    },
-    { .path = ECHO_PATH,     .traits = (const char *[]) { ECHO_TRAIT, NULL }    },
-    { .path = TEST_MGR_PATH, .traits = (const char *[]) { TEST_MGR_TRAIT, NULL }},
+    {.path = DUMMY_PATH,       .traits = (const char *[]) { DUMMY_TRAIT, NULL }     },
+    { .path = SVAL_PATH,       .traits = (const char *[]) { SVAL_TRAIT, NULL }      },
+    { .path = SELF_PATH,       .traits = (const char *[]) { SELF_TRAIT, NULL }      },
+    { .path = ECHO_PATH,       .traits = (const char *[]) { ECHO_TRAIT, NULL }      },
+    { .path = TEST_MGR_PATH,   .traits = (const char *[]) { TEST_MGR_TRAIT, NULL }  },
+    { .path = TEST_TIMER_PATH, .traits = (const char *[]) { TEST_TIMER_TRAIT, NULL }},
 };
+
+struct timer_state {
+    struct dicey_server *server;
+
+    uv_thread_t thread;
+    uv_mutex_t mux;
+
+    uv_timeval64_t target;
+    bool quit;
+};
+
+static enum dicey_error craft_timer_event(struct dicey_packet *const dest, const uv_timeval64_t tv) {
+    assert(dest);
+
+    struct dicey_message_builder builder = { 0 };
+    enum dicey_error err = dicey_message_builder_init(&builder);
+    if (err) {
+        goto fail;
+    }
+
+    err = dicey_message_builder_begin(&builder, DICEY_OP_EVENT);
+    if (err) {
+        goto fail;
+    }
+
+    err = dicey_message_builder_set_path(&builder, TEST_TIMER_PATH);
+    if (err) {
+        goto fail;
+    }
+
+    err = dicey_message_builder_set_selector(
+        &builder,
+        (struct dicey_selector) {
+            .trait = TEST_TIMER_TRAIT,
+            .elem = TEST_TIMER_TIMERFIRED_ELEMENT,
+        }
+    );
+
+    if (err) {
+        goto fail;
+    }
+
+    err = dicey_message_builder_set_value(&builder, (struct dicey_arg) {
+        .type = DICEY_TYPE_TUPLE,
+        .tuple = {
+            .nitems = 2U,
+            .elems = (struct dicey_arg[]) {
+                { .type = DICEY_TYPE_INT64, .i64 = tv.tv_sec },
+                { .type = DICEY_TYPE_INT32, .i32 = tv.tv_usec },
+            },
+        },
+    });
+
+    if (err) {
+        goto fail;
+    }
+
+    return dicey_message_builder_build(&builder, dest);
+
+fail:
+    dicey_message_builder_discard(&builder);
+
+    return err;
+}
+
+bool timeval_is_zero(const uv_timeval64_t tv) {
+    return tv.tv_sec == 0 && tv.tv_usec == 0;
+}
+
+intmax_t timeval_cmp(const uv_timeval64_t a, const uv_timeval64_t b) {
+    return a.tv_sec == b.tv_sec ? a.tv_usec - b.tv_usec : a.tv_sec - b.tv_sec;
+}
+
+void timer_thread_fn(void *arg) {
+    struct timer_state *const state = arg;
+
+    uv_timeval64_t now = { 0 };
+
+    for (;;) {
+        uv_mutex_lock(&state->mux);
+
+        if (state->quit) {
+            uv_mutex_unlock(&state->mux);
+
+            break;
+        }
+
+        uv_gettimeofday(&now);
+
+        if (timeval_cmp(now, state->target) >= 0 && !timeval_is_zero(state->target)) {
+            // assume the target time has been reached
+
+            struct dicey_packet packet = { 0 };
+
+            enum dicey_error err = craft_timer_event(&packet, now);
+
+            assert(!err);
+
+            err = dicey_server_raise_and_wait(state->server, packet);
+            assert(!err);
+
+            (void) err;
+
+            state->target = (uv_timeval64_t) { 0 };
+        }
+
+        uv_mutex_unlock(&state->mux);
+
+        uv_sleep(10U);
+    }
+}
+
+void timer_state_deinit(struct timer_state *const state) {
+    assert(state);
+
+    uv_mutex_lock(&state->mux);
+
+    state->quit = true;
+
+    uv_mutex_unlock(&state->mux);
+
+    uv_thread_join(&state->thread);
+
+    uv_mutex_destroy(&state->mux);
+}
+
+void timer_state_init(struct timer_state *const state, struct dicey_server *const server) {
+    assert(state && server);
+
+    // it's pointless to properly check this in a sample, so I will just assert
+
+    *state = (struct timer_state) { .server = server };
+
+    int res = uv_mutex_init(&state->mux);
+    assert(!res);
+
+    res = uv_thread_create(&state->thread, &timer_thread_fn, state);
+    assert(!res);
+
+    (void) res;
+}
+
+void timer_state_fire_after(struct timer_state *const state, const int32_t s) {
+    assert(state);
+
+    uv_mutex_lock(&state->mux);
+
+    uv_gettimeofday(&state->target);
+
+    state->target.tv_sec += s;
+
+    uv_mutex_unlock(&state->mux);
+}
 
 static bool matches_elem(
     const struct dicey_message *const msg,
@@ -625,6 +804,40 @@ static enum dicey_error on_test_obj_name(
     );
 }
 
+static enum dicey_error on_timer_start(
+    struct dicey_server *const server,
+    const struct dicey_client_info *const cln,
+    const uint32_t seq,
+    const struct dicey_message *const req
+) {
+    assert(server && cln && req && req->type == DICEY_OP_EXEC);
+
+    struct dicey_hashtable **const table = dicey_server_get_context(server);
+
+    assert(table && *table);
+
+    struct timer_state *const state = dicey_hashtable_get(*table, TIMER_STATE_KEY);
+
+    assert(state);
+
+    int32_t usec = 0;
+    const enum dicey_error err = dicey_value_get_i32(&req->value, &usec);
+
+    if (err) {
+        return send_reply(server, cln, seq, req->path, req->selector, (struct dicey_arg) {
+            .type = DICEY_TYPE_ERROR,
+            .error = {
+                .code = err,
+                .message = dicey_error_msg(err),
+            }
+        });
+    }
+
+    timer_state_fire_after(state, usec);
+
+    return send_reply(server, cln, seq, req->path, req->selector, (struct dicey_arg) { .type = DICEY_TYPE_UNIT });
+}
+
 static void on_request_received(
     struct dicey_server *const server,
     const struct dicey_client_info *const cln,
@@ -677,6 +890,8 @@ static void on_request_received(
         err = on_test_del(server, cln, seq, &msg);
     } else if (matches_elem_under_root(&msg, TEST_OBJ_PATH_BASE, TEST_OBJ_TRAIT, TEST_OBJ_NAME_ELEMENT)) {
         err = on_test_obj_name(server, cln, seq, &msg);
+    } else if (matches_elem(&msg, TEST_TIMER_PATH, TEST_TIMER_TRAIT, TEST_TIMER_START_ELEMENT)) {
+        err = on_timer_start(server, cln, seq, &msg);
     }
 
     // this function receives a copy of the packet that must be freed
@@ -700,6 +915,8 @@ static enum dicey_error remove_socket_if_present(void) {
 
 int main(void) {
     struct dicey_hashtable **ctx = NULL;
+
+    struct timer_state tstate = { 0 };
 
     enum dicey_error err = dicey_server_new(
         &global_server,
@@ -754,9 +971,20 @@ int main(void) {
         goto quit;
     }
 
+    // start and register the timer thread
+    timer_state_init(&tstate, global_server);
+
     *ctx = dicey_hashtable_new();
     if (!*ctx) {
         fprintf(stderr, "error: hashtable_new failed\n");
+
+        goto quit;
+    }
+
+    if (dicey_hashtable_set(ctx, TIMER_STATE_KEY, &tstate, NULL) == DICEY_HASH_SET_FAILED) {
+        err = DICEY_ENOMEM;
+
+        fprintf(stderr, "error: hashtable_set failed\n");
 
         goto quit;
     }
@@ -774,6 +1002,10 @@ int main(void) {
 
 quit:
     if (ctx) {
+        timer_state_deinit(&tstate);
+
+        (void) dicey_hashtable_remove(*ctx, "$timer.state");
+
         dicey_hashtable_delete(*ctx, &free);
 
         free(ctx);
