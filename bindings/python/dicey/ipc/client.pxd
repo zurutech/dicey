@@ -4,7 +4,7 @@ from libc.stdint cimport uint32_t
 
 from libcpp cimport bool as c_bool
 
-from dicey.core cimport dicey_error, dicey_packet, dicey_version
+from dicey.core cimport dicey_error, dicey_packet, dicey_selector, dicey_version
 
 from .address cimport dicey_addr
 
@@ -48,6 +48,12 @@ cdef extern from "dicey/dicey.h":
         void *ctx,
         dicey_error status,
         dicey_packet *packet
+    )
+
+    ctypedef void dicey_client_on_sub_unsub_done_fn(
+        dicey_client *client,
+        void *ctx,
+        dicey_error status
     )
 
     ctypedef void dicey_client_event_fn(dicey_client *client, void *ctx, dicey_packet packet)
@@ -95,3 +101,35 @@ cdef extern from "dicey/dicey.h":
     )
 
     void *dicey_client_set_context(dicey_client *client, void *data)
+
+    dicey_error dicey_client_subscribe_to(
+        dicey_client *client,
+        const char *path,
+        dicey_selector sel,
+        uint32_t timeout
+    )
+
+    dicey_error dicey_client_subscribe_to_async(
+        dicey_client *client,
+        const char *path,
+        dicey_selector sel,
+        dicey_client_on_sub_unsub_done_fn *cb,
+        void *data,
+        uint32_t timeout
+    )
+
+    dicey_error dicey_client_unsubscribe_from(
+        dicey_client *client,
+        const char *path,
+        dicey_selector sel,
+        uint32_t timeout
+    )
+
+    dicey_error dicey_client_unsubscribe_from_async(
+        dicey_client *client,
+        const char *path,
+        dicey_selector sel,
+        dicey_client_on_sub_unsub_done_fn *cb,
+        void *data,
+        uint32_t timeout
+    )
