@@ -98,8 +98,14 @@ cdef class Client:
     def on_event(self) -> EventCallback:
         return self._on_event
 
-def connect(addr: Address | str) -> Client:
+    @on_event.setter
+    def on_event(self, value: EventCallback):
+        self._on_event = value
+
+def connect(addr: Address | str, on_event: _Optional[EventCallback] = None) -> Client:
     cl = Client()
+
+    cl.on_event = on_event
 
     cl.connect(addr)
 
