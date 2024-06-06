@@ -333,9 +333,9 @@ static void dump_value(struct util_dumper *const dumper, const struct dicey_valu
             (void) err; // silence unused warning
 
             if (dest.message) {
-                util_dumper_printf(dumper, "(code = %" PRIu16 ", message = \"%s\")", dest.code, dest.message);
+                util_dumper_printf(dumper, "(code = %" PRIi16 ", message = \"%s\")", dest.code, dest.message);
             } else {
-                util_dumper_printf(dumper, "(code = %" PRIu16 ")", dest.code);
+                util_dumper_printf(dumper, "(code = %" PRIi16 ")", dest.code);
             }
 
             break;

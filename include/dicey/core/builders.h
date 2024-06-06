@@ -115,7 +115,7 @@ struct dicey_bytes_arg {
 };
 
 struct dicey_error_arg {
-    uint16_t code;       /**< Error code (any value is fine, this is not defined yet)*/
+    int16_t code;        /**< Error code (any value is fine, this is not defined yet)*/
     const char *message; /**< Error message. Note: must be alive for the entire lifetime of the argument */
 };
 

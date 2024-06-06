@@ -57,7 +57,7 @@ typedef uint64_t dicey_u64;
  * @brief Represents an error code with an (optional) message.
  */
 struct dicey_errmsg {
-    uint16_t code;       /**< The error code. */
+    int16_t code;        /**< The error code. */
     const char *message; /**< The error message (may be NULL). */
 };
 

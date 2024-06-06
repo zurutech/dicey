@@ -62,8 +62,8 @@ class ErrorMessage(DiceyError):
     message: _Optional[str] = None
 
     def __post_init__(self):
-        if not 0 <= self.code <= UINT16_MAX:
-            raise ValueError("code must be a 16-bit unsigned integer")
+        if not INT16_MIN <= self.code <= INT16_MAX:
+            raise ValueError("code must be a 16-bit signed integer")
 
 @_dataclass(frozen=True)
 class Int16:
