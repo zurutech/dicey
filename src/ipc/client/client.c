@@ -13,17 +13,21 @@
 
 #include <uv.h>
 
+#include <dicey/core/builders.h>
 #include <dicey/core/errors.h>
 #include <dicey/core/packet.h>
+#include <dicey/core/type.h>
+#include <dicey/core/value.h>
 #include <dicey/ipc/address.h>
 #include <dicey/ipc/client.h>
 
 #include "sup/asprintf.h"
 #include "sup/assume.h"
+#include "sup/trace.h"
 #include "sup/util.h"
 
 #include "ipc/chunk.h"
-
+#include "ipc/server/builtins/server/server.h"
 #include "ipc/tasks/io.h"
 #include "ipc/tasks/list.h"
 #include "ipc/tasks/loop.h"
@@ -44,6 +48,11 @@ enum client_state {
 
     CLIENT_STATE_CLOSING,
     CLIENT_STATE_CLOSED,
+};
+
+enum client_subunsub {
+    CLIENT_SUBSCRIBE,
+    CLIENT_UNSUBSCRIBE,
 };
 
 struct dicey_client {
@@ -274,7 +283,7 @@ static enum dicey_error client_issue_disconnect(
 ) {
     struct disconnect_context *const ctx = malloc(sizeof *ctx);
     if (!ctx) {
-        return DICEY_ENOMEM;
+        return TRACE(DICEY_ENOMEM);
     }
 
     *ctx = (struct disconnect_context) {
@@ -287,7 +296,7 @@ static enum dicey_error client_issue_disconnect(
     if (!disconnect_req) {
         free(ctx);
 
-        return DICEY_ENOMEM;
+        return TRACE(DICEY_ENOMEM);
     }
 
     *disconnect_req = client->state == CLIENT_STATE_RUNNING ? full_disconnect_sequence : quick_disconnect_sequence;
@@ -605,7 +614,7 @@ enum dicey_error client_issue_connect(
 ) {
     struct connect_context *const ctx = malloc(sizeof *ctx);
     if (!ctx) {
-        return DICEY_ENOMEM;
+        return TRACE(DICEY_ENOMEM);
     }
 
     *ctx = (struct connect_context) {
@@ -619,7 +628,7 @@ enum dicey_error client_issue_connect(
     if (!connect_req) {
         free(ctx);
 
-        return DICEY_ENOMEM;
+        return TRACE(DICEY_ENOMEM);
     }
 
     *connect_req = connect_sequence;
@@ -736,7 +745,7 @@ static enum dicey_error client_issue_request(
 ) {
     struct dicey_task_request *const req = malloc(sizeof *req);
     if (!req) {
-        return DICEY_ENOMEM;
+        return TRACE(DICEY_ENOMEM);
     }
 
     *req = request_sequence;
@@ -745,7 +754,7 @@ static enum dicey_error client_issue_request(
     if (!ctx) {
         free(req);
 
-        return DICEY_ENOMEM;
+        return TRACE(DICEY_ENOMEM);
     }
 
     *ctx = (struct request_context) {
@@ -938,6 +947,133 @@ static bool client_event(struct dicey_client *const client, const int event, ...
     return res;
 }
 
+static enum dicey_error expect_or_fail(struct dicey_packet packet, enum dicey_type expected) {
+    // attempt extracting an error code, or find errors in the reply
+    struct dicey_message msg = { 0 };
+    enum dicey_error err = dicey_packet_as_message(packet, &msg);
+
+    if (!err) {
+        struct dicey_errmsg errmsg = { 0 };
+
+        const enum dicey_error as_err_err = dicey_value_get_error(&msg.value, &errmsg);
+
+        switch (as_err_err) {
+        case DICEY_OK:
+            err = errmsg.code;
+            break;
+
+        case DICEY_EVALUE_TYPE_MISMATCH:
+            // finally, test that the error message is of the expected type
+            err = dicey_value_is(&msg.value, expected) ? DICEY_OK : TRACE(DICEY_EBADMSG);
+
+            break;
+
+        default:
+            err = as_err_err;
+
+            break;
+        }
+    }
+
+    return err;
+}
+
+struct subunsub_async_ctx {
+    dicey_client_on_sub_unsub_done_fn *cb;
+    void *data;
+};
+
+static void subunsub_on_reply(
+    struct dicey_client *client,
+    void *ctx,
+    enum dicey_error status,
+    struct dicey_packet *reply
+) {
+    assert(reply && ctx && client);
+
+    struct subunsub_async_ctx *const subunsub_ctx = ctx;
+
+    // attempt extracting an error code, or find errors in the reply
+    if (status == DICEY_OK) {
+        status = expect_or_fail(*reply, DICEY_TYPE_UNIT);
+    }
+
+    assert(subunsub_ctx->cb);
+    subunsub_ctx->cb(client, subunsub_ctx->data, status);
+
+    free(subunsub_ctx);
+}
+
+static enum dicey_error client_subunsub(
+    struct dicey_client *const client,
+    const enum client_subunsub op,
+    const char *const path,
+    const struct dicey_selector sel,
+    dicey_client_on_sub_unsub_done_fn *const cb,
+    void *const data,
+    const uint32_t timeout
+) {
+    assert(client && path && dicey_selector_is_valid(sel));
+
+    enum dicey_error err = DICEY_OK;
+
+    const struct dicey_arg payload = {
+        .type = DICEY_TYPE_TUPLE,
+        .tuple = {
+            .nitems = 2U,
+            .elems = (const struct dicey_arg[]) {
+                {
+                    .type = DICEY_TYPE_PATH,
+                    .str = path,
+                },
+                {
+                    .type = DICEY_TYPE_SELECTOR,
+                    .selector = sel,
+                },
+            },
+        },
+    };
+
+    const struct dicey_selector subunsub_sel = {
+        .trait = DICEY_EVENTMANAGER_TRAIT_NAME,
+        .elem = op == CLIENT_SUBSCRIBE ? DICEY_EVENTMANAGER_SUBSCRIBE_OP_NAME : DICEY_EVENTMANAGER_UNSUBSCRIBE_OP_NAME,
+    };
+
+    // if a callback is provided, we will issue the request asynchronously
+    if (cb) {
+        struct subunsub_async_ctx *const subunsub_ctx = malloc(sizeof *subunsub_ctx);
+        if (!subunsub_ctx) {
+            err = TRACE(DICEY_ENOMEM);
+
+            return err;
+        }
+
+        *subunsub_ctx = (struct subunsub_async_ctx) {
+            .cb = cb,
+            .data = data,
+        };
+
+        err = dicey_client_exec_async(
+            client, DICEY_SERVER_PATH, subunsub_sel, payload, &subunsub_on_reply, subunsub_ctx, timeout
+        );
+        if (err) {
+            free(subunsub_ctx);
+        }
+    } else {
+        struct dicey_packet response = { 0 };
+
+        err = dicey_client_exec(client, DICEY_SERVER_PATH, subunsub_sel, payload, &response, timeout);
+        if (err) {
+            return err;
+        }
+
+        err = expect_or_fail(response, DICEY_TYPE_UNIT);
+        dicey_packet_deinit(&response);
+    }
+
+    return err;
+}
+
 void dicey_client_delete(struct dicey_client *const client) {
     if (client) {
         dicey_task_loop_delete(client->tloop);
@@ -1034,7 +1170,7 @@ enum dicey_error dicey_client_new(struct dicey_client **const dest, const struct
 
     struct dicey_client *const client = calloc(1U, sizeof *client);
     if (!client) {
-        return DICEY_ENOMEM;
+        return TRACE(DICEY_ENOMEM);
     }
 
     if (args) {
@@ -1077,7 +1213,7 @@ enum dicey_error dicey_client_connect_async(
     assert(client && addr.addr);
 
     if (client->state != CLIENT_STATE_INIT) {
-        return DICEY_EINVAL;
+        return TRACE(DICEY_EINVAL);
     }
 
     if (client->tloop) {
@@ -1157,13 +1293,103 @@ enum dicey_error dicey_client_disconnect_async(
         return client_issue_disconnect(client, cb, data);
 
     default:
-        return DICEY_EINVAL;
+        return TRACE(DICEY_EINVAL);
     }
+}
+
+enum dicey_error dicey_client_exec(
+    struct dicey_client *const client,
+    const char *const path,
+    const struct dicey_selector sel,
+    const struct dicey_arg payload,
+    struct dicey_packet *const response,
+    const uint32_t timeout
+) {
+    assert(client && path && dicey_selector_is_valid(sel) && response);
+
+    struct dicey_packet packet = { 0 };
+
+    enum dicey_error err = dicey_packet_message(&packet, 0U, DICEY_OP_EXEC, path, sel, payload);
+    if (err) {
+        return err;
+    }
+
+    return dicey_client_request(client, packet, response, timeout);
+}
+
+enum dicey_error dicey_client_exec_async(
+    struct dicey_client *const client,
+    const char *const path,
+    const struct dicey_selector sel,
+    const struct dicey_arg payload,
+    dicey_client_on_reply_fn *const cb,
+    void *const data,
+    const uint32_t timeout
+) {
+    assert(client && path && dicey_selector_is_valid(sel) && cb);
+
+    struct dicey_packet packet = { 0 };
+
+    enum dicey_error err = dicey_packet_message(&packet, 0U, DICEY_OP_EXEC, path, sel, payload);
+    if (err) {
+        return err;
+    }
+
+    err = dicey_client_request_async(client, packet, cb, data, timeout);
+    if (err) {
+        dicey_packet_deinit(&packet);
+    }
+
+    return err;
+}
+
+enum dicey_error dicey_client_get(
+    struct dicey_client *const client,
+    const char *const path,
+    const struct dicey_selector sel,
+    struct dicey_packet *const response,
+    const uint32_t timeout
+) {
+    assert(client && path && dicey_selector_is_valid(sel) && response);
+
+    struct dicey_packet packet = { 0 };
+
+    enum dicey_error err = dicey_packet_message(&packet, 0U, DICEY_OP_GET, path, sel, (struct dicey_arg) { 0 });
+    if (err) {
+        return err;
+    }
+
+    return dicey_client_request(client, packet, response, timeout);
+}
+
+enum dicey_error dicey_client_get_async(
+    struct dicey_client *const client,
+    const char *const path,
+    const struct dicey_selector sel,
+    dicey_client_on_reply_fn *const cb,
+    void *const data,
+    const uint32_t timeout
+) {
+    assert(client && path && dicey_selector_is_valid(sel) && cb);
+
+    struct dicey_packet packet = { 0 };
+
+    enum dicey_error err = dicey_packet_message(&packet, 0U, DICEY_OP_GET, path, sel, (struct dicey_arg) { 0 });
+    if (err) {
+        return err;
+    }
+
+    err = dicey_client_request_async(client, packet, cb, data, timeout);
+    if (err) {
+        dicey_packet_deinit(&packet);
+    }
+
+    return err;
 }
 
 enum dicey_error dicey_client_request(
     struct dicey_client *const client,
-    const struct dicey_packet packet,
+    struct dicey_packet packet,
     struct dicey_packet *const response,
     const uint32_t timeout_ms
 ) {
@@ -1172,8 +1398,11 @@ enum dicey_error dicey_client_request(
     struct sync_req_data data = { .err = DICEY_OK };
     uv_sem_init(&data.sem, 0);
 
-    enum dicey_error req_err = dicey_client_request_async(client, packet, &unlock_after_request, &data, timeout_ms);
+    const enum dicey_error req_err =
+        dicey_client_request_async(client, packet, &unlock_after_request, &data, timeout_ms);
     if (req_err) {
+        dicey_packet_deinit(&packet);
+
         uv_sem_destroy(&data.sem);
         return req_err;
     }
@@ -1197,10 +1426,64 @@ enum dicey_error dicey_client_request_async(
     assert(client && dicey_packet_is_valid(packet) && cb);
 
     if (client->state != CLIENT_STATE_RUNNING) {
-        return DICEY_EINVAL;
+        return TRACE(DICEY_EINVAL);
     }
 
     return client_issue_request(client, packet, cb, data, timeout);
+}
+
+enum dicey_error dicey_client_set(
+    struct dicey_client *const client,
+    const char *const path,
+    const struct dicey_selector sel,
+    const struct dicey_arg payload,
+    const uint32_t timeout
+) {
+    assert(client && path && dicey_selector_is_valid(sel));
+
+    struct dicey_packet packet = { 0 };
+
+    enum dicey_error err = dicey_packet_message(&packet, 0U, DICEY_OP_SET, path, sel, payload);
+    if (err) {
+        return err;
+    }
+
+    struct dicey_packet response = { 0 };
+    err = dicey_client_request(client, packet, &response, timeout);
+    if (err) {
+        return err;
+    }
+
+    err = expect_or_fail(response, DICEY_TYPE_UNIT);
+    dicey_packet_deinit(&response);
+
+    return err;
+}
+
+enum dicey_error dicey_client_set_async(
+    struct dicey_client *const client,
+    const char *const path,
+    const struct dicey_selector sel,
+    const struct dicey_arg payload,
+    dicey_client_on_reply_fn *const cb,
+    void *const data,
+    const uint32_t timeout
+) {
+    assert(client && path && dicey_selector_is_valid(sel) && cb);
+
+    struct dicey_packet packet = { 0 };
+
+    enum dicey_error err = dicey_packet_message(&packet, 0U, DICEY_OP_SET, path, sel, payload);
+    if (err) {
+        return err;
+    }
+
+    err = dicey_client_request_async(client, packet, cb, data, timeout);
+    if (err) {
+        dicey_packet_deinit(&packet);
+    }
+
+    return err;
 }
 
 void *dicey_client_set_context(struct dicey_client *const client, void *const data) {
@@ -1211,4 +1494,54 @@ void *dicey_client_set_context(struct dicey_client *const client, void *const da
     client->ctx = data;
 
     return old;
+}
+
+enum dicey_error dicey_client_subscribe_to(
+    struct dicey_client *const client,
+    const char *const path,
+    const struct dicey_selector sel,
+    const uint32_t timeout
+) {
+    assert(client && path && dicey_selector_is_valid(sel));
+
+    // null cb means we're blocking
+    return client_subunsub(client, CLIENT_SUBSCRIBE, path, sel, NULL, NULL, timeout);
+}
+
+enum dicey_error dicey_client_subscribe_to_async(
+    struct dicey_client *const client,
+    const char *const path,
+    const struct dicey_selector sel,
+    dicey_client_on_sub_unsub_done_fn *const cb,
+    void *const data,
+    const uint32_t timeout
+) {
+    assert(client && path && dicey_selector_is_valid(sel) && cb);
+
+    return client_subunsub(client, CLIENT_SUBSCRIBE, path, sel, cb, data, timeout);
+}
+
+enum dicey_error dicey_client_unsubscribe_from(
+    struct dicey_client *const client,
+    const char *const path,
+    const struct dicey_selector sel,
+    const uint32_t timeout
+) {
+    assert(client && path && dicey_selector_is_valid(sel));
+
+    // null cb means we're blocking
+    return client_subunsub(client, CLIENT_UNSUBSCRIBE, path, sel, NULL, NULL, timeout);
+}
+
+enum dicey_error dicey_client_unsubscribe_from_async(
+    struct dicey_client *const client,
+    const char *const path,
+    const struct dicey_selector sel,
+    dicey_client_on_sub_unsub_done_fn *const cb,
+    void *const data,
+    const uint32_t timeout
+) {
+    assert(client && path && dicey_selector_is_valid(sel) && cb);
+
+    return client_subunsub(client, CLIENT_UNSUBSCRIBE, path, sel, cb, data, timeout);
 }
