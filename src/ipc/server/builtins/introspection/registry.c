@@ -91,6 +91,7 @@ static enum dicey_error populate_element_kind(
     );
 }
 
+// (cs)
 static enum dicey_error populate_element_struct(
     const struct dicey_element *const element,
     struct dicey_value_builder *const value
