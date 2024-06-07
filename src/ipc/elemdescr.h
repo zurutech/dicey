@@ -7,6 +7,9 @@
 #include <dicey/core/type.h>
 #include <dicey/core/views.h>
 
+// Simple internal functions that format a (path, sel) pair into a path#trait:elem string
+// The _to version attempts to reuse a buffer instead of allocating a brand new one
+
 char *dicey_element_descriptor_format(const char *path, struct dicey_selector sel);
 char *dicey_element_descriptor_format_to(struct dicey_view_mut *dest, const char *path, struct dicey_selector sel);
 

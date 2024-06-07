@@ -92,7 +92,7 @@ uint32_t dicey_client_data_next_seq(struct dicey_client_data *const client) {
     return next;
 }
 
-bool dicey_client_data_is_subscribed(const struct dicey_client_data *client, const char *elemdescr) {
+bool dicey_client_data_is_subscribed(const struct dicey_client_data *const client, const char *const elemdescr) {
     return dicey_hashset_contains(client->subscriptions, elemdescr);
 }
 
