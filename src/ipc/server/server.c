@@ -892,18 +892,20 @@ static ptrdiff_t client_got_message(struct dicey_client_data *const client, stru
             .scratchpad = &server->scratchpad,
         };
 
-        const enum dicey_error introspect_err =
+        const enum dicey_error builtin_err =
             binfo.handler(&context, binfo.opcode, client, message.path, &elem_entry, &message.value, &response.single);
 
-        // get rid of the request, we don't need it anymore
-        dicey_packet_deinit(&packet);
+        if (builtin_err) {
+            const enum dicey_error repl_err = server_report_error(server, client, packet, builtin_err);
 
-        if (introspect_err) {
-            const enum dicey_error repl_err = server_report_error(server, client, packet, introspect_err);
+            dicey_packet_deinit(&packet);
 
             // shortcircuit: the introspection failed and we've already sent an error response
             return repl_err ? repl_err : CLIENT_STATE_RUNNING;
         }
+
+        // get rid of the request, we don't need it anymore
+        dicey_packet_deinit(&packet);
 
         // set the seq number of the response to match the seq number of the request
         const enum dicey_error set_err = dicey_packet_set_seq(response.single, seq);

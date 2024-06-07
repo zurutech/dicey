@@ -159,7 +159,11 @@ static enum dicey_error handle_sub_operation(
 
     const struct dicey_element *elem = dicey_registry_get_element(context->registry, path, sel.trait, sel.elem);
 
-    if (!elem || elem->type != DICEY_ELEMENT_TYPE_SIGNAL) {
+    if (!elem) {
+        return TRACE(DICEY_EELEMENT_NOT_FOUND);
+    }
+
+    if (elem->type != DICEY_ELEMENT_TYPE_SIGNAL) {
         return TRACE(DICEY_EINVAL);
     }
 
