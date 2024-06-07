@@ -8,7 +8,6 @@
 #include <dicey/core/type.h>
 #include <dicey/core/views.h>
 
-#include "sup/trace.h"
 #include "sup/view-ops.h"
 
 #include "elemdescr.h"
