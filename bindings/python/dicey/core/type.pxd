@@ -17,7 +17,7 @@ cdef extern from "dicey/dicey.h":
     ctypedef uint64_t dicey_u64
 
     cdef struct dicey_errmsg:
-        uint16_t code
+        int16_t code
         const char *message
 
     ctypedef double dicey_float

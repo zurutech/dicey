@@ -35,6 +35,7 @@ enum dicey_error dicey_pending_requests_complete(
     uint32_t seq,
     struct dicey_pending_request *req
 );
+
 const struct dicey_pending_request *dicey_pending_requests_get(struct dicey_pending_requests *reqs, uint32_t seq);
 bool dicey_pending_requests_is_pending(struct dicey_pending_requests *reqs, uint32_t seq);
 void dicey_pending_requests_prune(

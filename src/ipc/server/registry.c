@@ -19,7 +19,8 @@
 #include "sup/trace.h"
 #include "sup/view-ops.h"
 
-#include "introspection/introspection.h"
+#include "builtins/builtins.h"
+#include "builtins/introspection/introspection.h"
 
 #include "registry-internal.h"
 
@@ -272,7 +273,7 @@ enum dicey_error dicey_registry_init(struct dicey_registry *const registry) {
         ._buffer = dicey_view_mut_from(NULL, 0),
     };
 
-    const enum dicey_error err = dicey_registry_populate_defaults(registry);
+    const enum dicey_error err = dicey_registry_populate_builtins(registry);
     if (err) {
         dicey_registry_deinit(registry);
     }

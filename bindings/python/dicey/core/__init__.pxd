@@ -2,4 +2,5 @@
 
 from .errors  cimport dicey_error, _check
 from .packet  cimport _PacketWrapper, Message, dicey_packet
+from .type    cimport dicey_selector
 from .version cimport dicey_version

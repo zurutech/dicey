@@ -120,7 +120,7 @@ if (NOT LibXml2_FOUND)
     FetchContent_Declare(
         libxml2
         GIT_REPOSITORY https://gitlab.gnome.org/GNOME/libxml2.git
-        GIT_TAG        v2.12.5
+        GIT_TAG        v2.12.7
     )
 
     FetchContent_MakeAvailable(libxml2)
@@ -208,6 +208,8 @@ set(CORE_SOURCES
     src/ipc/address.c
     src/ipc/chunk.c
     src/ipc/chunk.h
+    src/ipc/elemdescr.c
+    src/ipc/elemdescr.h
     src/ipc/queue.c
     src/ipc/queue.h
     src/ipc/typedescr.c
@@ -227,16 +229,26 @@ set(CORE_SOURCES
     src/ipc/server/registry.c
     src/ipc/server/registry-internal.h
     src/ipc/server/server.c
+    src/ipc/server/shared-packet.c
+    src/ipc/server/shared-packet.h
     src/ipc/server/traits.c
 
-    # ipc/server/introspection
-    src/ipc/server/introspection/commons.c
-    src/ipc/server/introspection/definitions.c
-    src/ipc/server/introspection/introspection.h
-    src/ipc/server/introspection/introspection-internal.h
-    src/ipc/server/introspection/registry.c
-    src/ipc/server/introspection/traits.c
-    src/ipc/server/introspection/xmlgen.c
+    # ipc/server/builtins
+    src/ipc/server/builtins/builtins.c
+    src/ipc/server/builtins/builtins.h
+
+    # ipc/server/builtins/introspection
+    src/ipc/server/builtins/introspection/commons.c
+    src/ipc/server/builtins/introspection/definitions.c
+    src/ipc/server/builtins/introspection/introspection.h
+    src/ipc/server/builtins/introspection/introspection-internal.h
+    src/ipc/server/builtins/introspection/registry.c
+    src/ipc/server/builtins/introspection/traits.c
+    src/ipc/server/builtins/introspection/xmlgen.c
+
+    # ipc/server/builtins/server
+    src/ipc/server/builtins/server/server.c
+    src/ipc/server/builtins/server/server.h
 
     # ipc/tasks
     src/ipc/tasks/io.c

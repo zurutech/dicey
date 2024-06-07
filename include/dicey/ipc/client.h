@@ -5,6 +5,7 @@
 
 #include "dicey_export.h"
 
+#include "../core/builders.h"
 #include "../core/errors.h"
 #include "../core/packet.h"
 
@@ -91,6 +92,17 @@ typedef void dicey_client_on_reply_fn(
     enum dicey_error status,
     struct dicey_packet *packet
 );
+
+/**
+ * @brief Represents a callback function that is called whenever a client finishes subscribing or unsubscribing to a
+ *        signal.
+ * @param client The client this callback is associated with.
+ * @param ctx    The context associated to this function (usually passed through `dicey_client_subscribe_to_async()` or
+ *               `dicey_client_unsubscribe_from_async()`).
+ * @param status The status of the subscription/unsubscription - either `DICEY_OK` or an error describing why the
+ *               operation failed.
+ */
+typedef void dicey_client_on_sub_unsub_done_fn(struct dicey_client *client, void *ctx, enum dicey_error status);
 
 /**
  * @brief Represents a callback function that is called whenever a client receives a Dicey Message containing an Event.
@@ -199,6 +211,108 @@ DICEY_EXPORT enum dicey_error dicey_client_disconnect_async(
 );
 
 /**
+ * @brief Sends an EXEC request to the server, blocking until a response is received or an error occurs.
+ * @note  This function is meant as a convenience wrapper around `dicey_client_request()`, and is equivalent to calling
+ *        `dicey_client_request()` with a custom EXEC packet.
+ * @param client   The client to send the request with.
+ * @param path     The object path to send the request to.
+ * @param sel      The selector pointing to the operation to execute.
+ * @param payload  The payload to send with the request.
+ * @param response The response packet, if the request was successful. Must be freed using `dicey_packet_deinit()` when
+ * done.
+ * @param timeout  The maximum time to wait for a response, in milliseconds.
+ * @return         Error code. A (non-exhaustive) list of possible values are:
+ *                 - OK: the request was successfully sent and a response was received (`response` is valid)
+ *                 - EINVAL: the client is in the wrong state (i.e. not connected)
+ *                 - ETIMEDOUT: the request timed out
+ *                 - ENOMEM: memory allocation failed (out of memory)
+ */
+DICEY_EXPORT enum dicey_error dicey_client_exec(
+    struct dicey_client *client,
+    const char *path,
+    struct dicey_selector sel,
+    struct dicey_arg payload,
+    struct dicey_packet *response,
+    uint32_t timeout
+);
+
+/**
+ * @brief Sends an EXEC request to the server, returning immediately and calling the provided callback when either a
+ * response is received or an error occurs.
+ * @note  This function is meant as a convenience wrapper around `dicey_client_request_async()`, and is equivalent to
+ *        calling `dicey_client_request_async()` with a custom EXEC packet.
+ * @param client The client to send the request with.
+ * @param path   The object path to send the request to.
+ * @param sel    The selector pointing to the operation to execute.
+ * @param payload  The payload to send with the request.
+ * @param cb     The callback to call when a response is received or an error occurs.
+ * @param data   The context to pass to the callback.
+ * @param timeout The maximum time to wait for a response, in milliseconds.
+ * @return       Error code. A (non-exhaustive) list of possible values are:
+ *               - OK: the request was successfully submitted for sending
+ *               - EINVAL: the client is in the wrong state (i.e. not connected)
+ *               - ENOMEM: memory allocation failed (out of memory)
+ */
+DICEY_EXPORT enum dicey_error dicey_client_exec_async(
+    struct dicey_client *client,
+    const char *path,
+    struct dicey_selector sel,
+    struct dicey_arg payload,
+    dicey_client_on_reply_fn *cb,
+    void *data,
+    uint32_t timeout
+);
+
+/**
+ * @brief Sends a GET request to the server, blocking until a response is received or an error occurs.
+ * @note  This function is meant as a convenience wrapper around `dicey_client_request()`, and is equivalent to calling
+ *        `dicey_client_request()` with a custom GET packet.
+ * @param client   The client to send the request with.
+ * @param path     The object path to send the request to.
+ * @param sel      The selector pointing to the property to get.
+ * @param response The response packet, if the request was successful. Must be freed using `dicey_packet_deinit()` when
+ * done.
+ * @param timeout  The maximum time to wait for a response, in milliseconds.
+ * @return         Error code. A (non-exhaustive) list of possible values are:
+ *                 - OK: the request was successfully sent and a response was received (`response` is valid)
+ *                 - EINVAL: the client is in the wrong state (i.e. not connected)
+ *                 - ETIMEDOUT: the request timed out
+ *                 - ENOMEM: memory allocation failed (out of memory)
+ */
+DICEY_EXPORT enum dicey_error dicey_client_get(
+    struct dicey_client *client,
+    const char *path,
+    struct dicey_selector sel,
+    struct dicey_packet *response,
+    uint32_t timeout
+);
+
+/**
+ * @brief Sends a GET request to the server, returning immediately and calling the provided callback when either a
+ * response is received or an error occurs.
+ * @note  This function is meant as a convenience wrapper around `dicey_client_request_async()`, and is equivalent to
+ *        calling `dicey_client_request_async()` with a custom GET packet.
+ * @param client The client to send the request with.
+ * @param path     The object path to send the request to.
+ * @param sel      The selector pointing to the property to get.
+ * @param cb     The callback to call when a response is received or an error occurs.
+ * @param data   The context to pass to the callback.
+ * @param timeout The maximum time to wait for a response, in milliseconds.
+ * @return       Error code. A (non-exhaustive) list of possible values are:
+ *               - OK: the request was successfully submitted for sending
+ *               - EINVAL: the client is in the wrong state (i.e. not connected)
+ *               - ENOMEM: memory allocation failed (out of memory)
+ */
+DICEY_EXPORT enum dicey_error dicey_client_get_async(
+    struct dicey_client *client,
+    const char *path,
+    struct dicey_selector sel,
+    dicey_client_on_reply_fn *cb,
+    void *data,
+    uint32_t timeout
+);
+
+/**
  * @brief Gets the context associated with a client. This is either the `ctx` parameter set via
  * `dicey_client_set_context()` or NULL if no context has been set.
  */
@@ -240,13 +354,63 @@ DICEY_EXPORT enum dicey_error dicey_client_request(
  * @param data   The context to pass to the callback.
  * @param timeout The maximum time to wait for a response, in milliseconds.
  * @return       Error code. A (non-exhaustive) list of possible values are:
- *               - OK: the request was successfully sent and a response was received
+ *               - OK: the request was successfully submitted for sending
  *               - EINVAL: the client is in the wrong state (i.e. not connected)
  *               - ENOMEM: memory allocation failed (out of memory)
  */
 DICEY_EXPORT enum dicey_error dicey_client_request_async(
     struct dicey_client *client,
     struct dicey_packet packet,
+    dicey_client_on_reply_fn *cb,
+    void *data,
+    uint32_t timeout
+);
+
+/**
+ * @brief Sends a SET request to the server, blocking until a response is received or an error occurs.
+ * @note  This function is meant as a convenience wrapper around `dicey_client_request()`, and is equivalent to calling
+ *        `dicey_client_request()` with a custom SET packet.
+ * @param client   The client to send the request with.
+ * @param path     The object path to send the request to.
+ * @param sel      The selector pointing to the property to set.
+ * @param payload  The payload to set the property to.
+ * @param timeout  The maximum time to wait for a response, in milliseconds.
+ * @return         Error code. A (non-exhaustive) list of possible values are:
+ *                 - OK: the request was successfully sent and a response was received (`response` is valid)
+ *                 - EINVAL: the client is in the wrong state (i.e. not connected)
+ *                 - ETIMEDOUT: the request timed out
+ *                 - ENOMEM: memory allocation failed (out of memory)
+ */
+DICEY_EXPORT enum dicey_error dicey_client_set(
+    struct dicey_client *client,
+    const char *path,
+    struct dicey_selector sel,
+    struct dicey_arg payload,
+    uint32_t timeout
+);
+
+/**
+ * @brief Sends a SET request to the server, returning immediately and calling the provided callback when either a
+ * response is received or an error occurs.
+ * @note  This function is meant as a convenience wrapper around `dicey_client_request_async()`, and is equivalent to
+ *        calling `dicey_client_request_async()` with a custom SET packet.
+ * @param client The client to send the request with.
+ * @param path   The object path to send the request to.
+ * @param sel    The selector pointing to the property to set.
+ * @param payload  The payload to set the property to.
+ * @param cb     The callback to call when a response is received or an error occurs.
+ * @param data   The context to pass to the callback.
+ * @param timeout The maximum time to wait for a response, in milliseconds.
+ * @return       Error code. A (non-exhaustive) list of possible values are:
+ *               - OK: the request was successfully submitted for sending
+ *               - EINVAL: the client is in the wrong state (i.e. not connected)
+ *               - ENOMEM: memory allocation failed (out of memory)
+ */
+DICEY_EXPORT enum dicey_error dicey_client_set_async(
+    struct dicey_client *client,
+    const char *path,
+    struct dicey_selector sel,
+    struct dicey_arg payload,
     dicey_client_on_reply_fn *cb,
     void *data,
     uint32_t timeout
@@ -263,6 +427,97 @@ DICEY_EXPORT enum dicey_error dicey_client_request_async(
  * @return       The previous context associated with the client, or NULL if no context was set.
  */
 DICEY_EXPORT void *dicey_client_set_context(struct dicey_client *client, void *data);
+
+/**
+ * @brief Subscribes to a signal identified by a given path and selector. Blocks until the subscription is complete or
+ * an error occurs.
+ * @param client The client that will subscribe to the signal.
+ * @param path   The path of the object hosting the signal.
+ * @param sel    The selector pointing to the signal element.
+ * @param timeout The maximum time to wait for the subscription to complete, in milliseconds.
+ * @return       Error code. A (non-exhaustive) list of possible values are:
+ *               - OK: the subscription was successful
+ *               - EINVAL: the client is in the wrong state (i.e. not connected)
+ *               - ENOMEM: memory allocation failed (out of memory)
+ *               - EPEER_NOT_FOUND: the server is not up
+ *               - ETIMEDOUT: the request timed out
+ */
+DICEY_EXPORT enum dicey_error dicey_client_subscribe_to(
+    struct dicey_client *client,
+    const char *path,
+    struct dicey_selector sel,
+    uint32_t timeout
+);
+
+/**
+ * @brief Subscribes to a signal identified by a given path and selector. Returns immediately and calls the provided
+ *        callback when the subscription is complete or an error occurs.
+ * @param client The client that will subscribe to the signal.
+ * @param path   The path of the object hosting the signal.
+ * @param sel    The selector pointing to the signal element.
+ * @param cb     The callback to call when the subscription is complete or an error occurs.
+ * @param data   The context to pass to the callback.
+ * @param timeout The maximum time to wait for the subscription to complete, in milliseconds.
+ * @return       Error code. A (non-exhaustive) list of possible values are:
+ *               - OK: the subscription request was successfully submitted for sending
+ *               - EINVAL: the client is in the wrong state (i.e. not connected)
+ *               - ENOMEM: memory allocation failed (out of memory)
+ *               - EPEER_NOT_FOUND: the server is not up
+ *               - ETIMEDOUT: the request timed out
+ */
+DICEY_EXPORT enum dicey_error dicey_client_subscribe_to_async(
+    struct dicey_client *client,
+    const char *path,
+    struct dicey_selector sel,
+    dicey_client_on_sub_unsub_done_fn *cb,
+    void *data,
+    uint32_t timeout
+);
+
+/**
+ * @brief Unubscribes from a signal identified by a given path and selector. Blocks until the unsubscription is complete
+ *        or an error occurs.
+ * @param client The client that will unsubscribe from the signal.
+ * @param path   The path of the object hosting the signal.
+ * @param sel    The selector pointing to the signal element.
+ * @param timeout The maximum time to wait for the unsubscription to complete, in milliseconds.
+ * @return       Error code. A (non-exhaustive) list of possible values are:
+ *               - OK: the unsubscription was successful
+ *               - EINVAL: the client is in the wrong state (i.e. not connected)
+ *               - ENOMEM: memory allocation failed (out of memory)
+ *               - EPEER_NOT_FOUND: the server is not up
+ *               - ETIMEDOUT: the request timed out
+ */
+DICEY_EXPORT enum dicey_error dicey_client_unsubscribe_from(
+    struct dicey_client *client,
+    const char *path,
+    struct dicey_selector sel,
+    uint32_t timeout
+);
+
+/**
+ * @brief Unubscribes from a signal identified by a given path and selector.
+ * @param client The client that will unsubscribe from the signal.
+ * @param path   The path of the object hosting the signal.
+ * @param sel    The selector pointing to the signal element.
+ * @param cb     The callback to call when the unsubscription is complete or an error occurs.
+ * @param data   The context to pass to the callback.
+ * @param timeout The maximum time to wait for the unsubscription to complete, in milliseconds.
+ * @return       Error code. A (non-exhaustive) list of possible values are:
+ *               - OK: the unsubscription was successfully submitted for sending
+ *               - EINVAL: the client is in the wrong state (i.e. not connected)
+ *               - ENOMEM: memory allocation failed (out of memory)
+ *               - EPEER_NOT_FOUND: the server is not up
+ *               - ETIMEDOUT: the request timed out
+ */
+DICEY_EXPORT enum dicey_error dicey_client_unsubscribe_from_async(
+    struct dicey_client *client,
+    const char *path,
+    struct dicey_selector sel,
+    dicey_client_on_sub_unsub_done_fn *cb,
+    void *data,
+    uint32_t timeout
+);
 
 #if defined(__cplusplus)
 }

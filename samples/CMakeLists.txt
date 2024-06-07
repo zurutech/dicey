@@ -1,6 +1,6 @@
 add_subdirectory(util)
 
-set(SAMPLE_FILES base64.c client.c dump.c load.c server.c sval.c)
+set(SAMPLE_FILES base64.c client.c dump.c load.c server.c subtest.c sval.c)
 
 set(CMAKE_C_STANDARD 17)
 set(CMAKE_C_STANDARD_REQUIRED ON)

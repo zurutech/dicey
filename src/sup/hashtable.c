@@ -337,7 +337,7 @@ enum dicey_hash_set_result hash_set(
     void *const value,
     void **const old_value
 ) {
-    assert(table_ptr && *table_ptr && key.str && old_value);
+    assert(table_ptr && *table_ptr && key.str);
 
     struct dicey_hashtable *table = *table_ptr;
 
@@ -349,7 +349,11 @@ enum dicey_hash_set_result hash_set(
     enum dicey_hash_set_result res = DICEY_HASH_SET_FAILED;
 
     if (existing) {
-        *old_value = existing->value;
+        // no old_value means the client doesn't care about the old value
+        if (old_value) {
+            *old_value = existing->value;
+        }
+
         existing->value = value;
 
         res = DICEY_HASH_SET_UPDATED;
@@ -358,7 +362,9 @@ enum dicey_hash_set_result hash_set(
     }
 
     // the value doesn't exist - set the old value to NULL
-    *old_value = NULL;
+    if (old_value) {
+        *old_value = NULL;
+    }
 
     const uint32_t new_len = table->len + 1;
     assert(table->buckets_no && *table->buckets_no > 0);

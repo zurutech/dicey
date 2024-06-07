@@ -550,14 +550,14 @@ static struct util_xml_error *xml_to_bye(
     return err ? xml_error_on(bye, "failed to create 'bye' packet: %s", dicey_error_msg(err)) : NULL;
 }
 
-static struct util_xml_error *xml_get_errcode(uint16_t *const dest, const xmlNode *const errmsg) {
+static struct util_xml_error *xml_get_errcode(int16_t *const dest, const xmlNode *const errmsg) {
     char *value = NULL;
     struct util_xml_error *err = xml_get_attribute(errmsg, "code", &value);
     if (err) {
         return err;
     }
 
-    const bool conv_ok = str_to_uint16(dest, (const char *) value);
+    const bool conv_ok = str_to_int16(dest, (const char *) value);
     if (!conv_ok) {
         err = xml_error_on(errmsg, "invalid 'code' attribute: '%s'", value);
     }
