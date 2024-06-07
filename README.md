@@ -160,3 +160,7 @@ for how to perform more complex tasks with `libdicey`:
 - *dump*: generates a sample (builtin for now) payload to a file, or prints it on stdout as hex.
 
 - *base64*: a clone of the classic UNIX `base64` utility. It can encode and decode base64 payloads.
+
+## Licence
+
+Dicey is licenced under the terms of the Apache License 2.0. See `LICENSE` for more info.

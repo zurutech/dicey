@@ -22,14 +22,3 @@ repos:
     hooks:
       - id: clang-format
         'types_or': [c++, c, c#]
-
-  # Add or update the copyright header
-  - repo: local
-    hooks:
-      - id: update_copyright
-        name: Update Copyright
-        entry: python ./.gitlab/scripts/copyright_updater.py --files
-        language: python
-        additional_dependencies: [  ]
-        files: '.*\.(h|hh|hpp|hxx|c|cc|cpp|cxx|cs|C|py|pyx|pxd|pl|java|rs|go|sh)$'
-        pass_filenames: true
