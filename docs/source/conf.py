@@ -1,5 +1,3 @@
-# Copyright (c) 2014-2024 Zuru Tech HK Limited, All rights reserved.
-
 # Configuration file for the Sphinx documentation builder.
 #
 # For the full list of built-in configuration values, see the documentation:
