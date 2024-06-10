@@ -536,12 +536,16 @@ void *dicey_hashtable_remove(struct dicey_hashtable *table, const char *const ke
         return NULL;
     }
 
+    assert(table->len);
+
     void *const value = entry->value;
 
     free((void *) entry->key); // the key is malloc'd
 
     entry->key = NULL;
     entry->value = NULL;
+
+    --table->len;
 
     // leave the next offset as is, this cell is now a free cell and will be reused when a new key is added
 
@@ -557,6 +561,6 @@ enum dicey_hash_set_result dicey_hashtable_set(
     return hash_set(table_ptr, (struct maybe_owned_str) { .str = (char *) key, .owned = false }, value, old_value);
 }
 
-uint32_t dicey_hashtable_size(struct dicey_hashtable *const table) {
+uint32_t dicey_hashtable_size(const struct dicey_hashtable *const table) {
     return table ? table->len : 0;
 }

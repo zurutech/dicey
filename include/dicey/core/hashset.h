@@ -41,7 +41,7 @@ DICEY_EXPORT bool dicey_hashset_remove(struct dicey_hashset *table, const char *
 
 DICEY_EXPORT enum dicey_hash_set_result dicey_hashset_add(struct dicey_hashset **set, const char *key);
 
-DICEY_EXPORT uint32_t dicey_hashset_size(struct dicey_hashset *table);
+DICEY_EXPORT uint32_t dicey_hashset_size(const struct dicey_hashset *table);
 
 #if defined(__cplusplus)
 }

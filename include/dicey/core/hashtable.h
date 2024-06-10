@@ -70,7 +70,7 @@ DICEY_EXPORT enum dicey_hash_set_result dicey_hashtable_set(
     void **old_value
 );
 
-DICEY_EXPORT uint32_t dicey_hashtable_size(struct dicey_hashtable *table);
+DICEY_EXPORT uint32_t dicey_hashtable_size(const struct dicey_hashtable *table);
 
 #if defined(__cplusplus)
 }
