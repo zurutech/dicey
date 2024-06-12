@@ -278,12 +278,12 @@ static bool hash_grow(struct dicey_hashtable **const table_ptr) {
     assert(table->buckets_no && *table->buckets_no > 0);
 
     const uint32_t old_cap = table->cap;
-    const uint32_t buckets_no = (uint32_t) *table->buckets_no;
+    assert(old_cap >= (uint32_t) *table->buckets_no);
 
-    assert(old_cap >= buckets_no);
-
-    const uint32_t extra_cap = old_cap - buckets_no;
-    const uint32_t new_cap = ((uint32_t) *primes + extra_cap) * 3 / 2;
+    const uint32_t new_cap = old_cap * 3 / 2;
+    if (new_cap <= old_cap) {
+        return false;
+    }
 
     table = realloc(table, sizeof(struct dicey_hashtable) + new_cap * sizeof(struct table_entry));
     if (!table) {
@@ -414,7 +414,6 @@ enum dicey_hash_set_result hash_set(
     }
 
     // if we reached this point then the bucket has no holes and we need to add a new entry at the end
-    assert(bucket_end);
     res = hash_bucket_append(table_ptr, bucket_end, maybe_move(&key), value) ? DICEY_HASH_SET_ADDED
                                                                              : DICEY_HASH_SET_FAILED;
 
@@ -536,12 +535,16 @@ void *dicey_hashtable_remove(struct dicey_hashtable *table, const char *const ke
         return NULL;
     }
 
+    assert(table->len);
+
     void *const value = entry->value;
 
     free((void *) entry->key); // the key is malloc'd
 
     entry->key = NULL;
     entry->value = NULL;
+
+    --table->len;
 
     // leave the next offset as is, this cell is now a free cell and will be reused when a new key is added
 
@@ -557,6 +560,6 @@ enum dicey_hash_set_result dicey_hashtable_set(
     return hash_set(table_ptr, (struct maybe_owned_str) { .str = (char *) key, .owned = false }, value, old_value);
 }
 
-uint32_t dicey_hashtable_size(struct dicey_hashtable *const table) {
+uint32_t dicey_hashtable_size(const struct dicey_hashtable *const table) {
     return table ? table->len : 0;
 }

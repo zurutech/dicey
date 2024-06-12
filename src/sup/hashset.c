@@ -77,6 +77,6 @@ bool dicey_hashset_remove(struct dicey_hashset *const table, const char *const k
     return dicey_hashtable_remove((struct dicey_hashtable *) table, key);
 }
 
-uint32_t dicey_hashset_size(struct dicey_hashset *const table) {
-    return dicey_hashtable_size((struct dicey_hashtable *) table);
+uint32_t dicey_hashset_size(const struct dicey_hashset *const table) {
+    return dicey_hashtable_size((const struct dicey_hashtable *) table);
 }
