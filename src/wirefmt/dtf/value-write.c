@@ -224,6 +224,10 @@ static ptrdiff_t tuple_write(struct dtf_bytes_writer *const dest, const struct d
     return list_write(dest, header, tuple.elems, tuple.nitems, ITEM_POLICY_VARIANT);
 }
 
+static ptrdiff_t uuid_write(struct dtf_bytes_writer *const dest, const struct dicey_uuid value) {
+    return blob_write(dest, value.bytes, sizeof value.bytes);
+}
+
 static ptrdiff_t value_header_write(struct dtf_bytes_writer *const dest, const struct dicey_arg *const value) {
     struct dtf_value_header header = { .type = value->type };
 
@@ -320,6 +324,10 @@ static ptrdiff_t item_write(
 
     case DICEY_TYPE_STR:
         content_bytes = str_write(dest, item->str);
+        break;
+
+    case DICEY_TYPE_UUID:
+        content_bytes = uuid_write(dest, item->uuid);
         break;
 
     // paths do not allow NULL, so we can't safely use str_write here

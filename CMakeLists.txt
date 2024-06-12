@@ -191,6 +191,7 @@ set(CORE_SOURCES
     src/wirefmt/packet-args.c
     src/wirefmt/packet-args.h
     src/wirefmt/packet.c
+    src/wirefmt/uuid.c
     src/wirefmt/value-validate.c
     src/wirefmt/value.c
 

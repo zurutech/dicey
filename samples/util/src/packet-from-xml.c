@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+#include "dicey/core/type.h"
 #include <assert.h>
 #include <ctype.h>
 #include <errno.h>
@@ -64,6 +65,7 @@ static struct xml_type_map {
     { "pair",     DICEY_TYPE_PAIR    },
     { "bytes",    DICEY_TYPE_BYTES   },
     { "string",   DICEY_TYPE_STR     },
+    { "uuid",     DICEY_TYPE_UUID    },
     { "path",     DICEY_TYPE_PATH    },
     { "selector", DICEY_TYPE_SELECTOR},
     { "error",    DICEY_TYPE_ERROR   },
@@ -176,6 +178,8 @@ static bool split_selector(const char *const str, struct selector_info *const de
 }
 
 static bool str_to_bool(bool *const dest, const char *const str) {
+    assert(dest);
+
     if (!str) {
         return false;
     }
@@ -194,6 +198,8 @@ static bool str_to_bool(bool *const dest, const char *const str) {
 }
 
 static bool str_to_double(double *const dest, const char *const str) {
+    assert(dest);
+
     if (!str) {
         return false;
     }
@@ -212,6 +218,7 @@ static bool str_to_double(double *const dest, const char *const str) {
 
 #define IMPL_STR_TO_INT(TYPE, TYPE_MIN, TYPE_MAX)                                                                      \
     static bool str_to_##TYPE(TYPE##_t *const dest, const char *const str) {                                           \
+        assert(dest);                                                                                                  \
         if (!str) {                                                                                                    \
             return false;                                                                                              \
         }                                                                                                              \
@@ -262,6 +269,17 @@ static enum dicey_type str_to_type(const char *const str) {
     }
 
     return DICEY_TYPE_INVALID;
+}
+
+static bool str_to_uuid(struct dicey_uuid *const dest, const char *const str) {
+    assert(dest);
+
+    if (!str) {
+        return false;
+    }
+
+    const enum dicey_error err = dicey_uuid_from_string(dest, str);
+    return !err;
 }
 
 static char *str_trimend(char *const str) {
@@ -990,6 +1008,17 @@ static struct util_xml_error *xml_to_value(
         }
 
         arg.str = content;
+
+        break;
+
+    case DICEY_TYPE_UUID:
+        if (!content) {
+            return xml_error_on(value, "missing content for UUID");
+        }
+
+        if (!str_to_uuid(&arg.uuid, content)) {
+            return xml_error_on(value, "invalid UUID value: '%s'", content);
+        }
 
         break;
 

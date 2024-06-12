@@ -281,6 +281,17 @@ DICEY_EXPORT enum dicey_error dicey_value_get_str(const struct dicey_value *valu
 DICEY_EXPORT enum dicey_error dicey_value_get_tuple(const struct dicey_value *value, struct dicey_list *dest);
 
 /**
+ * @brief Gets the UUID value from the given value.
+ * @param value The value to get the UUID from.
+ * @param dest The destination to store the UUID value.
+ * @return The error code indicating the success or failure of the operation.
+ *        Possible errors include:
+ *        - OK: The operation was successful.
+ *        - EVALUE_TYPE_MISMATCH: The value is not a UUID.
+ */
+DICEY_EXPORT enum dicey_error dicey_value_get_uuid(const struct dicey_value *value, struct dicey_uuid *dest);
+
+/**
  * @brief Gets the uint16 value from the given value.
  * @param value The value to get the uint16 from.
  * @param dest The destination to store the uint16 value.

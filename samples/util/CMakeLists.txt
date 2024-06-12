@@ -20,6 +20,7 @@ set(utils_INCLUDES
     "include/util/packet-json.h"
     "include/util/packet-xml.h"
     "include/util/strext.h"
+    "include/util/uuid.h"
 )
 
 set(utils_SRC
@@ -28,6 +29,7 @@ set(utils_SRC
     "src/packet-dump.c"
     "src/packet-from-json.c"
     "src/packet-from-xml.c"
+    "src/uuid.c"
 )
 
 if (WIN32)

@@ -184,6 +184,8 @@ struct dicey_arg {
         /**< String value. Note: strings are never copied, and must be alive for the entire lifetime of the argument */
         const char *str;
 
+        struct dicey_uuid uuid; /**< UUID value. */
+
         /**<
          * Selector value. Note: selectors are never copied, and must be alive for the entire lifetime of the argument
          */

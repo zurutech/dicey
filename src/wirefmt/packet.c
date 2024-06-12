@@ -135,6 +135,8 @@ static enum dicey_error validate_value(const struct dicey_value *const value) {
     case DICEY_TYPE_UINT16:
     case DICEY_TYPE_UINT32:
     case DICEY_TYPE_UINT64:
+    case DICEY_TYPE_UUID:
+        // all fixed-size types require no validation except size validation
         return DICEY_OK;
 
     case DICEY_TYPE_BYTES:

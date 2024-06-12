@@ -15,6 +15,7 @@
 from collections.abc import Iterable as _Iterable
 from dataclasses import dataclass as _dataclass
 from typing import Callable as _Callable
+from uuid import UUID
 
 from libc.stdint cimport int16_t, int32_t, int64_t, uint8_t, uint16_t, uint32_t, uint64_t
 
@@ -31,7 +32,7 @@ from .builders cimport dicey_value_builder, dicey_value_builder_set, \
                        dicey_arg, dicey_bytes_arg, dicey_error_arg 
 
 from .errors   cimport _check
-from .type     cimport dicey_type
+from .type     cimport dicey_type, dicey_uuid_from_bytes
 
 cdef class _BuilderHandle:
     cdef dicey_value_builder *value
@@ -214,6 +215,17 @@ cdef class _BuilderHandle:
 
         _check(dicey_value_builder_set(self.value, arg))
 
+    cdef void set_uuid(self, u: UUID):
+        cdef dicey_arg arg
+
+        arg.type = dicey_type.DICEY_TYPE_UUID
+        
+        b = u.bytes
+
+        _check(dicey_uuid_from_bytes(&arg.uuid, <const uint8_t*> b, len(b)))
+
+        _check(dicey_value_builder_set(self.value, arg))
+
     @staticmethod
     cdef _BuilderHandle new(dicey_value_builder *const value, list obj_cache):
         cdef _BuilderHandle self = _BuilderHandle()
@@ -305,6 +317,10 @@ def _add_u64(_BuilderHandle value, u: UInt64):
 def _add_unit(_BuilderHandle value, ignored):
     value.set_unit()
 
+@_dicey_matcher(dicey_type.DICEY_TYPE_UUID)
+def _add_uuid(_BuilderHandle value, u: UUID):
+    value.set_uuid(u)
+
 def _converter_for(type t) -> _Callable:
     return _assoc_list.get(t)
 
@@ -339,6 +355,8 @@ _assoc_list = {
 
     bytes:        _add_bytes,
     str:          _add_str,
+
+    UUID:         _add_uuid,
 
     Path:         _add_path,
     Selector:     _add_selector,
