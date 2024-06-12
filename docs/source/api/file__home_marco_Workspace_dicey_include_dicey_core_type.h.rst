@@ -32,11 +32,15 @@ Includes
 
 - ``dicey_export.h``
 
+- ``errors.h`` (:ref:`file__home_marco_Workspace_dicey_include_dicey_core_errors.h`)
+
 - ``stdbool.h``
 
 - ``stddef.h``
 
 - ``stdint.h``
+
+- ``views.h`` (:ref:`file__home_marco_Workspace_dicey_include_dicey_core_views.h`)
 
 
 
@@ -65,6 +69,8 @@ Classes
 
 - :ref:`exhale_struct_structdicey__selector`
 
+- :ref:`exhale_struct_structdicey__uuid`
+
 
 Enums
 -----
@@ -87,10 +93,16 @@ Functions
 
 - :ref:`exhale_function_type_8h_1a347c06625660b1bd3df033d6b353494f`
 
+- :ref:`exhale_function_type_8h_1a0be1cba9d256f1f307fe644ae0a05480`
+
+- :ref:`exhale_function_type_8h_1abf9f9fb7c0a4f4d9ae844deb44d72acf`
+
 
 Defines
 -------
 
+
+- :ref:`exhale_define_type_8h_1a55dd121caa4e1fba833496a7687d41ca`
 
 - :ref:`exhale_define_type_8h_1abf46421417400f161cead559f49f5438`
 

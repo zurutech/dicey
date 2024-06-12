@@ -89,7 +89,7 @@ Functions
 
 - :ref:`exhale_function_hashtable_8h_1a3dac75ed1627f76743e02998e5d3c821`
 
-- :ref:`exhale_function_hashtable_8h_1a54b68a93f76f2b2f618e6e7dba4e58b9`
+- :ref:`exhale_function_hashtable_8h_1a200e1866008835388beb493ecd665d15`
 
 
 Typedefs

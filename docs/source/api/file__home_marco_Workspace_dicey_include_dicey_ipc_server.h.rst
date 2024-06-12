@@ -88,9 +88,13 @@ Functions
 
 - :ref:`exhale_function_server_8h_1a8a96264c3d4e4bf1ce71418f91a63af8`
 
-- :ref:`exhale_function_server_8h_1a65478ffa8185e143ad631b6098720bc8`
+- :ref:`exhale_function_server_8h_1ad9ccacc8603f097a7e1ab4039d89c1be`
 
-- :ref:`exhale_function_server_8h_1a0a4cffc91038bac680be51eda2fe8c3d`
+- :ref:`exhale_function_server_8h_1a522abfee84b38290b6b02543dfbad238`
+
+- :ref:`exhale_function_server_8h_1afb96e336c500e354a6071f7e1da3b752`
+
+- :ref:`exhale_function_server_8h_1aad0aae002b246841225775fa533842ae`
 
 - :ref:`exhale_function_server_8h_1a62e2f41808b949fbac2def436fec24f7`
 

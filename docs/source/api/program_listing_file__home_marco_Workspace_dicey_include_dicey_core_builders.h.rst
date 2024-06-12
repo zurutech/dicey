@@ -10,7 +10,21 @@ Program Listing for File builders.h
 
 .. code-block:: cpp
 
-   // Copyright (c) 2014-2024 Zuru Tech HK Limited, All rights reserved.
+   /*
+    * Copyright (c) 2014-2024 Zuru Tech HK Limited, All rights reserved.
+    *
+    * Licensed under the Apache License, Version 2.0 (the "License");
+    * you may not use this file except in compliance with the License.
+    * You may obtain a copy of the License at
+    *
+    *     http://www.apache.org/licenses/LICENSE-2.0
+    *
+    * Unless required by applicable law or agreed to in writing, software
+    * distributed under the License is distributed on an "AS IS" BASIS,
+    * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    * See the License for the specific language governing permissions and
+    * limitations under the License.
+    */
    
    #if !defined(FJWTVTVLMM_BUILDERS_H)
    #define FJWTVTVLMM_BUILDERS_H
@@ -71,7 +85,7 @@ Program Listing for File builders.h
    };
    
    struct dicey_error_arg {
-       uint16_t code;       
+       int16_t code;        
        const char *message; 
    };
    
@@ -105,6 +119,7 @@ Program Listing for File builders.h
            struct dicey_bytes_arg bytes; 
            const char *str;
    
+           struct dicey_uuid uuid; 
            struct dicey_selector selector;
    
            struct dicey_error_arg error; 

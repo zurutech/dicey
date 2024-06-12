@@ -10,13 +10,28 @@ Program Listing for File client.h
 
 .. code-block:: cpp
 
-   // Copyright (c) 2014-2024 Zuru Tech HK Limited, All rights reserved.
+   /*
+    * Copyright (c) 2014-2024 Zuru Tech HK Limited, All rights reserved.
+    *
+    * Licensed under the Apache License, Version 2.0 (the "License");
+    * you may not use this file except in compliance with the License.
+    * You may obtain a copy of the License at
+    *
+    *     http://www.apache.org/licenses/LICENSE-2.0
+    *
+    * Unless required by applicable law or agreed to in writing, software
+    * distributed under the License is distributed on an "AS IS" BASIS,
+    * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    * See the License for the specific language governing permissions and
+    * limitations under the License.
+    */
    
    #if !defined(RGSZHBDASZ_CLIENT_H)
    #define RGSZHBDASZ_CLIENT_H
    
    #include "dicey_export.h"
    
+   #include "../core/builders.h"
    #include "../core/errors.h"
    #include "../core/packet.h"
    
@@ -68,6 +83,8 @@ Program Listing for File client.h
        struct dicey_packet *packet
    );
    
+   typedef void dicey_client_on_sub_unsub_done_fn(struct dicey_client *client, void *ctx, enum dicey_error status);
+   
    typedef void dicey_client_event_fn(struct dicey_client *client, void *ctx, struct dicey_packet packet);
    
    typedef void dicey_client_inspect_fn(struct dicey_client *client, void *ctx, struct dicey_client_event event);
@@ -100,6 +117,42 @@ Program Listing for File client.h
        void *data
    );
    
+   DICEY_EXPORT enum dicey_error dicey_client_exec(
+       struct dicey_client *client,
+       const char *path,
+       struct dicey_selector sel,
+       struct dicey_arg payload,
+       struct dicey_packet *response,
+       uint32_t timeout
+   );
+   
+   DICEY_EXPORT enum dicey_error dicey_client_exec_async(
+       struct dicey_client *client,
+       const char *path,
+       struct dicey_selector sel,
+       struct dicey_arg payload,
+       dicey_client_on_reply_fn *cb,
+       void *data,
+       uint32_t timeout
+   );
+   
+   DICEY_EXPORT enum dicey_error dicey_client_get(
+       struct dicey_client *client,
+       const char *path,
+       struct dicey_selector sel,
+       struct dicey_packet *response,
+       uint32_t timeout
+   );
+   
+   DICEY_EXPORT enum dicey_error dicey_client_get_async(
+       struct dicey_client *client,
+       const char *path,
+       struct dicey_selector sel,
+       dicey_client_on_reply_fn *cb,
+       void *data,
+       uint32_t timeout
+   );
+   
    DICEY_EXPORT void *dicey_client_get_context(const struct dicey_client *client);
    
    DICEY_EXPORT bool dicey_client_is_running(const struct dicey_client *client);
@@ -119,7 +172,57 @@ Program Listing for File client.h
        uint32_t timeout
    );
    
+   DICEY_EXPORT enum dicey_error dicey_client_set(
+       struct dicey_client *client,
+       const char *path,
+       struct dicey_selector sel,
+       struct dicey_arg payload,
+       uint32_t timeout
+   );
+   
+   DICEY_EXPORT enum dicey_error dicey_client_set_async(
+       struct dicey_client *client,
+       const char *path,
+       struct dicey_selector sel,
+       struct dicey_arg payload,
+       dicey_client_on_reply_fn *cb,
+       void *data,
+       uint32_t timeout
+   );
+   
    DICEY_EXPORT void *dicey_client_set_context(struct dicey_client *client, void *data);
+   
+   DICEY_EXPORT enum dicey_error dicey_client_subscribe_to(
+       struct dicey_client *client,
+       const char *path,
+       struct dicey_selector sel,
+       uint32_t timeout
+   );
+   
+   DICEY_EXPORT enum dicey_error dicey_client_subscribe_to_async(
+       struct dicey_client *client,
+       const char *path,
+       struct dicey_selector sel,
+       dicey_client_on_sub_unsub_done_fn *cb,
+       void *data,
+       uint32_t timeout
+   );
+   
+   DICEY_EXPORT enum dicey_error dicey_client_unsubscribe_from(
+       struct dicey_client *client,
+       const char *path,
+       struct dicey_selector sel,
+       uint32_t timeout
+   );
+   
+   DICEY_EXPORT enum dicey_error dicey_client_unsubscribe_from_async(
+       struct dicey_client *client,
+       const char *path,
+       struct dicey_selector sel,
+       dicey_client_on_sub_unsub_done_fn *cb,
+       void *data,
+       uint32_t timeout
+   );
    
    #if defined(__cplusplus)
    }
