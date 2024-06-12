@@ -278,9 +278,7 @@ static bool hash_grow(struct dicey_hashtable **const table_ptr) {
     assert(table->buckets_no && *table->buckets_no > 0);
 
     const uint32_t old_cap = table->cap;
-    const uint32_t buckets_no = (uint32_t) *table->buckets_no;
-
-    assert(old_cap >= buckets_no);
+    assert(old_cap >= (uint32_t) *table->buckets_no);
 
     const uint32_t new_cap = old_cap * 3 / 2;
     if (new_cap <= old_cap) {
