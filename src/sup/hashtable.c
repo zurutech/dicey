@@ -282,8 +282,10 @@ static bool hash_grow(struct dicey_hashtable **const table_ptr) {
 
     assert(old_cap >= buckets_no);
 
-    const uint32_t extra_cap = old_cap - buckets_no;
-    const uint32_t new_cap = ((uint32_t) *primes + extra_cap) * 3 / 2;
+    const uint32_t new_cap = old_cap * 3 / 2;
+    if (new_cap <= old_cap) {
+        return false;
+    }
 
     table = realloc(table, sizeof(struct dicey_hashtable) + new_cap * sizeof(struct table_entry));
     if (!table) {
@@ -414,7 +416,6 @@ enum dicey_hash_set_result hash_set(
     }
 
     // if we reached this point then the bucket has no holes and we need to add a new entry at the end
-    assert(bucket_end);
     res = hash_bucket_append(table_ptr, bucket_end, maybe_move(&key), value) ? DICEY_HASH_SET_ADDED
                                                                              : DICEY_HASH_SET_FAILED;
 
