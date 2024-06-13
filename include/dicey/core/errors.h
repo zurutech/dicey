@@ -68,8 +68,9 @@ enum dicey_error {
     DICEY_EPROPERTY_READ_ONLY = -0x041E,  /**< Property is read-only. */
     DICEY_EPEER_NOT_FOUND = -0x041F,      /**< Peer not found. */
     DICEY_ESEQNUM_MISMATCH = -0x0420,     /**< Sequence number mismatch. */
+    DICEY_EUUID_NOT_VALID = -0x0421,      /**< UUID is not valid. */
 
-    DICEY_EUV_UNKNOWN = -0x0521 /**< Unknown libuv error. */
+    DICEY_EUV_UNKNOWN = -0x0522 /**< Unknown libuv error. */
 };
 
 /**

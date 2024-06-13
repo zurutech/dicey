@@ -51,6 +51,9 @@ union _dicey_data_info {
     } bytes;
 
     const char *str; // for str, path
+
+    struct dicey_uuid uuid;
+
     struct dicey_selector selector;
 
     struct dicey_errmsg error;

@@ -177,6 +177,8 @@ Accepted values for a Dicey type are:
 +----------+-----+-------+-------------------------------+
 | STR      | 73  | s     | String type.                  |
 +----------+-----+-------+-------------------------------+
+| UUID     | 23  | #     | UUID type.                    |
++----------+-----+-------+-------------------------------+
 | PATH     | 40  | @     | Path type.                    |
 +----------+-----+-------+-------------------------------+
 | SELECTOR | 25  | %     | Selector type.                |
@@ -268,6 +270,13 @@ String (``str``)
 
 A ``NUL``-terminated (0) string of characters (``u8``). The encoding of the string is usually assumed to be UTF-8. While
 the C library largely treats strings as arrays of bytes, bindings often assume UTF-8. 
+
+UUID
+^^^^
+
+A 128-bit universally unique identifier, encoded as a sequence of 16 bytes (big-endian). Dicey recognized both strings 
+with dashes in the form of ``xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx`` (36 characters) and without dashes in the form  
+``xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx`` (32 characters).
 
 Path
 ^^^^

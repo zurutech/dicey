@@ -273,6 +273,9 @@ ptrdiff_t type_size(const enum dicey_type type) {
     case DICEY_TYPE_UINT64:
         return sizeof(dtf_u64);
 
+    case DICEY_TYPE_UUID:
+        return sizeof(struct dicey_uuid);
+
     case DICEY_TYPE_ARRAY:
     case DICEY_TYPE_PAIR:
     case DICEY_TYPE_TUPLE:
@@ -394,5 +397,9 @@ ptrdiff_t dtf_value_probe_as(
     assert(size >= 0);
 
     return size == DTF_SIZE_DYNAMIC ? value_probe_dynamic(type, src, info)
+                                    // this is probably slightly UB, but we are sure that we are memcpying valid data,
+                                    // so we can ignore the technicalities. If this weren't actually possible to do
+                                    // then no OS ever would ever work. Given that we only support a limited set of
+                                    // compilers, we can safely assume that this is fine.
                                     : dicey_view_read(src, (struct dicey_view_mut) { .data = info, .len = size });
 }

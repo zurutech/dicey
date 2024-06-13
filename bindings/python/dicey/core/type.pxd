@@ -17,9 +17,14 @@ from libc.stdint cimport int8_t, int16_t, int32_t, int64_t, uint8_t, uint16_t, u
 
 from libcpp cimport bool as c_bool
 
-cdef extern from "dicey/dicey.h":
-    ctypedef uint8_t dicey_bool
+from .errors cimport dicey_error
 
+cdef extern from "dicey/dicey.h":
+    cdef enum:
+        DICEY_UUID_SIZE
+        
+    ctypedef uint8_t dicey_bool
+    
     ctypedef uint8_t dicey_byte
     ctypedef int16_t dicey_i16
     ctypedef int32_t dicey_i32
@@ -41,6 +46,12 @@ cdef extern from "dicey/dicey.h":
     cdef c_bool dicey_selector_is_valid(dicey_selector selector)
     cdef ptrdiff_t dicey_selector_size(dicey_selector sel)
 
+    cdef struct dicey_uuid:
+        uint8_t[DICEY_UUID_SIZE] bytes
+
+    cdef dicey_error dicey_uuid_from_bytes(dicey_uuid *uuid, const uint8_t *bytes, size_t len)
+    cdef dicey_error dicey_uuid_from_string(dicey_uuid *uuid, const char *str)
+
     cdef enum dicey_type:
         DICEY_TYPE_INVALID
         DICEY_TYPE_UNIT
@@ -58,6 +69,7 @@ cdef extern from "dicey/dicey.h":
         DICEY_TYPE_PAIR
         DICEY_TYPE_BYTES
         DICEY_TYPE_STR
+        DICEY_TYPE_UUID
         DICEY_TYPE_PATH
         DICEY_TYPE_SELECTOR
         DICEY_TYPE_ERROR

@@ -44,6 +44,8 @@ Included By
 
 - :ref:`file__home_marco_Workspace_dicey_include_dicey_dicey.h`
 
+- :ref:`file__home_marco_Workspace_dicey_include_dicey_ipc_client.h`
+
 
 
 

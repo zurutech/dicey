@@ -14,6 +14,7 @@
 
 from collections.abc import Callable as _Callable
 from dataclasses import dataclass as _dataclass
+from uuid import UUID
 
 from libc.stddef cimport size_t
 from libc.stdint cimport uint8_t
@@ -24,14 +25,14 @@ from .errors import InvalidDataError
 from .types import Array, Byte, ErrorMessage, Int16, Int32, Int64, Pair, Path, Selector, UInt16, UInt32, UInt64
 
 from .errors cimport _check
-from .type   cimport dicey_type, dicey_selector, DICEY_VARIANT_ID
+from .type   cimport dicey_type, dicey_selector, dicey_uuid, DICEY_UUID_SIZE, DICEY_VARIANT_ID
 from .value  cimport dicey_value, dicey_errmsg, dicey_iterator, dicey_list, dicey_pair, \
                      dicey_iterator_has_next, dicey_iterator_next, dicey_list_iter, dicey_list_type, \
                      dicey_value_get_bool, dicey_value_get_byte, dicey_value_get_float, \
                      dicey_value_get_i16, dicey_value_get_i32, dicey_value_get_i64, \
                      dicey_value_get_u16, dicey_value_get_u32, dicey_value_get_u64, \
                      dicey_value_get_array, dicey_value_get_tuple, dicey_value_get_pair, \
-                     dicey_value_get_bytes, dicey_value_get_str, dicey_value_get_path, \
+                     dicey_value_get_bytes, dicey_value_get_str, dicey_value_get_uuid, dicey_value_get_path, \
                      dicey_value_get_selector, dicey_value_get_error
 
 @_dataclass
@@ -45,7 +46,7 @@ cdef struct _type_assoc:
     object (*_to_python)(const dicey_value *value, object args)
 
 # note: cython is dumb and doesn't allow for unbound arrays, so I have to hardcode the length here
-cdef _type_assoc[19] _assoc_list = [
+cdef _type_assoc[20] _assoc_list = [
     _type_assoc(dicey_type.DICEY_TYPE_INVALID, &_to_invalid),
     _type_assoc(dicey_type.DICEY_TYPE_UNIT, &_to_unit),
     _type_assoc(dicey_type.DICEY_TYPE_BOOL, &_to_bool),
@@ -63,6 +64,7 @@ cdef _type_assoc[19] _assoc_list = [
     _type_assoc(dicey_type.DICEY_TYPE_BYTES, &_to_bytes),
     _type_assoc(dicey_type.DICEY_TYPE_STR, &_to_str),
     _type_assoc(dicey_type.DICEY_TYPE_PATH, &_to_path),
+    _type_assoc(dicey_type.DICEY_TYPE_UUID, &_to_uuid),
     _type_assoc(dicey_type.DICEY_TYPE_SELECTOR, &_to_selector),
     _type_assoc(dicey_type.DICEY_TYPE_ERROR, &_to_errmsg)
 ]
@@ -252,6 +254,13 @@ cdef _to_uint64(const dicey_value *const value, object args):
 
 cdef _to_unit(const dicey_value *const value, object args):
     return None
+
+cdef _to_uuid(const dicey_value *const value, object args):
+    cdef dicey_uuid dest
+
+    _check(dicey_value_get_uuid(value, &dest))
+    
+    return UUID(bytes=dest.bytes[:DICEY_UUID_SIZE])
 
 cdef _to_value(const dicey_value *const value, object args):
     if not value or not args:

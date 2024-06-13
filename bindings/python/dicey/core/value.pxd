@@ -17,7 +17,7 @@ from libc.stdint cimport int16_t, int32_t, int64_t, uint8_t, uint16_t, uint32_t,
 from libcpp cimport bool as c_bool
 
 from .errors cimport dicey_error
-from .type cimport dicey_errmsg, dicey_selector, dicey_type
+from .type cimport dicey_errmsg, dicey_selector, dicey_type, dicey_uuid
 
 cdef extern from "dicey/dicey.h":
 
@@ -56,6 +56,7 @@ cdef extern from "dicey/dicey.h":
     dicey_error dicey_value_get_selector(const dicey_value *value, dicey_selector *dest)
     dicey_error dicey_value_get_str(const dicey_value *value, char **dest)
     dicey_error dicey_value_get_tuple(const dicey_value *value, dicey_list *dest)
+    dicey_error dicey_value_get_uuid(const dicey_value *value, dicey_uuid *dest)
     dicey_error dicey_value_get_u16(const dicey_value *value, uint16_t *dest)
     dicey_error dicey_value_get_u32(const dicey_value *value, uint32_t *dest)
     dicey_error dicey_value_get_u64(const dicey_value *value, uint64_t *dest)

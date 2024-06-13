@@ -1,0 +1,14 @@
+.. _exhale_function_client_8h_1a1d704318e0e065d4f9659f057db7991c:
+
+Function dicey_client_get
+=========================
+
+- Defined in :ref:`file__home_marco_Workspace_dicey_include_dicey_ipc_client.h`
+
+
+Function Documentation
+----------------------
+
+
+.. doxygenfunction:: dicey_client_get(struct dicey_client *, const char *, struct dicey_selector, struct dicey_packet *, uint32_t)
+   :project: dicey

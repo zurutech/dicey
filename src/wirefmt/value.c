@@ -149,6 +149,8 @@ bool dicey_type_is_valid(const enum dicey_type type) {
     case DICEY_TYPE_BYTES:
     case DICEY_TYPE_STR:
 
+    case DICEY_TYPE_UUID:
+
     case DICEY_TYPE_PATH:
     case DICEY_TYPE_SELECTOR:
 
@@ -213,6 +215,9 @@ const char *dicey_type_name(const enum dicey_type type) {
 
     case DICEY_TYPE_STR:
         return "str";
+
+    case DICEY_TYPE_UUID:
+        return "uuid";
 
     case DICEY_TYPE_PATH:
         return "path";
@@ -319,6 +324,7 @@ enum dicey_error dicey_value_get_tuple(const struct dicey_value *const value, st
     return value_get_list(value, dest);
 }
 
+DICEY_VALUE_GET_IMPL_TRIVIAL(uuid, struct dicey_uuid, DICEY_TYPE_UUID, uuid)
 DICEY_VALUE_GET_IMPL_TRIVIAL(u16, uint16_t, DICEY_TYPE_UINT16, u16)
 DICEY_VALUE_GET_IMPL_TRIVIAL(u32, uint32_t, DICEY_TYPE_UINT32, u32)
 DICEY_VALUE_GET_IMPL_TRIVIAL(u64, uint64_t, DICEY_TYPE_UINT64, u64)

@@ -20,7 +20,7 @@ from .type   cimport dicey_type, \
                      dicey_byte, dicey_bool, dicey_float, \
                      dicey_i16, dicey_i32, dicey_i64, \
                      dicey_u16, dicey_u32, dicey_u64, \
-                     dicey_selector
+                     dicey_selector, dicey_uuid
 
 cdef extern from "dicey/dicey.h":
 
@@ -66,6 +66,9 @@ cdef extern from "dicey/dicey.h":
         dicey_bytes_arg bytes
 
         const char *str
+
+        dicey_uuid uuid
+
         dicey_selector selector
 
         dicey_error_arg error

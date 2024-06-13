@@ -10,7 +10,21 @@ Program Listing for File type.h
 
 .. code-block:: cpp
 
-   // Copyright (c) 2014-2024 Zuru Tech HK Limited, All rights reserved.
+   /*
+    * Copyright (c) 2014-2024 Zuru Tech HK Limited, All rights reserved.
+    *
+    * Licensed under the Apache License, Version 2.0 (the "License");
+    * you may not use this file except in compliance with the License.
+    * You may obtain a copy of the License at
+    *
+    *     http://www.apache.org/licenses/LICENSE-2.0
+    *
+    * Unless required by applicable law or agreed to in writing, software
+    * distributed under the License is distributed on an "AS IS" BASIS,
+    * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    * See the License for the specific language governing permissions and
+    * limitations under the License.
+    */
    
    #if !defined(PTDFNAAZWS_TYPE_H)
    #define PTDFNAAZWS_TYPE_H
@@ -20,6 +34,9 @@ Program Listing for File type.h
    #include <stdint.h>
    
    #include "dicey_export.h"
+   
+   #include "errors.h"
+   #include "views.h"
    
    #if defined(__cplusplus)
    extern "C" {
@@ -42,7 +59,7 @@ Program Listing for File type.h
    typedef uint64_t dicey_u64;
    
    struct dicey_errmsg {
-       uint16_t code;       
+       int16_t code;        
        const char *message; 
    };
    
@@ -56,6 +73,20 @@ Program Listing for File type.h
    DICEY_EXPORT bool dicey_selector_is_valid(struct dicey_selector selector);
    
    DICEY_EXPORT ptrdiff_t dicey_selector_size(struct dicey_selector sel);
+   
+   #if defined(__GNUC__) || defined(__clang__)
+   #define DICEY_UUID_SIZE sizeof(__uint128_t)
+   #else
+   #define DICEY_UUID_SIZE (sizeof(uint64_t) * 2U)
+   #endif
+   
+   struct dicey_uuid {
+       uint8_t bytes[DICEY_UUID_SIZE];
+   };
+   
+   DICEY_EXPORT enum dicey_error dicey_uuid_from_bytes(struct dicey_uuid *uuid, const uint8_t *bytes, size_t len);
+   
+   DICEY_EXPORT enum dicey_error dicey_uuid_from_string(struct dicey_uuid *uuid, const char *str);
    
    enum dicey_type {
        DICEY_TYPE_INVALID = 0, 
@@ -74,6 +105,7 @@ Program Listing for File type.h
        DICEY_TYPE_PAIR = '{',  
        DICEY_TYPE_BYTES = 'y', 
        DICEY_TYPE_STR = 's',   
+       DICEY_TYPE_UUID = '#', 
        DICEY_TYPE_PATH = '@',     
        DICEY_TYPE_SELECTOR = '%', 
        DICEY_TYPE_ERROR = 'e', 

@@ -16,12 +16,13 @@
 
 #include <assert.h>
 #include <inttypes.h>
+#include <stdint.h>
 
 #include <dicey/dicey.h>
 
-#include <stdint.h>
 #include <util/dumper.h>
 #include <util/packet-dump.h>
+#include <util/uuid.h>
 
 static void dump_value(struct util_dumper *dumper, const struct dicey_value *value);
 
@@ -231,6 +232,7 @@ static void dump_value(struct util_dumper *const dumper, const struct dicey_valu
             (void) err; // silence unused warning
 
             util_dumper_printf(dumper, "%" PRId32, dest);
+
             break;
         }
 
@@ -242,6 +244,7 @@ static void dump_value(struct util_dumper *const dumper, const struct dicey_valu
             (void) err; // silence unused warning
 
             util_dumper_printf(dumper, "%" PRId64, dest);
+
             break;
         }
 
@@ -253,6 +256,7 @@ static void dump_value(struct util_dumper *const dumper, const struct dicey_valu
             (void) err; // silence unused warning
 
             util_dumper_printf(dumper, "%" PRIu16, dest);
+
             break;
         }
 
@@ -264,6 +268,7 @@ static void dump_value(struct util_dumper *const dumper, const struct dicey_valu
             (void) err; // silence unused warning
 
             util_dumper_printf(dumper, "%" PRIu32, dest);
+
             break;
         }
 
@@ -275,11 +280,13 @@ static void dump_value(struct util_dumper *const dumper, const struct dicey_valu
             (void) err; // silence unused warning
 
             util_dumper_printf(dumper, "%" PRIu64, dest);
+
             break;
         }
 
     case DICEY_TYPE_ARRAY:
         dump_array(dumper, value);
+
         break;
 
     case DICEY_TYPE_TUPLE:
@@ -291,6 +298,7 @@ static void dump_value(struct util_dumper *const dumper, const struct dicey_valu
     case DICEY_TYPE_PAIR:
         {
             dump_pair(dumper, value);
+
             break;
         }
 
@@ -303,6 +311,7 @@ static void dump_value(struct util_dumper *const dumper, const struct dicey_valu
             (void) err; // silence unused warning
 
             dump_hex_short(dumper, dest, nbytes);
+
             break;
         }
 
@@ -314,6 +323,23 @@ static void dump_value(struct util_dumper *const dumper, const struct dicey_valu
             (void) err; // silence unused warning
 
             util_dumper_printf(dumper, "\"%s\"", dest);
+
+            break;
+        }
+
+    case DICEY_TYPE_UUID:
+        {
+            struct dicey_uuid dest = { 0 };
+            enum dicey_error err = dicey_value_get_uuid(value, &dest);
+            assert(!err);
+            (void) err; // silence unused warning
+
+            char uuid_str[UTIL_UUID_STR_LEN] = { 0 };
+            err = util_uuid_to_string(dest, uuid_str, sizeof uuid_str);
+            assert(!err);
+
+            util_dumper_printf(dumper, "%s", uuid_str);
+
             break;
         }
 
@@ -325,6 +351,7 @@ static void dump_value(struct util_dumper *const dumper, const struct dicey_valu
             (void) err; // silence unused warning
 
             util_dumper_printf(dumper, "%s", dest);
+
             break;
         }
 
@@ -336,6 +363,7 @@ static void dump_value(struct util_dumper *const dumper, const struct dicey_valu
             (void) err; // silence unused warning
 
             dump_selector(dumper, dest);
+
             break;
         }
 

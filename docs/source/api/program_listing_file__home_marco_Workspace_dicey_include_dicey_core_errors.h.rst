@@ -10,7 +10,21 @@ Program Listing for File errors.h
 
 .. code-block:: cpp
 
-   // Copyright (c) 2014-2024 Zuru Tech HK Limited, All rights reserved.
+   /*
+    * Copyright (c) 2014-2024 Zuru Tech HK Limited, All rights reserved.
+    *
+    * Licensed under the Apache License, Version 2.0 (the "License");
+    * you may not use this file except in compliance with the License.
+    * You may obtain a copy of the License at
+    *
+    *     http://www.apache.org/licenses/LICENSE-2.0
+    *
+    * Unless required by applicable law or agreed to in writing, software
+    * distributed under the License is distributed on an "AS IS" BASIS,
+    * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    * See the License for the specific language governing permissions and
+    * limitations under the License.
+    */
    
    #if !defined(HHQPUVHYDW_ERRORS_H)
    #define HHQPUVHYDW_ERRORS_H
@@ -40,24 +54,26 @@ Program Listing for File errors.h
        DICEY_EPIPE = -0x010C,        
        DICEY_ECONNRESET = -0x010D,   
        DICEY_EEXIST = -0x010E,       
-       DICEY_EPATH_TOO_LONG = -0x020F,  
-       DICEY_ETUPLE_TOO_LONG = -0x0210, 
-       DICEY_EARRAY_TOO_LONG = -0x0211, 
-       DICEY_EVALUE_TYPE_MISMATCH = -0x0312, 
-       DICEY_ENOT_SUPPORTED = -0x0413,       
-       DICEY_ECLIENT_TOO_OLD = -0x0414,      
-       DICEY_ESERVER_TOO_OLD = -0x0415,      
-       DICEY_EPATH_DELETED = -0x0416,        
-       DICEY_EPATH_NOT_FOUND = -0x0417,      
-       DICEY_EPATH_MALFORMED = -0x0418,      
-       DICEY_ETRAIT_NOT_FOUND = -0x0419,     
-       DICEY_EELEMENT_NOT_FOUND = -0x041A,   
-       DICEY_ESIGNATURE_MALFORMED = -0x041B, 
-       DICEY_ESIGNATURE_MISMATCH = -0x041C,  
-       DICEY_EPROPERTY_READ_ONLY = -0x041D,  
-       DICEY_EPEER_NOT_FOUND = -0x041E,      
-       DICEY_ESEQNUM_MISMATCH = -0x041F,     
-       DICEY_EUV_UNKNOWN = -0x0520 
+       DICEY_EADDRINUSE = -0x010F,   
+       DICEY_EPATH_TOO_LONG = -0x0210,  
+       DICEY_ETUPLE_TOO_LONG = -0x0211, 
+       DICEY_EARRAY_TOO_LONG = -0x0212, 
+       DICEY_EVALUE_TYPE_MISMATCH = -0x0313, 
+       DICEY_ENOT_SUPPORTED = -0x0414,       
+       DICEY_ECLIENT_TOO_OLD = -0x0415,      
+       DICEY_ESERVER_TOO_OLD = -0x0416,      
+       DICEY_EPATH_DELETED = -0x0417,        
+       DICEY_EPATH_NOT_FOUND = -0x0418,      
+       DICEY_EPATH_MALFORMED = -0x0419,      
+       DICEY_ETRAIT_NOT_FOUND = -0x041A,     
+       DICEY_EELEMENT_NOT_FOUND = -0x041B,   
+       DICEY_ESIGNATURE_MALFORMED = -0x041C, 
+       DICEY_ESIGNATURE_MISMATCH = -0x041D,  
+       DICEY_EPROPERTY_READ_ONLY = -0x041E,  
+       DICEY_EPEER_NOT_FOUND = -0x041F,      
+       DICEY_ESEQNUM_MISMATCH = -0x0420,     
+       DICEY_EUUID_NOT_VALID = -0x0421,      
+       DICEY_EUV_UNKNOWN = -0x0522 
    };
    
    struct dicey_error_def {

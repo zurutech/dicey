@@ -44,6 +44,8 @@ Included By
 
 - :ref:`file__home_marco_Workspace_dicey_include_dicey_core_packet.h`
 
+- :ref:`file__home_marco_Workspace_dicey_include_dicey_core_type.h`
+
 - :ref:`file__home_marco_Workspace_dicey_include_dicey_core_value.h`
 
 - :ref:`file__home_marco_Workspace_dicey_include_dicey_dicey.h`

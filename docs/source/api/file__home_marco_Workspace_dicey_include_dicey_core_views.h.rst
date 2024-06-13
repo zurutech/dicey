@@ -40,6 +40,8 @@ Included By
 -----------
 
 
+- :ref:`file__home_marco_Workspace_dicey_include_dicey_core_type.h`
+
 - :ref:`file__home_marco_Workspace_dicey_include_dicey_core_typedescr.h`
 
 - :ref:`file__home_marco_Workspace_dicey_include_dicey_core_value.h`

@@ -23,6 +23,9 @@
 
 #include "dicey_export.h"
 
+#include "errors.h"
+#include "views.h"
+
 #if defined(__cplusplus)
 extern "C" {
 #endif
@@ -105,6 +108,42 @@ DICEY_EXPORT bool dicey_selector_is_valid(struct dicey_selector selector);
  */
 DICEY_EXPORT ptrdiff_t dicey_selector_size(struct dicey_selector sel);
 
+#if defined(__GNUC__) || defined(__clang__)
+#define DICEY_UUID_SIZE sizeof(__uint128_t)
+#else
+#define DICEY_UUID_SIZE (sizeof(uint64_t) * 2U)
+#endif
+
+/**
+ * @brief Represents a UUID.
+ * @note The UUID is represented as a 128-bit big-endian unsigned integer.
+ */
+struct dicey_uuid {
+    uint8_t bytes[DICEY_UUID_SIZE];
+};
+
+/**
+ * @brief Reads a UUID from a view.
+ * @param uuid The dicey_uuid structure to fill.
+ * @param bytes The bytes containing the UUID.
+ * @param len The length of the bytes array.
+ * @return The result of the operation. Possible values:
+ *        - OK: Success.
+ *        - EUUID_NOT_VALID: The view is not DICEY_UUID_SIZE bytes.
+ */
+DICEY_EXPORT enum dicey_error dicey_uuid_from_bytes(struct dicey_uuid *uuid, const uint8_t *bytes, size_t len);
+
+/**
+ * @brief Parses a string as an UUID with format "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" or
+ * "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx".
+ * @param uuid The dicey_uuid structure to fill.
+ * @param str The UUID to parse. Can be either a 32-character string or a 36-character string with dashes.
+ * @return The result of the operation. Possible values:
+ *        - OK: Success.
+ *        - EUUID_NOT_VALID: The UUID is not valid.
+ */
+DICEY_EXPORT enum dicey_error dicey_uuid_from_string(struct dicey_uuid *uuid, const char *str);
+
 /**
  * @brief Identifies the type a Dicey value may represent
  */
@@ -132,6 +171,8 @@ enum dicey_type {
 
     DICEY_TYPE_BYTES = 'y', /**< Bytes type. */
     DICEY_TYPE_STR = 's',   /**< String type. */
+
+    DICEY_TYPE_UUID = '#', /**< 128-bit UUID type. Big-endian */
 
     DICEY_TYPE_PATH = '@',     /**< Path type. */
     DICEY_TYPE_SELECTOR = '%', /**< Selector type. */
