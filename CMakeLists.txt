@@ -14,7 +14,7 @@
 
 cmake_minimum_required(VERSION 3.26.0)
 
-project(dicey VERSION 0.0.1 LANGUAGES C)
+project(dicey VERSION 0.2.1 LANGUAGES C)
 
 if (NOT CMAKE_C_BYTE_ORDER STREQUAL "LITTLE_ENDIAN")
     message(FATAL_ERROR "Big endian is not supported")
@@ -134,7 +134,7 @@ if (NOT LibXml2_FOUND)
     FetchContent_Declare(
         libxml2
         GIT_REPOSITORY https://gitlab.gnome.org/GNOME/libxml2.git
-        GIT_TAG        v2.12.7
+        GIT_TAG        v2.13.1
     )
 
     FetchContent_MakeAvailable(libxml2)
