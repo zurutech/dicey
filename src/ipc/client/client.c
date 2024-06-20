@@ -34,6 +34,7 @@
 #include <dicey/core/value.h>
 #include <dicey/ipc/address.h>
 #include <dicey/ipc/client.h>
+#include <dicey/ipc/builtins/server.h>
 
 #include "sup/asprintf.h"
 #include "sup/assume.h"
@@ -41,7 +42,6 @@
 #include "sup/util.h"
 
 #include "ipc/chunk.h"
-#include "ipc/server/builtins/server/server.h"
 #include "ipc/tasks/io.h"
 #include "ipc/tasks/list.h"
 #include "ipc/tasks/loop.h"

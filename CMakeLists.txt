@@ -175,10 +175,15 @@ set(PUBLIC_HEADERS
 
     # ipc
     "include/dicey/ipc/address.h"
+    "include/dicey/ipc/builtins.h"
     "include/dicey/ipc/client.h"
     "include/dicey/ipc/registry.h"
     "include/dicey/ipc/server.h"
     "include/dicey/ipc/traits.h"
+
+    # ipc/builtins
+    "include/dicey/ipc/builtins/introspection.h"
+    "include/dicey/ipc/builtins/server.h"
 )
 
 set(CORE_SOURCES

@@ -29,5 +29,6 @@
 #include "ipc/registry.h"
 #include "ipc/server.h"
 #include "ipc/traits.h"
+#include "ipc/builtins.h"
 
 #endif // IJDIIZJEMO_DICEY_H

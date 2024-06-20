@@ -24,6 +24,7 @@
 #include <dicey/core/value.h>
 #include <dicey/core/views.h>
 #include <dicey/ipc/traits.h>
+#include <dicey/ipc/builtins/server.h>
 
 #include "ipc/elemdescr.h"
 #include "ipc/server/builtins/builtins.h"

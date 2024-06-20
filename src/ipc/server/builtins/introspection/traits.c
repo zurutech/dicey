@@ -22,13 +22,12 @@
 #include <dicey/core/errors.h>
 #include <dicey/core/packet.h>
 #include <dicey/core/type.h>
+#include <dicey/ipc/builtins/introspection.h>
 
 #include <dicey/ipc/registry.h>
 #include <dicey/ipc/traits.h>
 
 #include "sup/trace.h"
-
-#include "introspection.h"
 
 #include "introspection-internal.h"
 
