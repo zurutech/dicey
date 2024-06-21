@@ -123,9 +123,11 @@ typedef void dicey_client_on_sub_unsub_done_fn(struct dicey_client *client, void
  * @param client The client this callback is associated with.
  * @param ctx    The global context of `client`, as obtained via `dicey_client_get_context()`. This is provided for
  * convenience.
- * @param packet  The event packet that was received. This is guaranteed to be a valid message containing an event.
+ * @param packet The event packet that was received. This is guaranteed to be a valid message containing an event.
+ *               The event handler can take ownership of the packet by zeroing it out. This will prevent the client
+ *               from freeing it.
  */
-typedef void dicey_client_event_fn(struct dicey_client *client, void *ctx, struct dicey_packet packet);
+typedef void dicey_client_event_fn(struct dicey_client *client, void *ctx, struct dicey_packet *packet);
 
 /**
  * @brief Represents a callback function that is called whenever anything happens in the client.

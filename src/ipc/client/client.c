@@ -391,7 +391,7 @@ static void client_got_packet(struct dicey_client *const client, struct dicey_pa
     if (is_event) {
         assert(client->on_event);
 
-        client->on_event(client, dicey_client_get_context(client), packet);
+        client->on_event(client, dicey_client_get_context(client), &packet);
     } else {
         // the packet is a response or hello, so it must match with something in our waiting list. If it doesn't, it may
         // have timed out
