@@ -29,6 +29,7 @@
 #include <dicey/dicey.h>
 
 #include <util/dumper.h>
+#include <util/getopt.h>
 #include <util/packet-dump.h>
 
 #include "sval.h"
@@ -77,6 +78,29 @@
 #define TEST_OBJ_NAME_SIGNATURE "s"
 
 static struct dicey_server *global_server = NULL;
+static bool print_logs = false;
+
+int out(const char *fmt, ...) {
+    if (!print_logs) {
+        return 0;
+    }
+
+    va_list args;
+    va_start(args, fmt);
+
+    int ret = vfprintf(stdout, fmt, args);
+
+    va_end(args);
+
+    return ret;
+}
+
+static inline void dump_packet(const struct dicey_packet packet) {
+    if (print_logs) {
+        struct util_dumper dumper = util_dumper_for(stdout);
+        util_dumper_dump_packet(&dumper, packet);
+    }
+}
 
 #if defined(_WIN32)
 
@@ -497,7 +521,7 @@ static enum dicey_error registry_fill(struct dicey_registry *const registry) {
 static bool on_client_connect(struct dicey_server *const server, const size_t id, void **const user_data) {
     (void) server;
 
-    printf("info: client %zu connected\n", id);
+    out("info: client %zu connected\n", id);
 
     *user_data = NULL;
 
@@ -507,7 +531,7 @@ static bool on_client_connect(struct dicey_server *const server, const size_t id
 static void on_client_disconnect(struct dicey_server *const server, const struct dicey_client_info *const cln) {
     (void) server;
 
-    printf("info: client %zu disconnected\n", cln->id);
+    out("info: client %zu disconnected\n", cln->id);
 }
 
 static void on_client_error(
@@ -859,18 +883,14 @@ static void on_request_received(
         return;
     }
 
-    printf(
-        "info: received request #%" PRIu32 " from client %zu for `%s#%s:%s`\n",
+    out("info: received request #%" PRIu32 " from client %zu for `%s#%s:%s`\n",
         seq,
         cln->id,
         msg.path,
         msg.selector.trait,
-        msg.selector.elem
-    );
+        msg.selector.elem);
 
-    struct util_dumper dumper = util_dumper_for(stdout);
-
-    util_dumper_dump_packet(&dumper, packet);
+    dump_packet(packet);
 
     if (matches_elem(&msg, DUMMY_PATH, DUMMY_TRAIT, DUMMY_ELEMENT)) {
         err = send_reply(server, cln, seq, msg.path, msg.selector, (struct dicey_arg) { .type = DICEY_TYPE_UNIT });
@@ -921,7 +941,54 @@ static enum dicey_error remove_socket_if_present(void) {
 }
 #endif
 
-int main(void) {
+#define HELP_MSG                                                                                                       \
+    "Usage: %s [options...]\n"                                                                                         \
+    "  -h  print this help message and exit\n"                                                                         \
+    "  -v  print info\n"
+
+static void print_help(const char *const progname, FILE *const out) {
+    fprintf(out, HELP_MSG, progname);
+}
+
+int main(const int argc, char *const argv[]) {
+    (void) argc;
+
+    const char *const progname = argv[0];
+
+    int opt = 0;
+
+    while ((opt = getopt(argc, argv, "hv")) != -1) {
+        switch (opt) {
+        case 'h':
+            print_help(progname, stdout);
+            return EXIT_SUCCESS;
+
+        case 'v':
+            print_logs = true;
+            break;
+
+        case '?':
+            if (optopt == 'o') {
+                fputs("error: -o requires an argument\n", stderr);
+            } else {
+                fprintf(stderr, "error: unknown option -%c\n", optopt);
+            }
+
+            print_help(progname, stderr);
+            return EXIT_FAILURE;
+
+        default:
+            abort();
+        }
+    }
+
+    if (argc - optind) {
+        fputs("error: too many arguments\n", stderr);
+
+        print_help(progname, stderr);
+        return EXIT_FAILURE;
+    }
+
     struct dicey_hashtable **ctx = NULL;
 
     struct timer_state tstate = { 0 };
@@ -970,7 +1037,7 @@ int main(void) {
         goto quit;
     }
 
-    puts("starting Dicey sample server on " PIPE_NAME "...");
+    out("starting Dicey sample server on " PIPE_NAME "...\n");
 
     ctx = malloc(sizeof *ctx);
     if (!ctx) {

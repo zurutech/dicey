@@ -30,11 +30,11 @@
 
 #include <dicey/dicey.h>
 
-#include "util/dumper.h"
-#include "util/getopt.h"
-#include "util/packet-dump.h"
-#include "util/packet-json.h"
-#include "util/packet-xml.h"
+#include <util/dumper.h>
+#include <util/getopt.h>
+#include <util/packet-dump.h>
+#include <util/packet-json.h>
+#include <util/packet-xml.h>
 
 #include "sval.h"
 
@@ -225,8 +225,6 @@ static void print_help(const char *const progname, FILE *const out) {
 }
 
 int main(const int argc, char *const *argv) {
-    (void) argc;
-
     const char *const progname = argv[0];
     const char *val = NULL;
     char *socket = NULL;
