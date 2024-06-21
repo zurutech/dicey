@@ -25,9 +25,9 @@
 #include <dicey/core/hashset.h>
 #include <dicey/core/hashtable.h>
 #include <dicey/core/type.h>
+#include <dicey/ipc/builtins/introspection.h>
 #include <dicey/ipc/registry.h>
 #include <dicey/ipc/traits.h>
-#include <dicey/ipc/builtins/introspection.h>
 
 #include "sup/trace.h"
 

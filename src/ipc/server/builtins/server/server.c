@@ -23,8 +23,8 @@
 #include <dicey/core/type.h>
 #include <dicey/core/value.h>
 #include <dicey/core/views.h>
-#include <dicey/ipc/traits.h>
 #include <dicey/ipc/builtins/server.h>
+#include <dicey/ipc/traits.h>
 
 #include "ipc/elemdescr.h"
 #include "ipc/server/builtins/builtins.h"
@@ -114,38 +114,21 @@ static enum dicey_error extract_path_sel(
 ) {
     assert(value && path && sel);
 
-    struct dicey_list lst = { 0 };
+    struct dicey_pair pair = { 0 };
 
-    enum dicey_error err = dicey_value_get_tuple(value, &lst);
+    enum dicey_error err = dicey_value_get_pair(value, &pair);
     if (err) {
         return err;
     }
 
-    struct dicey_iterator it = dicey_list_iter(&lst);
-    struct dicey_value elem = { 0 };
-
-    err = dicey_iterator_next(&it, &elem);
+    err = dicey_value_get_path(&pair.first, path);
     if (err) {
         return err;
     }
 
-    err = dicey_value_get_path(&elem, path);
+    err = dicey_value_get_selector(&pair.second, sel);
     if (err) {
         return err;
-    }
-
-    err = dicey_iterator_next(&it, &elem);
-    if (err) {
-        return err;
-    }
-
-    err = dicey_value_get_selector(&elem, sel);
-    if (err) {
-        return err;
-    }
-
-    if (dicey_iterator_has_next(it)) {
-        return TRACE(DICEY_ESIGNATURE_MISMATCH);
     }
 
     return DICEY_OK;

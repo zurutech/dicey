@@ -33,8 +33,8 @@
 #include <dicey/core/type.h>
 #include <dicey/core/value.h>
 #include <dicey/ipc/address.h>
-#include <dicey/ipc/client.h>
 #include <dicey/ipc/builtins/server.h>
+#include <dicey/ipc/client.h>
 
 #include "sup/asprintf.h"
 #include "sup/assume.h"
@@ -1032,18 +1032,15 @@ static enum dicey_error client_subunsub(
     enum dicey_error err = DICEY_OK;
 
     const struct dicey_arg payload = {
-        .type = DICEY_TYPE_TUPLE,
-        .tuple = {
-            .nitems = 2U,
-            .elems = (const struct dicey_arg[]) {
-                {
+        .type = DICEY_TYPE_PAIR,
+        .pair = {
+            .first = &(struct dicey_arg) {
                     .type = DICEY_TYPE_PATH,
                     .str = path,
-                },
-                {
+            },
+            .second = &(struct dicey_arg) {
                     .type = DICEY_TYPE_SELECTOR,
                     .selector = sel,
-                },
             },
         },
     };

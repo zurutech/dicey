@@ -25,10 +25,10 @@
 #include "core/version.h"
 
 #include "ipc/address.h"
+#include "ipc/builtins.h"
 #include "ipc/client.h"
 #include "ipc/registry.h"
 #include "ipc/server.h"
 #include "ipc/traits.h"
-#include "ipc/builtins.h"
 
 #endif // IJDIIZJEMO_DICEY_H

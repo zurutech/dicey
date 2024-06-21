@@ -17,7 +17,7 @@
 #if !defined(ZYTIHTXNPP_INTROSPECTION_H)
 #define ZYTIHTXNPP_INTROSPECTION_H
 
-#include "../builtins.h" 
+#include "../builtins.h"
 
 extern const struct dicey_registry_builtin_set dicey_registry_introspection_builtins;
 
