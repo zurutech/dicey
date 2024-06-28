@@ -15,12 +15,6 @@
  */
 
 // thank you MS, but just no
-
-#include "dicey/core/packet.h"
-#include "dicey/core/value.h"
-#include "dicey/ipc/builtins/introspection.h"
-#include "dicey/ipc/client.h"
-#include <stddef.h>
 #define _CRT_SECURE_NO_WARNINGS 1
 #if defined(_MSC_VER)
 #pragma warning(disable : 4200) // borked C11 flex array
@@ -31,10 +25,16 @@
 #include <inttypes.h>
 #include <stdarg.h>
 #include <stdbool.h>
+#include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+#if defined(_WIN32)
+#define WIN32_LEAN_AND_MEAN 1
+#include <windows.h>
+#endif
 
 #include <uv.h>
 
@@ -568,6 +568,12 @@ int main(const int argc, char *const *argv) {
 
         return EXIT_FAILURE;
     }
+
+#if defined(_WIN32)
+    if (args.output == stdout) {
+        SetConsoleOutputCP(CP_UTF8);
+    }
+#endif
 
     enum dicey_error err = do_op(&args);
     if (err) {
