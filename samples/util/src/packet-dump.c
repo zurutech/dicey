@@ -442,3 +442,10 @@ void util_dumper_dump_packet(struct util_dumper *const dumper, const struct dice
         break;
     }
 }
+
+void util_dumper_dump_value(struct util_dumper *dumper, const struct dicey_value *value) {
+    assert(dumper && value);
+
+    dump_value(dumper, value);
+    util_dumper_newline(dumper);
+}
