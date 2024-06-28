@@ -108,7 +108,7 @@ void util_dumper_dump_hex(struct util_dumper *const dumper, const void *const da
 
 void util_dumper_indent(const struct util_dumper *const dumper) {
     for (unsigned i = 0U; i < dumper->pad; ++i) {
-        fputc(' ', dumper->dest);
+        fputc(dumper->padchar, dumper->dest);
     }
 }
 
