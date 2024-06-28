@@ -33,6 +33,7 @@
 #include <dicey/core/type.h>
 #include <dicey/core/value.h>
 #include <dicey/ipc/address.h>
+#include <dicey/ipc/builtins/introspection.h>
 #include <dicey/ipc/builtins/server.h>
 #include <dicey/ipc/client.h>
 
@@ -1265,6 +1266,62 @@ void *dicey_client_get_context(const struct dicey_client *client) {
     assert(client);
 
     return client->ctx;
+}
+
+enum dicey_error dicey_client_inspect_path(
+    struct dicey_client *const client,
+    const char *const path,
+    struct dicey_packet *const response,
+    const uint32_t timeout
+) {
+    return dicey_client_get(
+        client,
+        path,
+        (struct dicey_selector) {
+            .trait = DICEY_INTROSPECTION_TRAIT_NAME,
+            .elem = DICEY_INTROSPECTION_DATA_PROP_NAME,
+        },
+        response,
+        timeout
+    );
+}
+
+enum dicey_error dicey_client_inspect_path_async(
+    struct dicey_client *const client,
+    const char *const path,
+    dicey_client_on_reply_fn *const cb,
+    void *const data,
+    const uint32_t timeout
+) {
+    return dicey_client_get_async(
+        client,
+        path,
+        (struct dicey_selector) {
+            .trait = DICEY_INTROSPECTION_TRAIT_NAME,
+            .elem = DICEY_INTROSPECTION_DATA_PROP_NAME,
+        },
+        cb,
+        data,
+        timeout
+    );
+}
+
+enum dicey_error dicey_client_inspect_path_as_xml(
+    struct dicey_client *const client,
+    const char *const path,
+    struct dicey_packet *const response,
+    const uint32_t timeout
+) {
+    return dicey_client_get(
+        client,
+        path,
+        (struct dicey_selector) {
+            .trait = DICEY_INTROSPECTION_TRAIT_NAME,
+            .elem = DICEY_INTROSPECTION_XML_PROP_NAME,
+        },
+        response,
+        timeout
+    );
 }
 
 bool dicey_client_is_running(const struct dicey_client *const client) {
