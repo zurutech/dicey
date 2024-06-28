@@ -161,6 +161,8 @@ for how to perform more complex tasks with `libdicey`:
 
 - *base64*: a clone of the classic UNIX `base64` utility. It can encode and decode base64 payloads.
 
+- *inspect*: uses Dicey introspection to inspect objects on a server. Run it as `inspect SOCKET PATH`.
+
 ## Licence
 
 Dicey is licenced under the terms of the Apache License 2.0. See `LICENSE` for more info.
