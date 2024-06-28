@@ -443,8 +443,6 @@ DICEY_EXPORT bool dicey_client_is_running(const struct dicey_client *client);
  *                 - EINVAL: the client is in the wrong state (i.e. not connected)
  *                 - ETIMEDOUT: the request timed out'
  *                 - ENOMEM: memory allocation failed (out of memory)
- *                 - ESIGNATURE_MISMATCH: the server has a different signature for the Introspection properties. This is
- *                   almost certainly caused by an out of date client.
  */
 DICEY_EXPORT enum dicey_error dicey_client_list_objects(
     struct dicey_client *client,
@@ -483,8 +481,6 @@ DICEY_EXPORT enum dicey_error dicey_client_list_objects_async(
  *                 - EINVAL: the client is in the wrong state (i.e. not connected)
  *                 - ETIMEDOUT: the request timed out'
  *                 - ENOMEM: memory allocation failed (out of memory)
- *                 - ESIGNATURE_MISMATCH: the server has a different signature for the Introspection properties. This is
- *                   almost certainly caused by an out of date client.
  */
 DICEY_EXPORT enum dicey_error dicey_client_list_traits(
     struct dicey_client *client,

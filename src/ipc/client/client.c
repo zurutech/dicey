@@ -1330,6 +1330,82 @@ bool dicey_client_is_running(const struct dicey_client *const client) {
     return client->state == CLIENT_STATE_RUNNING;
 }
 
+enum dicey_error dicey_client_list_objects(
+    struct dicey_client *const client,
+    struct dicey_packet *const response,
+    const uint32_t timeout
+) {
+    assert(client && response);
+
+    return dicey_client_get(
+        client,
+        DICEY_REGISTRY_PATH,
+        (struct dicey_selector) {
+            .trait = DICEY_REGISTRY_TRAIT_NAME,
+            .elem = DICEY_REGISTRY_OBJECTS_PROP_NAME,
+        },
+        response,
+        timeout
+    );
+}
+
+enum dicey_error dicey_client_list_objects_async(
+    struct dicey_client *const client,
+    dicey_client_on_reply_fn *const cb,
+    void *const data,
+    const uint32_t timeout
+) {
+    assert(client && cb);
+
+    return dicey_client_get_async(
+        client,
+        DICEY_REGISTRY_PATH,
+        (struct dicey_selector) {
+            .trait = DICEY_REGISTRY_TRAIT_NAME,
+            .elem = DICEY_REGISTRY_OBJECTS_PROP_NAME,
+        },
+        cb,
+        data,
+        timeout
+    );
+}
+
+enum dicey_error dicey_client_list_traits(
+    struct dicey_client *const client,
+    struct dicey_packet *const response,
+    const uint32_t timeout
+) {
+    return dicey_client_get(
+        client,
+        DICEY_REGISTRY_PATH,
+        (struct dicey_selector) {
+            .trait = DICEY_REGISTRY_TRAIT_NAME,
+            .elem = DICEY_REGISTRY_TRAITS_PROP_NAME,
+        },
+        response,
+        timeout
+    );
+}
+
+enum dicey_error dicey_client_list_traits_async(
+    struct dicey_client *const client,
+    dicey_client_on_reply_fn *const cb,
+    void *const data,
+    const uint32_t timeout
+) {
+    return dicey_client_get_async(
+        client,
+        DICEY_REGISTRY_PATH,
+        (struct dicey_selector) {
+            .trait = DICEY_REGISTRY_TRAIT_NAME,
+            .elem = DICEY_REGISTRY_TRAITS_PROP_NAME,
+        },
+        cb,
+        data,
+        timeout
+    );
+}
+
 enum dicey_error dicey_client_disconnect(struct dicey_client *const client) {
     assert(client);
 

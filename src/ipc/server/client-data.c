@@ -62,6 +62,8 @@ void dicey_client_data_delete(struct dicey_client_data *const client) {
         return;
     }
 
+    dicey_hashset_delete(client->subscriptions);
+
     free(client->chunk);
     free(client->pending);
     free(client);

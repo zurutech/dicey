@@ -36,10 +36,17 @@ extern "C" {
 enum dicey_element_type {
     DICEY_ELEMENT_TYPE_INVALID,
 
-    DICEY_ELEMENT_TYPE_OPERATION, /**< A callable operation */
-    DICEY_ELEMENT_TYPE_PROPERTY,  /**< A property, which may be read-only or read-write */
-    DICEY_ELEMENT_TYPE_SIGNAL,    /**< A signal, asynchronously sent by the server */
+    DICEY_ELEMENT_TYPE_OPERATION = 'O', /**< A callable operation */
+    DICEY_ELEMENT_TYPE_PROPERTY = 'P',  /**< A property, which may be read-only or read-write */
+    DICEY_ELEMENT_TYPE_SIGNAL = 'S',    /**< A signal, asynchronously sent by the server */
 };
+
+/**
+ * @brief Get the name of an element type.
+ * @param type The element type.
+ * @return The name of the element type.
+ */
+DICEY_EXPORT const char *dicey_element_type_name(enum dicey_element_type type);
 
 /**
  * @brief Structure that describes an element (operation, property, or signal) inside a trait.
