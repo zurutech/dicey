@@ -207,6 +207,8 @@ struct dicey_server {
 
     _Atomic enum server_state state;
 
+    uint32_t seq_cnt; // used for ALL server-initiated packets. Starts with 1, and will roll over after UINT32_MAX.
+
     // super ugly way to unlock the callers of dicey_server_stop when the server is actually stopped
     // avoiding this would probably require to use the same task system the client uses - which is way more complex than
     // whatever the server needs
@@ -567,6 +569,16 @@ static enum dicey_error server_finalize_shutdown(struct dicey_server *const serv
     return DICEY_OK;
 }
 
+static uint32_t server_next_seq(struct dicey_server *const server) {
+    assert(server);
+
+    const uint32_t seq = server->seq_cnt;
+
+    server->seq_cnt += 2U; // will roll over after UINT32_MAX
+
+    return seq;
+}
+
 static enum dicey_error server_kick_client(
     struct dicey_server *const server,
     struct dicey_client_data *const client,
@@ -576,7 +588,7 @@ static enum dicey_error server_kick_client(
 
     struct outbound_packet packet = { .kind = DICEY_OP_RESPONSE };
 
-    enum dicey_error err = dicey_packet_bye(&packet.single, dicey_client_data_next_seq(client), reason);
+    enum dicey_error err = dicey_packet_bye(&packet.single, server_next_seq(server), reason);
     if (err) {
         return err;
     }
@@ -669,6 +681,13 @@ static enum dicey_error raise_event(
         return TRACE(DICEY_ENOMEM);
     }
 
+    enum dicey_error err = dicey_packet_set_seq(dicey_shared_packet_borrow(shared_pkt), server_next_seq(server));
+    if (err) {
+        dicey_shared_packet_unref(shared_pkt);
+
+        return err;
+    }
+
     // iterate all clients and check if they should receive the event
     struct dicey_client_data *const *const end = dicey_client_list_end(server->clients);
     for (struct dicey_client_data *const *client = dicey_client_list_begin(server->clients); client < end; ++client) {
@@ -685,7 +704,7 @@ static enum dicey_error raise_event(
 
         struct outbound_packet event = { .kind = DICEY_OP_EVENT, .shared = shared_pkt };
 
-        const enum dicey_error err = server_sendpkt(server, *client, event);
+        err = server_sendpkt(server, *client, event);
         if (err) {
             // deref, we failed this send
             dicey_shared_packet_unref(shared_pkt);
@@ -1376,6 +1395,8 @@ enum dicey_error dicey_server_new(struct dicey_server **const dest, const struct
 
     *server = (struct dicey_server) {
         .on_error = &dummy_error_handler,
+
+        .seq_cnt = 1U, // server-initiated seq numbers are always odd
 
         .clients = NULL,
     };

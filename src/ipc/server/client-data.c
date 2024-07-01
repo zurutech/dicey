@@ -83,8 +83,6 @@ struct dicey_client_data *dicey_client_data_new(struct dicey_server *const paren
     }
 
     *new_client = (struct dicey_client_data) {
-        .seq_cnt = 1U, // server-initiated packets are odd
-
         .info = {
             .id = id,
         },
@@ -94,18 +92,6 @@ struct dicey_client_data *dicey_client_data_new(struct dicey_server *const paren
     };
 
     return new_client;
-}
-
-uint32_t dicey_client_data_next_seq(struct dicey_client_data *const client) {
-    const uint32_t next = client->seq_cnt;
-
-    client->seq_cnt += 2U;
-
-    if (client->seq_cnt < next) {
-        abort(); // TODO: handle overflow
-    }
-
-    return next;
 }
 
 bool dicey_client_data_is_subscribed(const struct dicey_client_data *const client, const char *const elemdescr) {
