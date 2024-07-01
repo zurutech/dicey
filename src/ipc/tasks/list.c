@@ -31,12 +31,15 @@
     (uv_timespec64_t) { 0 }
 
 static int32_t add_wrapping(int32_t *const a, const int32_t b, const int32_t max) {
-    const imaxdiv_t a_div = imaxdiv(*a, max);
-    const imaxdiv_t b_div = imaxdiv(b, max);
+    const intmax_t a_quot = (intmax_t) *a / (intmax_t) max;
+    const intmax_t a_rem = (intmax_t) *a % (intmax_t) max;
 
-    *a = (int32_t) (a_div.rem + b_div.rem) % max;
+    const intmax_t b_quot = (intmax_t) b / (intmax_t) max;
+    const intmax_t b_rem = (intmax_t) b % (intmax_t) max;
 
-    return (int32_t) (a_div.quot + b_div.quot);
+    *a = (int32_t) (a_rem + b_rem) % max;
+
+    return (int32_t) (a_quot + b_quot);
 }
 
 static void task_list_erase_at(struct dicey_task_list *const list, const size_t entry) {
