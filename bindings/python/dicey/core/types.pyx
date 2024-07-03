@@ -23,7 +23,7 @@ from .errors import DiceyError
 @_dataclass(frozen=True)
 class Array:
     type: type
-    values: _Iterable
+    values: tuple 
 
     def __iter__(self) -> _Iterable:
         return iter(self.values)
@@ -34,7 +34,7 @@ class Array:
     def __getitem__(self, index: int) -> _Any:
         return self.values[index]
 
-@_dataclass(frozen=True, init=False, repr=False)
+@_dataclass(frozen=True, init=False, repr=False, eq=False)
 class Byte:
     value: int 
 
@@ -49,6 +49,19 @@ class Byte:
             raise ValueError("byte value out of range")
 
         object.__setattr__(self, 'value', int(value))
+
+    def __bytes__(self):
+        return bytes([self.value])
+    
+    def __eq__(self, other):
+        if isinstance(other, Byte):
+            return self.value == other.value
+        elif isinstance(other, str):
+            return str(self) == other
+        elif isinstance(other, bytes):
+            return bytes(self) == other
+        else:
+            return self.value == other
 
     def __int__(self):
         return self.value
@@ -132,11 +145,24 @@ class Path:
     def __str__(self):
         return self.value
 
-@_dataclass(frozen=True)
+@_dataclass(frozen=True, init=False)
 class Selector:
     """A selector is a pair of two ASCII trings identifying a specific element in a given trait"""
     trait: str
     elem: str
+
+    def __init__(self, trait: str | tuple, elem: str = None):
+        if isinstance(trait, tuple):
+            if elem is not None:
+                raise ValueError("selector can't be initialized with a tuple and an element")
+            
+            trait, elem = trait
+
+        if not trait.isascii() or not elem.isascii():
+            raise ValueError("selectors must be ASCII strings")
+
+        object.__setattr__(self, 'trait', trait)
+        object.__setattr__(self, 'elem', elem)
 
     def __str__(self):
         return f"{self.trait}:{self.elem}"
