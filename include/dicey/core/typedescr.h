@@ -138,6 +138,14 @@ struct dicey_typedescr {
 };
 
 /**
+ * @brief Checks if the given view starts with a valid typedescr.
+ * @param view The view to inspect. The view must be valid and point to an array of characters. The view will be updated
+ *             to point to the first character after the typedescr.
+ * @return true if the view starts with a valid typedescr, false otherwise.
+ */
+DICEY_EXPORT bool dicey_typedescr_in_view(struct dicey_view *view);
+
+/**
  * @brief Checks if the given typedescr is syntactically valid.
  * @note  This function is equivalent to `dicey_typedescr_parse(typedescr, &(struct dicey_typedescr) {0})`.
  * @param typedescr The typedescr to check.

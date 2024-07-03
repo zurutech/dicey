@@ -205,6 +205,7 @@ set(CORE_SOURCES
     src/wirefmt/dtf/payload.c
     src/wirefmt/dtf/payload.h
     src/wirefmt/dtf/to.h
+    src/wirefmt/typedescr.c
     src/wirefmt/dtf/value-probe.c
     src/wirefmt/dtf/value-write.c
     src/wirefmt/dtf/value.h
@@ -232,7 +233,6 @@ set(CORE_SOURCES
     src/ipc/elemdescr.h
     src/ipc/queue.c
     src/ipc/queue.h
-    src/ipc/typedescr.c
     src/ipc/uvtools.c
     src/ipc/uvtools.h
     
