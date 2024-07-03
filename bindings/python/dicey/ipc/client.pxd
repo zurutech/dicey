@@ -68,7 +68,7 @@ cdef extern from "dicey/dicey.h":
         dicey_error status
     )
 
-    ctypedef void dicey_client_event_fn(dicey_client *client, void *ctx, dicey_packet packet)
+    ctypedef void dicey_client_event_fn(dicey_client *client, void *ctx, dicey_packet *packet)
     ctypedef void dicey_client_inspect_fn(dicey_client *client, void *ctx, dicey_client_event event)
 
     cdef struct dicey_client_args:
@@ -95,7 +95,63 @@ cdef extern from "dicey/dicey.h":
 
     void *dicey_client_get_context(const dicey_client *client)
 
+    dicey_error dicey_client_inspect_path(
+        dicey_client *client,
+        const char *path,
+        dicey_packet *response,
+        uint32_t timeout
+    )
+
+    dicey_error dicey_client_inspect_path_async(
+        dicey_client *client,
+        const char *path,
+        dicey_client_on_reply_fn *cb,
+        void *data,
+        uint32_t timeout
+    )
+
+    dicey_error dicey_client_inspect_path_as_xml(
+        dicey_client *client,
+        const char *path,
+        dicey_packet *response,
+        uint32_t timeout
+    )
+    
+    dicey_error dicey_client_inspect_path_as_xml_async(
+        dicey_client *client,
+        const char *path,
+        dicey_client_on_reply_fn *cb,
+        void *data,
+        uint32_t timeout
+    )
+
     c_bool dicey_client_is_running(const dicey_client *client)
+
+    dicey_error dicey_client_list_objects(
+        dicey_client *client,
+        dicey_packet *response,
+        uint32_t timeout
+    )
+
+    dicey_error dicey_client_list_objects_async(
+        dicey_client *client,
+        dicey_client_on_reply_fn *cb,
+        void *data,
+        uint32_t timeout
+    )
+
+    dicey_error dicey_client_list_traits(
+        dicey_client *client,
+        dicey_packet *response,
+        uint32_t timeout
+    )
+
+    dicey_error dicey_client_list_traits_async(
+        dicey_client *client,
+        dicey_client_on_reply_fn *cb,
+        void *data,
+        uint32_t timeout
+    )
 
     dicey_error dicey_client_request(
         dicey_client *client,

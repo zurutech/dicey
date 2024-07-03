@@ -13,4 +13,4 @@
 # limitations under the License.
 
 from .address import Address
-from .client import Client, connect
+from .client import Client, Object, connect
