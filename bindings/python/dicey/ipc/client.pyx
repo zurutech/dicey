@@ -236,7 +236,9 @@ _PROPERTY = chr(dicey_element_type.DICEY_ELEMENT_TYPE_PROPERTY)
 _OPERATION = chr(dicey_element_type.DICEY_ELEMENT_TYPE_OPERATION)
 _SIGNAL = chr(dicey_element_type.DICEY_ELEMENT_TYPE_SIGNAL)
 
-def _craft_object_for(client: Client, path: Path | str, timeout_ms: int) -> Object:
+_INTROSPECTION_TRAIT = DICEY_INTROSPECTION_TRAIT_NAME.decode('ASCII')
+
+def _craft_object_for(client: Client, path: Path | str, timeout_ms: int, skip_introspect=True) -> Object:
     class ObjectImpl(Object):
         pass
 
@@ -245,6 +247,9 @@ def _craft_object_for(client: Client, path: Path | str, timeout_ms: int) -> Obje
     fields = {}
 
     for trait, elems in data.items():
+        if skip_introspect and trait == _INTROSPECTION_TRAIT:
+            continue
+
         for elem, info in elems.items():
             if len(info) == 3:
                 dtype, sig, ro = info
