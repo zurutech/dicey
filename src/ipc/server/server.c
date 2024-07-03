@@ -667,7 +667,8 @@ static enum dicey_error raise_event(
 ) {
     assert(server && msg);
 
-    struct dicey_shared_packet *shared_pkt = dicey_shared_packet_from(packet, 1U);
+    // start with 1, because if the first send fails, we risk prematurely freeing the packet
+    struct dicey_shared_packet *shared_pkt = dicey_shared_packet_from(packet, 1);
     if (!shared_pkt) {
         dicey_packet_deinit(&packet);
 
@@ -700,6 +701,7 @@ static enum dicey_error raise_event(
         }
 
         // hold the packet. We know the refcount will be equal to the number of events sent (because we hold the thread)
+        // + 1 (because this function is holding it too for now)
         dicey_shared_packet_ref(shared_pkt);
 
         struct outbound_packet event = { .kind = DICEY_OP_EVENT, .shared = shared_pkt };
@@ -710,6 +712,9 @@ static enum dicey_error raise_event(
             dicey_shared_packet_unref(shared_pkt);
         }
     }
+
+    // deref, we are done with the packet and its refcount has increased by the number of interested clients
+    dicey_shared_packet_unref(shared_pkt);
 
     return DICEY_OK;
 }
