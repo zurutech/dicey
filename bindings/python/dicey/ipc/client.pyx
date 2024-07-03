@@ -204,6 +204,9 @@ class Event:
     def register(self, callback: EventCallback):
         self._client.register_for(self._path, self._selector, callback)
 
+    def unregister(self, callback: EventCallback, *, unsubscribe: bool = True):
+        self._client.unregister_from(self._path, self._selector, callback, unsubscribe=unsubscribe)
+
 def connect(addr: Address | str, *, on_event: _Optional[GlobalEventCallback] = None) -> Client:
     cl = Client()
 
