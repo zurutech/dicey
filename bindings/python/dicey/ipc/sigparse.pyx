@@ -156,9 +156,16 @@ cdef tuple craft_wrapper(_Cursor cursor):
         # hack: wrap the wrapper in a wrapper to unwrap any one-value tuples
 
         def wrapper(value: object):
-            if isinstance(value, tuple) and len(value) == 1:
-                value = value[0]
+            if isinstance(value, tuple):
+                if len(value) == 1:
+                    value = value[0]
+                elif len(value) == 0: # the empty tuple is Unit, aka None
+                    value = None
                 
+            # do not attempt to pass empty objects to constructors
+            if value is None:
+                return target()
+
             return target(value)
 
         ret = (wrapper, target)
