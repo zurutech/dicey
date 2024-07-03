@@ -162,7 +162,7 @@ bool dicey_typedescr_in_view(struct dicey_view *view) {
     const size_t bytes_read = cur - beg;
     assert(bytes_read <= view->len);
 
-    *view = dicey_view_from(beg, view->len - bytes_read);
+    *view = dicey_view_from(cur, view->len - bytes_read);
 
     return true;
 }
