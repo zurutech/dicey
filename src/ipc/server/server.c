@@ -865,6 +865,14 @@ static ptrdiff_t client_got_message(struct dicey_client_data *const client, stru
     struct dicey_object_entry obj_entry = { 0 };
 
     if (!dicey_registry_get_object_entry(&server->registry, message.path, &obj_entry)) {
+        // not a fatal error: skip the seq and send an error response
+        const enum dicey_error skip_err = dicey_pending_request_skip(&client->pending, seq);
+        if (skip_err) {
+            dicey_packet_deinit(&packet);
+
+            return skip_err;
+        }
+
         const enum dicey_error repl_err = server_report_error(server, client, packet, DICEY_EPATH_NOT_FOUND);
 
         // get rid of packet
@@ -896,6 +904,14 @@ static ptrdiff_t client_got_message(struct dicey_client_data *const client, stru
 
     const enum dicey_error op_err = is_message_acceptable_for(*elem_entry.element, &message);
     if (op_err) {
+        // not a fatal error: skip the seq and send an error response
+        const enum dicey_error skip_err = dicey_pending_request_skip(&client->pending, seq);
+        if (skip_err) {
+            dicey_packet_deinit(&packet);
+
+            return skip_err;
+        }
+
         const enum dicey_error repl_err = server_report_error(server, client, packet, op_err);
 
         // get rid of packet
@@ -1382,6 +1398,7 @@ void dicey_server_delete(struct dicey_server *const server) {
     dicey_registry_deinit(&server->registry);
 
     free(server->clients);
+    free(server->scratchpad.data);
     free(server);
 }
 
