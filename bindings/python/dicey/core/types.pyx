@@ -137,6 +137,10 @@ class Path:
         if not self.value:
             raise ValueError("paths can't be empty")
 
+        # if the path is a Path object, convert it to a string first (shallow copy)
+        if isinstance(self.value, Path):
+            object.__setattr__(self, 'value', str(self.value))
+
         if not self.value.isascii():
             raise ValueError("paths must be ASCII strings")
 
