@@ -27,6 +27,7 @@
 #include <dicey/core/hashset.h>
 #include <dicey/core/hashtable.h>
 #include <dicey/core/views.h>
+#include <dicey/ipc/builtins/introspection.h>
 #include <dicey/ipc/registry.h>
 #include <dicey/ipc/traits.h>
 
@@ -34,7 +35,6 @@
 #include "sup/view-ops.h"
 
 #include "builtins/builtins.h"
-#include "builtins/introspection/introspection.h"
 
 #include "registry-internal.h"
 

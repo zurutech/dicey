@@ -14,6 +14,9 @@
  * limitations under the License.
  */
 
+#include "dicey/ipc/server.h"
+#include "dicey/core/builders.h"
+#include "dicey/core/packet.h"
 #define _CRT_NONSTDC_NO_DEPRECATE 1
 #include <assert.h>
 #include <inttypes.h>
@@ -29,6 +32,7 @@
 #include <dicey/dicey.h>
 
 #include <util/dumper.h>
+#include <util/getopt.h>
 #include <util/packet-dump.h>
 
 #include "sval.h"
@@ -49,9 +53,9 @@
 #define TIMER_STATE_KEY "$timer.state"
 
 #define DUMMY_PATH "/foo/bar"
-#define DUMMY_TRAIT "a.street.trait.named.Bob"
-#define DUMMY_ELEMENT "Bobbable"
-#define DUMMY_SIGNATURE "([b]bfeec${sv})"
+#define DUMMY_TRAIT "dummy.Trait"
+#define DUMMY_POINTS_ELEMENT "Points"
+#define DUMMY_POINTS_SIG "[{ff}]"
 
 #define SELF_PATH "/dicey/sample_server"
 #define SELF_TRAIT "dicey.sample.Server"
@@ -77,6 +81,29 @@
 #define TEST_OBJ_NAME_SIGNATURE "s"
 
 static struct dicey_server *global_server = NULL;
+static bool print_logs = false;
+
+int out(const char *fmt, ...) {
+    if (!print_logs) {
+        return 0;
+    }
+
+    va_list args;
+    va_start(args, fmt);
+
+    int ret = vfprintf(stdout, fmt, args);
+
+    va_end(args);
+
+    return ret;
+}
+
+static inline void dump_packet(const struct dicey_packet packet) {
+    if (print_logs) {
+        struct util_dumper dumper = util_dumper_for(stdout);
+        util_dumper_dump_packet(&dumper, packet);
+    }
+}
 
 #if defined(_WIN32)
 
@@ -144,8 +171,9 @@ static const struct test_trait test_traits[] = {
             (const struct test_element *[]) {
                 &(struct test_element) {
                     .type = DICEY_ELEMENT_TYPE_PROPERTY,
-                    .name = DUMMY_ELEMENT,
-                    .signature = DUMMY_SIGNATURE,
+                    .name = DUMMY_POINTS_ELEMENT,
+                    .signature = DUMMY_POINTS_SIG,
+                    .readonly = true,
                 },
                 NULL,
             }, },
@@ -251,6 +279,116 @@ struct timer_state {
     uv_timeval64_t target;
     bool quit;
 };
+
+struct dummy_points {
+    double x, y;
+} points[] = {
+    {.x = 1.0,   .y = 2.0 },
+    { .x = 3.2,  .y = -4.5},
+    { .x = 5.0,  .y = 6.0 },
+    { .x = 7.4,  .y = -8.9},
+    { .x = -9.0, .y = 10.0},
+};
+
+static enum dicey_error craft_dummy_points(struct dicey_packet *const dest, const uint32_t seq) {
+    assert(dest);
+
+    struct dicey_message_builder builder = { 0 };
+    enum dicey_error err = dicey_message_builder_init(&builder);
+    if (err) {
+        goto fail;
+    }
+
+    err = dicey_message_builder_begin(&builder, DICEY_OP_RESPONSE);
+    if (err) {
+        goto fail;
+    }
+
+    err = dicey_message_builder_set_seq(&builder, seq);
+    if (err) {
+        goto fail;
+    }
+
+    err = dicey_message_builder_set_path(&builder, DUMMY_PATH);
+    if (err) {
+        goto fail;
+    }
+
+    err = dicey_message_builder_set_selector(
+        &builder,
+        (struct dicey_selector) {
+            .trait = DUMMY_TRAIT,
+            .elem = DUMMY_POINTS_ELEMENT,
+        }
+    );
+
+    if (err) {
+        goto fail;
+    }
+
+    struct dicey_value_builder value_builder = { 0 };
+    err = dicey_message_builder_value_start(&builder, &value_builder);
+    if (err) {
+        goto fail;
+    }
+
+    err = dicey_value_builder_array_start(&value_builder, DICEY_TYPE_PAIR);
+    if (err) {
+        goto fail;
+    }
+
+    struct dicey_value_builder point_builder = { 0 };
+    const struct dummy_points *const points_end = points + sizeof(points) / sizeof(points[0]);
+
+    for (const struct dummy_points *point = points; point < points_end; ++point) {
+        err = dicey_value_builder_next(&value_builder, &point_builder);
+        if (err) {
+            goto fail;
+        }
+
+        err = dicey_value_builder_pair_start(&point_builder);
+        if (err) {
+            goto fail;
+        }
+
+        struct dicey_value_builder item = { 0 };
+        const double items[2U] = { point->x, point->y };
+
+        for (size_t i = 0U; i < 2U; ++i) {
+            err = dicey_value_builder_next(&point_builder, &item);
+            if (err) {
+                goto fail;
+            }
+
+            err = dicey_value_builder_set(&item, (struct dicey_arg) { .type = DICEY_TYPE_FLOAT, .floating = items[i] });
+            if (err) {
+                goto fail;
+            }
+        }
+
+        err = dicey_value_builder_pair_end(&point_builder);
+        if (err) {
+            goto fail;
+        }
+    }
+
+    err = dicey_value_builder_array_end(&value_builder);
+    if (err) {
+        goto fail;
+    }
+
+    err = dicey_message_builder_value_end(&builder, &value_builder);
+    if (err) {
+        goto fail;
+    }
+
+    return dicey_message_builder_build(&builder, dest);
+
+fail:
+    dicey_message_builder_discard(&builder);
+
+    return err;
+}
 
 static enum dicey_error craft_timer_event(struct dicey_packet *const dest, const uv_timeval64_t tv) {
     assert(dest);
@@ -497,7 +635,7 @@ static enum dicey_error registry_fill(struct dicey_registry *const registry) {
 static bool on_client_connect(struct dicey_server *const server, const size_t id, void **const user_data) {
     (void) server;
 
-    printf("info: client %zu connected\n", id);
+    out("info: client %zu connected\n", id);
 
     *user_data = NULL;
 
@@ -507,7 +645,7 @@ static bool on_client_connect(struct dicey_server *const server, const size_t id
 static void on_client_disconnect(struct dicey_server *const server, const struct dicey_client_info *const cln) {
     (void) server;
 
-    printf("info: client %zu disconnected\n", cln->id);
+    out("info: client %zu disconnected\n", cln->id);
 }
 
 static void on_client_error(
@@ -553,6 +691,26 @@ static enum dicey_error send_reply(
     err = dicey_server_send_response(server, cln->id, packet);
     if (err) {
         dicey_packet_deinit(&packet);
+        return err;
+    }
+
+    return DICEY_OK;
+}
+
+static enum dicey_error on_dummy_points_req(struct dicey_server *const server, const size_t id, const uint32_t seq) {
+    assert(server && seq); // seq != 0
+
+    struct dicey_packet packet = { 0 };
+
+    enum dicey_error err = craft_dummy_points(&packet, seq);
+    if (err) {
+        return err;
+    }
+
+    err = dicey_server_send_response(server, id, packet);
+    if (err) {
+        dicey_packet_deinit(&packet);
+
         return err;
     }
 
@@ -859,21 +1017,17 @@ static void on_request_received(
         return;
     }
 
-    printf(
-        "info: received request #%" PRIu32 " from client %zu for `%s#%s:%s`\n",
+    out("info: received request #%" PRIu32 " from client %zu for `%s#%s:%s`\n",
         seq,
         cln->id,
         msg.path,
         msg.selector.trait,
-        msg.selector.elem
-    );
+        msg.selector.elem);
 
-    struct util_dumper dumper = util_dumper_for(stdout);
+    dump_packet(packet);
 
-    util_dumper_dump_packet(&dumper, packet);
-
-    if (matches_elem(&msg, DUMMY_PATH, DUMMY_TRAIT, DUMMY_ELEMENT)) {
-        err = send_reply(server, cln, seq, msg.path, msg.selector, (struct dicey_arg) { .type = DICEY_TYPE_UNIT });
+    if (matches_elem(&msg, DUMMY_PATH, DUMMY_TRAIT, DUMMY_POINTS_ELEMENT)) {
+        err = on_dummy_points_req(server, cln->id, seq);
 
         if (err) {
             fprintf(stderr, "error: %s\n", dicey_error_msg(err));
@@ -921,7 +1075,54 @@ static enum dicey_error remove_socket_if_present(void) {
 }
 #endif
 
-int main(void) {
+#define HELP_MSG                                                                                                       \
+    "Usage: %s [options...]\n"                                                                                         \
+    "  -h  print this help message and exit\n"                                                                         \
+    "  -v  print info\n"
+
+static void print_help(const char *const progname, FILE *const out) {
+    fprintf(out, HELP_MSG, progname);
+}
+
+int main(const int argc, char *const argv[]) {
+    (void) argc;
+
+    const char *const progname = argv[0];
+
+    int opt = 0;
+
+    while ((opt = getopt(argc, argv, "hv")) != -1) {
+        switch (opt) {
+        case 'h':
+            print_help(progname, stdout);
+            return EXIT_SUCCESS;
+
+        case 'v':
+            print_logs = true;
+            break;
+
+        case '?':
+            if (optopt == 'o') {
+                fputs("error: -o requires an argument\n", stderr);
+            } else {
+                fprintf(stderr, "error: unknown option -%c\n", optopt);
+            }
+
+            print_help(progname, stderr);
+            return EXIT_FAILURE;
+
+        default:
+            abort();
+        }
+    }
+
+    if (argc - optind) {
+        fputs("error: too many arguments\n", stderr);
+
+        print_help(progname, stderr);
+        return EXIT_FAILURE;
+    }
+
     struct dicey_hashtable **ctx = NULL;
 
     struct timer_state tstate = { 0 };
@@ -970,7 +1171,7 @@ int main(void) {
         goto quit;
     }
 
-    puts("starting Dicey sample server on " PIPE_NAME "...");
+    out("starting Dicey sample server on " PIPE_NAME "...\n");
 
     ctx = malloc(sizeof *ctx);
     if (!ctx) {

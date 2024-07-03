@@ -147,6 +147,26 @@ static bool parse_type(const char **const cur, const char *const end) {
     }
 }
 
+bool dicey_typedescr_in_view(struct dicey_view *view) {
+    assert(view);
+
+    const char *const beg = view->data;
+    const char *cur = beg;
+
+    if (!parse_type(&cur, cur + view->len)) {
+        return false;
+    }
+
+    assert(cur >= beg);
+
+    const size_t bytes_read = cur - beg;
+    assert(bytes_read <= view->len);
+
+    *view = dicey_view_from(cur, view->len - bytes_read);
+
+    return true;
+}
+
 bool dicey_typedescr_is_valid(const char *const typedescr) {
     return dicey_typedescr_parse(typedescr, &(struct dicey_typedescr) { 0 });
 }

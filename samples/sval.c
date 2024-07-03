@@ -30,11 +30,11 @@
 
 #include <dicey/dicey.h>
 
-#include "util/dumper.h"
-#include "util/getopt.h"
-#include "util/packet-dump.h"
-#include "util/packet-json.h"
-#include "util/packet-xml.h"
+#include <util/dumper.h>
+#include <util/getopt.h>
+#include <util/packet-dump.h>
+#include <util/packet-json.h>
+#include <util/packet-xml.h>
 
 #include "sval.h"
 
@@ -88,15 +88,15 @@ static void inspector(struct dicey_client *const client, void *const ctx, struct
     }
 }
 
-static void on_client_event(struct dicey_client *const client, void *const ctx, const struct dicey_packet packet) {
+static void on_client_event(struct dicey_client *const client, void *const ctx, struct dicey_packet *const packet) {
     (void) client;
     (void) ctx;
 
-    assert(client);
+    assert(client && packet);
 
     struct util_dumper dumper = util_dumper_for(stdout);
     util_dumper_printlnf(&dumper, "received event:");
-    util_dumper_dump_packet(&dumper, packet);
+    util_dumper_dump_packet(&dumper, *packet);
 }
 
 static int do_op(const char *const addr, const char *const value, const enum reqtime_mode show_time) {
@@ -225,8 +225,6 @@ static void print_help(const char *const progname, FILE *const out) {
 }
 
 int main(const int argc, char *const *argv) {
-    (void) argc;
-
     const char *const progname = argv[0];
     const char *val = NULL;
     char *socket = NULL;

@@ -61,6 +61,23 @@ static void free_elem(void *const elem) {
     }
 }
 
+const char *dicey_element_type_name(const enum dicey_element_type type) {
+    switch (type) {
+    case DICEY_ELEMENT_TYPE_OPERATION:
+        return "operation";
+
+    case DICEY_ELEMENT_TYPE_PROPERTY:
+        return "property";
+
+    case DICEY_ELEMENT_TYPE_SIGNAL:
+        return "signal";
+
+    default:
+        assert(false); // should never be reached
+        return ">>invalid<<";
+    }
+}
+
 enum dicey_error dicey_trait_add_element(
     struct dicey_trait *const trait,
     const char *const name,

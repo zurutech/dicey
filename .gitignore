@@ -113,3 +113,7 @@ crash-*
 
 # Python venv
 .venv
+.pypy
+
+# PyPy likes to create this folder for some reason
+bindings/python/init

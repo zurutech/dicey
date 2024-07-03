@@ -25,6 +25,7 @@
 #include <dicey/core/hashset.h>
 #include <dicey/core/hashtable.h>
 #include <dicey/core/type.h>
+#include <dicey/ipc/builtins/introspection.h>
 #include <dicey/ipc/registry.h>
 #include <dicey/ipc/traits.h>
 
@@ -77,30 +78,11 @@ static enum dicey_error populate_element_kind(
 ) {
     assert(value);
 
-    char kind = 0;
-    switch (type) {
-    case DICEY_ELEMENT_TYPE_PROPERTY:
-        kind = 'p';
-        break;
-
-    case DICEY_ELEMENT_TYPE_SIGNAL:
-        kind = 's';
-        break;
-
-    case DICEY_ELEMENT_TYPE_OPERATION:
-        kind = 'o';
-        break;
-
-    default:
-        assert(false); // should never be reached
-        return TRACE(DICEY_EINVAL);
-    }
-
     return dicey_value_builder_set(
         value,
         (struct dicey_arg) {
             .type = DICEY_TYPE_BYTE,
-            .byte = (dicey_byte) kind,
+            .byte = (dicey_byte) type,
         }
     );
 }
@@ -525,42 +507,7 @@ enum dicey_error introspection_dump_object(
         return err;
     }
 
-    err = dicey_value_builder_pair_start(&value_builder);
-    if (err) {
-        return err;
-    }
-
-    struct dicey_value_builder path_builder = { 0 };
-    err = dicey_value_builder_next(&value_builder, &path_builder);
-    if (err) {
-        return err;
-    }
-
-    err = dicey_value_builder_set(
-        &path_builder,
-        (struct dicey_arg) {
-            .type = DICEY_TYPE_PATH,
-            .str = path,
-        }
-    );
-
-    if (err) {
-        return err;
-    }
-
-    struct dicey_value_builder tlist_builder = { 0 };
-    err = dicey_value_builder_next(&value_builder, &tlist_builder);
-
-    if (err) {
-        return err;
-    }
-
-    err = populate_object_traitlist(registry, obj->traits, &tlist_builder);
-    if (err) {
-        return err;
-    }
-
-    err = dicey_value_builder_pair_end(&value_builder);
+    err = populate_object_traitlist(registry, obj->traits, &value_builder);
     if (err) {
         return err;
     }

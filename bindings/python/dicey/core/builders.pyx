@@ -327,6 +327,10 @@ def _converter_for(type t) -> _Callable:
 cdef void dump_value(dicey_value_builder *const value, object obj, list obj_cache, type as_type = None):
     assert isinstance(obj_cache, list)
 
+    # hack: the empty tuple should be considered a unit value. Replace () with None.
+    if isinstance(obj, tuple) and not obj:
+        obj = None
+
     assoc_conv = _converter_for(as_type if as_type else type(obj))
     
     if assoc_conv:

@@ -86,13 +86,23 @@ static bool checksig(struct dicey_view *const sig, const struct dicey_value *con
             struct dicey_list list = { 0 };
             DICEY_ASSUME(dicey_value_get_array(value, &list));
 
-            const uint16_t array_ty = take_elem(sig);
+            // The buffer here is like `t]`
+            // we must get the first byte of the signature, but we don't want to consume it.
+            // Copy the view instead.
+            struct dicey_view sig_copy = *sig;
+            const uint16_t array_ty = take_elem(&sig_copy);
             assert(array_ty != DICEY_TYPE_INVALID); // the signature is assumed valid
 
             if (!is_compatible(dicey_list_type(&list), array_ty)) {
                 return false;
             }
 
+            // we must now slurp the inner array signature using the signature parser, otherwise we will be out of sync
+            const bool valid = dicey_typedescr_in_view(sig);
+            assert(valid);
+            (void) valid; // MSVC again
+
+            // this now ought to be the missing closing bracket.
             const int cpar = skip_char(sig);
             assert(cpar == ']'); // TODO: export this as a constant, this requires a new header though
             (void) cpar; // MSVC discards the assert before parsing it, so cpar appears unused: (void) is the historic

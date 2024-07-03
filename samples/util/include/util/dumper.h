@@ -26,6 +26,7 @@
 struct util_dumper {
     FILE *dest;
     unsigned pad;
+    char padchar;
     bool newline;
 };
 
@@ -33,6 +34,7 @@ static inline struct util_dumper util_dumper_for(FILE *const dest) {
     return (struct util_dumper) {
         .dest = dest,
         .pad = 0U,
+        .padchar = ' ',
         .newline = true,
     };
 }

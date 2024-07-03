@@ -33,6 +33,8 @@
 #include <dicey/core/type.h>
 #include <dicey/core/value.h>
 #include <dicey/ipc/address.h>
+#include <dicey/ipc/builtins/introspection.h>
+#include <dicey/ipc/builtins/server.h>
 #include <dicey/ipc/client.h>
 
 #include "sup/asprintf.h"
@@ -41,7 +43,6 @@
 #include "sup/util.h"
 
 #include "ipc/chunk.h"
-#include "ipc/server/builtins/server/server.h"
 #include "ipc/tasks/io.h"
 #include "ipc/tasks/list.h"
 #include "ipc/tasks/loop.h"
@@ -391,7 +392,7 @@ static void client_got_packet(struct dicey_client *const client, struct dicey_pa
     if (is_event) {
         assert(client->on_event);
 
-        client->on_event(client, dicey_client_get_context(client), packet);
+        client->on_event(client, dicey_client_get_context(client), &packet);
     } else {
         // the packet is a response or hello, so it must match with something in our waiting list. If it doesn't, it may
         // have timed out
@@ -1032,18 +1033,15 @@ static enum dicey_error client_subunsub(
     enum dicey_error err = DICEY_OK;
 
     const struct dicey_arg payload = {
-        .type = DICEY_TYPE_TUPLE,
-        .tuple = {
-            .nitems = 2U,
-            .elems = (const struct dicey_arg[]) {
-                {
+        .type = DICEY_TYPE_PAIR,
+        .pair = {
+            .first = &(struct dicey_arg) {
                     .type = DICEY_TYPE_PATH,
                     .str = path,
-                },
-                {
+            },
+            .second = &(struct dicey_arg) {
                     .type = DICEY_TYPE_SELECTOR,
                     .selector = sel,
-                },
             },
         },
     };
@@ -1270,10 +1268,142 @@ void *dicey_client_get_context(const struct dicey_client *client) {
     return client->ctx;
 }
 
+enum dicey_error dicey_client_inspect_path(
+    struct dicey_client *const client,
+    const char *const path,
+    struct dicey_packet *const response,
+    const uint32_t timeout
+) {
+    return dicey_client_get(
+        client,
+        path,
+        (struct dicey_selector) {
+            .trait = DICEY_INTROSPECTION_TRAIT_NAME,
+            .elem = DICEY_INTROSPECTION_DATA_PROP_NAME,
+        },
+        response,
+        timeout
+    );
+}
+
+enum dicey_error dicey_client_inspect_path_async(
+    struct dicey_client *const client,
+    const char *const path,
+    dicey_client_on_reply_fn *const cb,
+    void *const data,
+    const uint32_t timeout
+) {
+    return dicey_client_get_async(
+        client,
+        path,
+        (struct dicey_selector) {
+            .trait = DICEY_INTROSPECTION_TRAIT_NAME,
+            .elem = DICEY_INTROSPECTION_DATA_PROP_NAME,
+        },
+        cb,
+        data,
+        timeout
+    );
+}
+
+enum dicey_error dicey_client_inspect_path_as_xml(
+    struct dicey_client *const client,
+    const char *const path,
+    struct dicey_packet *const response,
+    const uint32_t timeout
+) {
+    return dicey_client_get(
+        client,
+        path,
+        (struct dicey_selector) {
+            .trait = DICEY_INTROSPECTION_TRAIT_NAME,
+            .elem = DICEY_INTROSPECTION_XML_PROP_NAME,
+        },
+        response,
+        timeout
+    );
+}
+
 bool dicey_client_is_running(const struct dicey_client *const client) {
     assert(client);
 
     return client->state == CLIENT_STATE_RUNNING;
+}
+
+enum dicey_error dicey_client_list_objects(
+    struct dicey_client *const client,
+    struct dicey_packet *const response,
+    const uint32_t timeout
+) {
+    assert(client && response);
+
+    return dicey_client_get(
+        client,
+        DICEY_REGISTRY_PATH,
+        (struct dicey_selector) {
+            .trait = DICEY_REGISTRY_TRAIT_NAME,
+            .elem = DICEY_REGISTRY_OBJECTS_PROP_NAME,
+        },
+        response,
+        timeout
+    );
+}
+
+enum dicey_error dicey_client_list_objects_async(
+    struct dicey_client *const client,
+    dicey_client_on_reply_fn *const cb,
+    void *const data,
+    const uint32_t timeout
+) {
+    assert(client && cb);
+
+    return dicey_client_get_async(
+        client,
+        DICEY_REGISTRY_PATH,
+        (struct dicey_selector) {
+            .trait = DICEY_REGISTRY_TRAIT_NAME,
+            .elem = DICEY_REGISTRY_OBJECTS_PROP_NAME,
+        },
+        cb,
+        data,
+        timeout
+    );
+}
+
+enum dicey_error dicey_client_list_traits(
+    struct dicey_client *const client,
+    struct dicey_packet *const response,
+    const uint32_t timeout
+) {
+    return dicey_client_get(
+        client,
+        DICEY_REGISTRY_PATH,
+        (struct dicey_selector) {
+            .trait = DICEY_REGISTRY_TRAIT_NAME,
+            .elem = DICEY_REGISTRY_TRAITS_PROP_NAME,
+        },
+        response,
+        timeout
+    );
+}
+
+enum dicey_error dicey_client_list_traits_async(
+    struct dicey_client *const client,
+    dicey_client_on_reply_fn *const cb,
+    void *const data,
+    const uint32_t timeout
+) {
+    return dicey_client_get_async(
+        client,
+        DICEY_REGISTRY_PATH,
+        (struct dicey_selector) {
+            .trait = DICEY_REGISTRY_TRAIT_NAME,
+            .elem = DICEY_REGISTRY_TRAITS_PROP_NAME,
+        },
+        cb,
+        data,
+        timeout
+    );
 }
 
 enum dicey_error dicey_client_disconnect(struct dicey_client *const client) {

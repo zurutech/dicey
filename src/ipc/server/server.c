@@ -207,6 +207,8 @@ struct dicey_server {
 
     _Atomic enum server_state state;
 
+    uint32_t seq_cnt; // used for ALL server-initiated packets. Starts with 1, and will roll over after UINT32_MAX.
+
     // super ugly way to unlock the callers of dicey_server_stop when the server is actually stopped
     // avoiding this would probably require to use the same task system the client uses - which is way more complex than
     // whatever the server needs
@@ -567,6 +569,16 @@ static enum dicey_error server_finalize_shutdown(struct dicey_server *const serv
     return DICEY_OK;
 }
 
+static uint32_t server_next_seq(struct dicey_server *const server) {
+    assert(server);
+
+    const uint32_t seq = server->seq_cnt;
+
+    server->seq_cnt += 2U; // will roll over after UINT32_MAX
+
+    return seq;
+}
+
 static enum dicey_error server_kick_client(
     struct dicey_server *const server,
     struct dicey_client_data *const client,
@@ -576,7 +588,7 @@ static enum dicey_error server_kick_client(
 
     struct outbound_packet packet = { .kind = DICEY_OP_RESPONSE };
 
-    enum dicey_error err = dicey_packet_bye(&packet.single, dicey_client_data_next_seq(client), reason);
+    enum dicey_error err = dicey_packet_bye(&packet.single, server_next_seq(server), reason);
     if (err) {
         return err;
     }
@@ -655,7 +667,8 @@ static enum dicey_error raise_event(
 ) {
     assert(server && msg);
 
-    struct dicey_shared_packet *shared_pkt = dicey_shared_packet_from(packet, 1U);
+    // start with 1, because if the first send fails, we risk prematurely freeing the packet
+    struct dicey_shared_packet *shared_pkt = dicey_shared_packet_from(packet, 1);
     if (!shared_pkt) {
         dicey_packet_deinit(&packet);
 
@@ -667,6 +680,13 @@ static enum dicey_error raise_event(
         dicey_shared_packet_unref(shared_pkt);
 
         return TRACE(DICEY_ENOMEM);
+    }
+
+    enum dicey_error err = dicey_packet_set_seq(dicey_shared_packet_borrow(shared_pkt), server_next_seq(server));
+    if (err) {
+        dicey_shared_packet_unref(shared_pkt);
+
+        return err;
     }
 
     // iterate all clients and check if they should receive the event
@@ -681,16 +701,20 @@ static enum dicey_error raise_event(
         }
 
         // hold the packet. We know the refcount will be equal to the number of events sent (because we hold the thread)
+        // + 1 (because this function is holding it too for now)
         dicey_shared_packet_ref(shared_pkt);
 
         struct outbound_packet event = { .kind = DICEY_OP_EVENT, .shared = shared_pkt };
 
-        const enum dicey_error err = server_sendpkt(server, *client, event);
+        err = server_sendpkt(server, *client, event);
         if (err) {
             // deref, we failed this send
             dicey_shared_packet_unref(shared_pkt);
         }
     }
+
+    // deref, we are done with the packet and its refcount has increased by the number of interested clients
+    dicey_shared_packet_unref(shared_pkt);
 
     return DICEY_OK;
 }
@@ -846,6 +870,14 @@ static ptrdiff_t client_got_message(struct dicey_client_data *const client, stru
     struct dicey_object_entry obj_entry = { 0 };
 
     if (!dicey_registry_get_object_entry(&server->registry, message.path, &obj_entry)) {
+        // not a fatal error: skip the seq and send an error response
+        const enum dicey_error skip_err = dicey_pending_request_skip(&client->pending, seq);
+        if (skip_err) {
+            dicey_packet_deinit(&packet);
+
+            return skip_err;
+        }
+
         const enum dicey_error repl_err = server_report_error(server, client, packet, DICEY_EPATH_NOT_FOUND);
 
         // get rid of packet
@@ -877,6 +909,14 @@ static ptrdiff_t client_got_message(struct dicey_client_data *const client, stru
 
     const enum dicey_error op_err = is_message_acceptable_for(*elem_entry.element, &message);
     if (op_err) {
+        // not a fatal error: skip the seq and send an error response
+        const enum dicey_error skip_err = dicey_pending_request_skip(&client->pending, seq);
+        if (skip_err) {
+            dicey_packet_deinit(&packet);
+
+            return skip_err;
+        }
+
         const enum dicey_error repl_err = server_report_error(server, client, packet, op_err);
 
         // get rid of packet
@@ -1350,7 +1390,7 @@ void dicey_server_delete(struct dicey_server *const server) {
         (void) dicey_server_stop_and_wait(server);
     }
 
-    const int uverr = uv_loop_close(&server->loop);
+    int uverr = uv_loop_close(&server->loop);
     if (uverr == UV_EBUSY) {
         // hail mary attempt at closing any handles left. This is 99% likely only triggered whenever the loop was never
         // run at all, so there are only empty handles to free up
@@ -1358,11 +1398,15 @@ void dicey_server_delete(struct dicey_server *const server) {
         uv_walk(&server->loop, &close_all_handles, NULL);
 
         uv_run(&server->loop, UV_RUN_DEFAULT); // should return whenever all uv_close calls are done
+
+        uverr = uv_loop_close(&server->loop); // just quit, we don't care what happens
+        assert(!uverr);
     }
 
     dicey_registry_deinit(&server->registry);
 
     free(server->clients);
+    free(server->scratchpad.data);
     free(server);
 }
 
@@ -1376,6 +1420,8 @@ enum dicey_error dicey_server_new(struct dicey_server **const dest, const struct
 
     *server = (struct dicey_server) {
         .on_error = &dummy_error_handler,
+
+        .seq_cnt = 1U, // server-initiated seq numbers are always odd
 
         .clients = NULL,
     };

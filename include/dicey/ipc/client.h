@@ -123,9 +123,11 @@ typedef void dicey_client_on_sub_unsub_done_fn(struct dicey_client *client, void
  * @param client The client this callback is associated with.
  * @param ctx    The global context of `client`, as obtained via `dicey_client_get_context()`. This is provided for
  * convenience.
- * @param packet  The event packet that was received. This is guaranteed to be a valid message containing an event.
+ * @param packet The event packet that was received. This is guaranteed to be a valid message containing an event.
+ *               The event handler can take ownership of the packet by zeroing it out. This will prevent the client
+ *               from freeing it.
  */
-typedef void dicey_client_event_fn(struct dicey_client *client, void *ctx, struct dicey_packet packet);
+typedef void dicey_client_event_fn(struct dicey_client *client, void *ctx, struct dicey_packet *packet);
 
 /**
  * @brief Represents a callback function that is called whenever anything happens in the client.
@@ -240,6 +242,7 @@ DICEY_EXPORT enum dicey_error dicey_client_disconnect_async(
  *                 - EINVAL: the client is in the wrong state (i.e. not connected)
  *                 - ETIMEDOUT: the request timed out
  *                 - ENOMEM: memory allocation failed (out of memory)
+ *                 - ESIGNATURE_MISMATCH: failed to match the signature of the operation
  */
 DICEY_EXPORT enum dicey_error dicey_client_exec(
     struct dicey_client *client,
@@ -266,6 +269,7 @@ DICEY_EXPORT enum dicey_error dicey_client_exec(
  *               - OK: the request was successfully submitted for sending
  *               - EINVAL: the client is in the wrong state (i.e. not connected)
  *               - ENOMEM: memory allocation failed (out of memory)
+ *               - ESIGNATURE_MISMATCH: failed to match the signature of the operation
  */
 DICEY_EXPORT enum dicey_error dicey_client_exec_async(
     struct dicey_client *client,
@@ -292,6 +296,7 @@ DICEY_EXPORT enum dicey_error dicey_client_exec_async(
  *                 - EINVAL: the client is in the wrong state (i.e. not connected)
  *                 - ETIMEDOUT: the request timed out
  *                 - ENOMEM: memory allocation failed (out of memory)
+ *                 - ESIGNATURE_MISMATCH: failed to match the signature of the property
  */
 DICEY_EXPORT enum dicey_error dicey_client_get(
     struct dicey_client *client,
@@ -316,6 +321,7 @@ DICEY_EXPORT enum dicey_error dicey_client_get(
  *               - OK: the request was successfully submitted for sending
  *               - EINVAL: the client is in the wrong state (i.e. not connected)
  *               - ENOMEM: memory allocation failed (out of memory)
+ *               - ESIGNATURE_MISMATCH: failed to match the signature of the property
  */
 DICEY_EXPORT enum dicey_error dicey_client_get_async(
     struct dicey_client *client,
@@ -333,11 +339,174 @@ DICEY_EXPORT enum dicey_error dicey_client_get_async(
 DICEY_EXPORT void *dicey_client_get_context(const struct dicey_client *client);
 
 /**
+ * @brief Inspects the object at a given path.
+ * @param client   The client to send the request with.
+ * @param path     The object path to inspect.
+ * @param response The response packet, if the request was successful. Must be freed using `dicey_packet_deinit()` when
+ *                 done. The response packet is expected to have a signature as specified by the object's introspection
+ *                 trait.
+ * @param timeout  The maximum time to wait for a response, in milliseconds.
+ * @return         Error code. A (non-exhaustive) list of possible values are:
+ *                 - OK: the request was successfully sent and a response was received (`response` is valid)
+ *                 - EINVAL: the client is in the wrong state (i.e. not connected)
+ *                 - ETIMEDOUT: the request timed out
+ *                 - ENOMEM: memory allocation failed (out of memory)
+ *                 - EPATH_NOT_FOUND: the path was not found
+ */
+DICEY_EXPORT enum dicey_error dicey_client_inspect_path(
+    struct dicey_client *client,
+    const char *path,
+    struct dicey_packet *response,
+    uint32_t timeout
+);
+
+/**
+ * @brief Inspects the object at a given path, returning immediately and calling the provided callback when a response
+ *        is received or an error occurs.
+ * @param client The client to send the request with.
+ * @param path   The object path to inspect.
+ * @param cb     The callback to call when a response is received or an error occurs. The packet is expected to have a
+ *               signature as specified by the object's introspection trait.
+ * @param data   The context to pass to the callback.
+ * @param timeout The maximum time to wait for a response, in milliseconds.
+ * @return       Error code. A (non-exhaustive) list of possible values are:
+ *               - OK: the request was successfully submitted for sending
+ *               - EINVAL: the client is in the wrong state (i.e. not connected)
+ *               - ENOMEM: memory allocation failed (out of memory)
+ */
+DICEY_EXPORT enum dicey_error dicey_client_inspect_path_async(
+    struct dicey_client *client,
+    const char *path,
+    dicey_client_on_reply_fn *cb,
+    void *data,
+    uint32_t timeout
+);
+
+/**
+ * @brief Inspects the object at a given path as XML.
+ * @param client   The client to send the request with.
+ * @param path     The object path to inspect.
+ * @param response The response packet, if the request was successful. Must be freed using `dicey_packet_deinit()` when
+ *                 done. The response packet is expected to contain an XML file as a string.
+ * @param timeout  The maximum time to wait for a response, in milliseconds.
+ * @return         Error code. A (non-exhaustive) list of possible values are:
+ *                 - OK: the request was successfully sent and a response was received (`response` is valid)
+ *                 - EINVAL: the client is in the wrong state (i.e. not connected)
+ *                 - ETIMEDOUT: the request timed out
+ *                 - ENOMEM: memory allocation failed (out of memory)
+ *                 - EPATH_NOT_FOUND: the path was not found
+ */
+DICEY_EXPORT enum dicey_error dicey_client_inspect_path_as_xml(
+    struct dicey_client *client,
+    const char *path,
+    struct dicey_packet *response,
+    uint32_t timeout
+);
+
+/**
+ * @brief Inspects the object at a given path as XML, returning immediately and calling the provided callback when a
+ *        response is received or an error occurs.
+ * @param client The client to send the request with.
+ * @param path   The object path to inspect.
+ * @param cb     The callback to call when a response is received or an error occurs. The packet is expected to contain
+ *               an XML file as a string.
+ * @param data   The context to pass to the callback.
+ * @param timeout The maximum time to wait for a response, in milliseconds.
+ * @return       Error code. A (non-exhaustive) list of possible values are:
+ *               - OK: the request was successfully submitted for sending
+ *               - EINVAL: the client is in the wrong state (i.e. not connected)
+ *               - ENOMEM: memory allocation failed (out of memory)
+ */
+DICEY_EXPORT enum dicey_error dicey_client_inspect_path_as_xml_async(
+    struct dicey_client *client,
+    const char *path,
+    dicey_client_on_reply_fn *cb,
+    void *data,
+    uint32_t timeout
+);
+
+/**
  * @brief Returns true if the client is connected to a server, false otherwise.
  * @param client The client to check.
  * @return       True if the client is connected to a server, false otherwise.
  */
 DICEY_EXPORT bool dicey_client_is_running(const struct dicey_client *client);
+
+/**
+ * @brief Lists all objects on the server, blocking until a response is received or an error occurs.
+ * @param client   The client to send the request with.
+ * @param response The response packet, if the request was successful. Must be freed using `dicey_packet_deinit()` when
+ *                 done. The packet is expected to have a signature as specified by `DICEY_REGISTRY_OBJECTS_PROP_SIG`.
+ * @param timeout  The maximum time to wait for a response, in milliseconds.
+ * @return         Error code. A (non-exhaustive) list of possible values are:
+ *                 - OK: the request was successfully sent and a response was received (`response` is valid)
+ *                 - EINVAL: the client is in the wrong state (i.e. not connected)
+ *                 - ETIMEDOUT: the request timed out'
+ *                 - ENOMEM: memory allocation failed (out of memory)
+ */
+DICEY_EXPORT enum dicey_error dicey_client_list_objects(
+    struct dicey_client *client,
+    struct dicey_packet *response,
+    uint32_t timeout
+);
+
+/**
+ * @brief Lists all objects on the server, returning immediately and calling the provided callback when a response is
+ *        received or an error occurs.
+ * @param client  The client to send the request with.
+ * @param cb      The callback to call when a response is received or an error occurs. The packet is expected to have a
+ *                signature as specified by `DICEY_REGISTRY_OBJECTS_PROP_SIG`.
+ * @param data    The context to pass to the callback.
+ * @param timeout The maximum time to wait for a response, in milliseconds.
+ * @return        Error code. A (non-exhaustive) list of possible values are:
+ *                - OK: the request was successfully submitted for sending
+ *                - EINVAL: the client is in the wrong state (i.e. not connected)
+ *                - ENOMEM: memory allocation failed (out of memory)
+ */
+DICEY_EXPORT enum dicey_error dicey_client_list_objects_async(
+    struct dicey_client *client,
+    dicey_client_on_reply_fn *cb,
+    void *data,
+    uint32_t timeout
+);
+
+/**
+ * @brief Lists all traits on the server, blocking until a response is received or an error occurs.
+ * @param client   The client to send the request with.
+ * @param response The response packet, if the request was successful. Must be freed using `dicey_packet_deinit()` when
+ *                 done. The packet is expected to have a signature as specified by `DICEY_REGISTRY_TRAITS_PROP_SIG`.
+ * @param timeout  The maximum time to wait for a response, in milliseconds.
+ * @return         Error code. A (non-exhaustive) list of possible values are:
+ *                 - OK: the request was successfully sent and a response was received (`response` is valid)
+ *                 - EINVAL: the client is in the wrong state (i.e. not connected)
+ *                 - ETIMEDOUT: the request timed out'
+ *                 - ENOMEM: memory allocation failed (out of memory)
+ */
+DICEY_EXPORT enum dicey_error dicey_client_list_traits(
+    struct dicey_client *client,
+    struct dicey_packet *response,
+    uint32_t timeout
+);
+
+/**
+ * @brief Lists all traits on the server, returning immediately and calling the provided callback when a response is
+ *        received or an error occurs.
+ * @param client  The client to send the request with.
+ * @param cb      The callback to call when a response is received or an error occurs. The packet is expected to have a
+ *                signature as specified by `DICEY_REGISTRY_TRAITS_PROP_SIG`.
+ * @param data    The context to pass to the callback.
+ * @param timeout The maximum time to wait for a response, in milliseconds.
+ * @return        Error code. A (non-exhaustive) list of possible values are:
+ *                - OK: the request was successfully submitted for sending
+ *                - EINVAL: the client is in the wrong state (i.e. not connected)
+ *                - ENOMEM: memory allocation failed (out of memory)
+ */
+DICEY_EXPORT enum dicey_error dicey_client_list_traits_async(
+    struct dicey_client *client,
+    dicey_client_on_reply_fn *cb,
+    void *data,
+    uint32_t timeout
+);
 
 /**
  * @brief Sends a request to the server, blocking until a response is received or an error occurs.
@@ -351,6 +520,7 @@ DICEY_EXPORT bool dicey_client_is_running(const struct dicey_client *client);
  *                 - EINVAL: the client is in the wrong state (i.e. not connected)
  *                 - ETIMEDOUT: the request timed out
  *                 - ENOMEM: memory allocation failed (out of memory)
+ *                 - ESIGNATURE_MISMATCH: failed to match the signature of the property or operation
  */
 DICEY_EXPORT enum dicey_error dicey_client_request(
     struct dicey_client *client,
@@ -371,6 +541,7 @@ DICEY_EXPORT enum dicey_error dicey_client_request(
  *               - OK: the request was successfully submitted for sending
  *               - EINVAL: the client is in the wrong state (i.e. not connected)
  *               - ENOMEM: memory allocation failed (out of memory)
+ *               - ESIGNATURE_MISMATCH: failed to match the signature of the property or operation
  */
 DICEY_EXPORT enum dicey_error dicey_client_request_async(
     struct dicey_client *client,
@@ -394,6 +565,7 @@ DICEY_EXPORT enum dicey_error dicey_client_request_async(
  *                 - EINVAL: the client is in the wrong state (i.e. not connected)
  *                 - ETIMEDOUT: the request timed out
  *                 - ENOMEM: memory allocation failed (out of memory)
+ *                 - ESIGNATURE_MISMATCH: failed to match the signature of the property
  */
 DICEY_EXPORT enum dicey_error dicey_client_set(
     struct dicey_client *client,
@@ -419,6 +591,7 @@ DICEY_EXPORT enum dicey_error dicey_client_set(
  *               - OK: the request was successfully submitted for sending
  *               - EINVAL: the client is in the wrong state (i.e. not connected)
  *               - ENOMEM: memory allocation failed (out of memory)
+ *               - ESIGNATURE_MISMATCH: failed to match the signature of the property
  */
 DICEY_EXPORT enum dicey_error dicey_client_set_async(
     struct dicey_client *client,

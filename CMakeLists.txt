@@ -175,10 +175,15 @@ set(PUBLIC_HEADERS
 
     # ipc
     "include/dicey/ipc/address.h"
+    "include/dicey/ipc/builtins.h"
     "include/dicey/ipc/client.h"
     "include/dicey/ipc/registry.h"
     "include/dicey/ipc/server.h"
     "include/dicey/ipc/traits.h"
+
+    # ipc/builtins
+    "include/dicey/ipc/builtins/introspection.h"
+    "include/dicey/ipc/builtins/server.h"
 )
 
 set(CORE_SOURCES
@@ -200,6 +205,7 @@ set(CORE_SOURCES
     src/wirefmt/dtf/payload.c
     src/wirefmt/dtf/payload.h
     src/wirefmt/dtf/to.h
+    src/wirefmt/typedescr.c
     src/wirefmt/dtf/value-probe.c
     src/wirefmt/dtf/value-write.c
     src/wirefmt/dtf/value.h
@@ -227,7 +233,6 @@ set(CORE_SOURCES
     src/ipc/elemdescr.h
     src/ipc/queue.c
     src/ipc/queue.h
-    src/ipc/typedescr.c
     src/ipc/uvtools.c
     src/ipc/uvtools.h
     

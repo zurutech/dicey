@@ -12,7 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .errors  cimport dicey_error, _check
-from .packet  cimport _PacketWrapper, Message, dicey_packet
-from .type    cimport dicey_selector, dicey_type
-from .version cimport dicey_version
+cdef extern from "dicey/dicey.h":
+    cdef enum dicey_element_type:
+        DICEY_ELEMENT_TYPE_INVALID
+        DICEY_ELEMENT_TYPE_OPERATION
+        DICEY_ELEMENT_TYPE_PROPERTY
+        DICEY_ELEMENT_TYPE_SIGNAL
