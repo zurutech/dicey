@@ -173,6 +173,7 @@ static const struct test_trait test_traits[] = {
                     .type = DICEY_ELEMENT_TYPE_PROPERTY,
                     .name = DUMMY_POINTS_ELEMENT,
                     .signature = DUMMY_POINTS_SIG,
+                    .readonly = true,
                 },
                 NULL,
             }, },
@@ -289,7 +290,7 @@ struct dummy_points {
     { .x = -9.0, .y = 10.0},
 };
 
-static enum dicey_error craft_dummy_points(struct dicey_packet *const dest, const size_t seq) {
+static enum dicey_error craft_dummy_points(struct dicey_packet *const dest, const uint32_t seq) {
     assert(dest);
 
     struct dicey_message_builder builder = { 0 };
@@ -696,7 +697,7 @@ static enum dicey_error send_reply(
     return DICEY_OK;
 }
 
-static enum dicey_error on_dummy_points_req(struct dicey_server *const server, const size_t id, const size_t seq) {
+static enum dicey_error on_dummy_points_req(struct dicey_server *const server, const size_t id, const uint32_t seq) {
     assert(server && seq); // seq != 0
 
     struct dicey_packet packet = { 0 };
