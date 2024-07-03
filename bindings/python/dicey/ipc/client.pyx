@@ -236,7 +236,7 @@ _PROPERTY = chr(dicey_element_type.DICEY_ELEMENT_TYPE_PROPERTY)
 _OPERATION = chr(dicey_element_type.DICEY_ELEMENT_TYPE_OPERATION)
 _SIGNAL = chr(dicey_element_type.DICEY_ELEMENT_TYPE_SIGNAL)
 
-def _craft_object_for(client: Client, path: Path | str, timeout_ms: int) -> _ObjectBase:
+def _craft_object_for(client: Client, path: Path | str, timeout_ms: int) -> Object:
     class ObjectImpl(Object):
         pass
 
