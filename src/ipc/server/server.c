@@ -1390,7 +1390,7 @@ void dicey_server_delete(struct dicey_server *const server) {
         (void) dicey_server_stop_and_wait(server);
     }
 
-    const int uverr = uv_loop_close(&server->loop);
+    int uverr = uv_loop_close(&server->loop);
     if (uverr == UV_EBUSY) {
         // hail mary attempt at closing any handles left. This is 99% likely only triggered whenever the loop was never
         // run at all, so there are only empty handles to free up
@@ -1398,6 +1398,9 @@ void dicey_server_delete(struct dicey_server *const server) {
         uv_walk(&server->loop, &close_all_handles, NULL);
 
         uv_run(&server->loop, UV_RUN_DEFAULT); // should return whenever all uv_close calls are done
+
+        uverr = uv_loop_close(&server->loop); // just quit, we don't care what happens
+        assert(!uverr);
     }
 
     dicey_registry_deinit(&server->registry);
