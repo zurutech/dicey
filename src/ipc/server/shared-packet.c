@@ -23,7 +23,7 @@
 #include "shared-packet.h"
 
 struct dicey_shared_packet {
-    size_t refc; // notice it's not atomic, so this is not thread safe
+    ptrdiff_t refc; // notice it's not atomic, so this is not thread safe
     struct dicey_packet packet;
 };
 
@@ -69,7 +69,7 @@ size_t dicey_shared_packet_size(const struct dicey_shared_packet *const shared_p
 void dicey_shared_packet_unref(struct dicey_shared_packet *const shared_packet) {
     assert(dicey_shared_packet_is_valid(shared_packet));
 
-    if (--shared_packet->refc == 0U) {
+    if (--shared_packet->refc <= 0) {
         dicey_packet_deinit(&shared_packet->packet);
 
         free(shared_packet);
