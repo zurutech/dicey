@@ -14,6 +14,9 @@
  * limitations under the License.
  */
 
+#include "dicey/ipc/server.h"
+#include "dicey/core/builders.h"
+#include "dicey/core/packet.h"
 #define _CRT_NONSTDC_NO_DEPRECATE 1
 #include <assert.h>
 #include <inttypes.h>
@@ -50,9 +53,9 @@
 #define TIMER_STATE_KEY "$timer.state"
 
 #define DUMMY_PATH "/foo/bar"
-#define DUMMY_TRAIT "a.street.trait.named.Bob"
-#define DUMMY_ELEMENT "Bobbable"
-#define DUMMY_SIGNATURE "([b]bfeec${sv})"
+#define DUMMY_TRAIT "dummy.Trait"
+#define DUMMY_POINTS_ELEMENT "Points"
+#define DUMMY_POINTS_SIG "[{ff}]"
 
 #define SELF_PATH "/dicey/sample_server"
 #define SELF_TRAIT "dicey.sample.Server"
@@ -168,8 +171,8 @@ static const struct test_trait test_traits[] = {
             (const struct test_element *[]) {
                 &(struct test_element) {
                     .type = DICEY_ELEMENT_TYPE_PROPERTY,
-                    .name = DUMMY_ELEMENT,
-                    .signature = DUMMY_SIGNATURE,
+                    .name = DUMMY_POINTS_ELEMENT,
+                    .signature = DUMMY_POINTS_SIG,
                 },
                 NULL,
             }, },
@@ -275,6 +278,116 @@ struct timer_state {
     uv_timeval64_t target;
     bool quit;
 };
+
+struct dummy_points {
+    double x, y;
+} points[] = {
+    {.x = 1.0,   .y = 2.0 },
+    { .x = 3.2,  .y = -4.5},
+    { .x = 5.0,  .y = 6.0 },
+    { .x = 7.4,  .y = -8.9},
+    { .x = -9.0, .y = 10.0},
+};
+
+static enum dicey_error craft_dummy_points(struct dicey_packet *const dest, const size_t seq) {
+    assert(dest);
+
+    struct dicey_message_builder builder = { 0 };
+    enum dicey_error err = dicey_message_builder_init(&builder);
+    if (err) {
+        goto fail;
+    }
+
+    err = dicey_message_builder_begin(&builder, DICEY_OP_RESPONSE);
+    if (err) {
+        goto fail;
+    }
+
+    err = dicey_message_builder_set_seq(&builder, seq);
+    if (err) {
+        goto fail;
+    }
+
+    err = dicey_message_builder_set_path(&builder, DUMMY_PATH);
+    if (err) {
+        goto fail;
+    }
+
+    err = dicey_message_builder_set_selector(
+        &builder,
+        (struct dicey_selector) {
+            .trait = DUMMY_TRAIT,
+            .elem = DUMMY_POINTS_ELEMENT,
+        }
+    );
+
+    if (err) {
+        goto fail;
+    }
+
+    struct dicey_value_builder value_builder = { 0 };
+    err = dicey_message_builder_value_start(&builder, &value_builder);
+    if (err) {
+        goto fail;
+    }
+
+    err = dicey_value_builder_array_start(&value_builder, DICEY_TYPE_PAIR);
+    if (err) {
+        goto fail;
+    }
+
+    struct dicey_value_builder point_builder = { 0 };
+    const struct dummy_points *const points_end = points + sizeof(points) / sizeof(points[0]);
+
+    for (const struct dummy_points *point = points; point < points_end; ++point) {
+        err = dicey_value_builder_next(&value_builder, &point_builder);
+        if (err) {
+            goto fail;
+        }
+
+        err = dicey_value_builder_pair_start(&point_builder);
+        if (err) {
+            goto fail;
+        }
+
+        struct dicey_value_builder item = { 0 };
+        const double items[2U] = { point->x, point->y };
+
+        for (size_t i = 0U; i < 2U; ++i) {
+            err = dicey_value_builder_next(&point_builder, &item);
+            if (err) {
+                goto fail;
+            }
+
+            err = dicey_value_builder_set(&item, (struct dicey_arg) { .type = DICEY_TYPE_FLOAT, .floating = items[i] });
+            if (err) {
+                goto fail;
+            }
+        }
+
+        err = dicey_value_builder_pair_end(&point_builder);
+        if (err) {
+            goto fail;
+        }
+    }
+
+    err = dicey_value_builder_array_end(&value_builder);
+    if (err) {
+        goto fail;
+    }
+
+    err = dicey_message_builder_value_end(&builder, &value_builder);
+    if (err) {
+        goto fail;
+    }
+
+    return dicey_message_builder_build(&builder, dest);
+
+fail:
+    dicey_message_builder_discard(&builder);
+
+    return err;
+}
 
 static enum dicey_error craft_timer_event(struct dicey_packet *const dest, const uv_timeval64_t tv) {
     assert(dest);
@@ -577,6 +690,26 @@ static enum dicey_error send_reply(
     err = dicey_server_send_response(server, cln->id, packet);
     if (err) {
         dicey_packet_deinit(&packet);
+        return err;
+    }
+
+    return DICEY_OK;
+}
+
+static enum dicey_error on_dummy_points_req(struct dicey_server *const server, const size_t id, const size_t seq) {
+    assert(server && seq); // seq != 0
+
+    struct dicey_packet packet = { 0 };
+
+    enum dicey_error err = craft_dummy_points(&packet, seq);
+    if (err) {
+        return err;
+    }
+
+    err = dicey_server_send_response(server, id, packet);
+    if (err) {
+        dicey_packet_deinit(&packet);
+
         return err;
     }
 
@@ -892,8 +1025,8 @@ static void on_request_received(
 
     dump_packet(packet);
 
-    if (matches_elem(&msg, DUMMY_PATH, DUMMY_TRAIT, DUMMY_ELEMENT)) {
-        err = send_reply(server, cln, seq, msg.path, msg.selector, (struct dicey_arg) { .type = DICEY_TYPE_UNIT });
+    if (matches_elem(&msg, DUMMY_PATH, DUMMY_TRAIT, DUMMY_POINTS_ELEMENT)) {
+        err = on_dummy_points_req(server, cln->id, seq);
 
         if (err) {
             fprintf(stderr, "error: %s\n", dicey_error_msg(err));
