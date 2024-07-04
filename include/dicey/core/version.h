@@ -59,10 +59,10 @@ DICEY_EXPORT int dicey_version_cmp(struct dicey_version a, struct dicey_version 
  */
 #define DICEY_LIB_VERSION_MAJOR 0
 #define DICEY_LIB_VERSION_MINOR 3
-#define DICEY_LIB_VERSION_PATCH 0
+#define DICEY_LIB_VERSION_PATCH 1
 #define DICEY_LIB_VERSION_STRING #DICEY_LIB_VERSION_MAJOR "." #DICEY_LIB_VERSION_MINOR "." #DICEY_LIB_VERSION_PATCH
 
-#define DICEY_LIB_VER_INT 0x00000300
+#define DICEY_LIB_VER_INT 0x00000301
 
 #if defined(__cplusplus)
 }
