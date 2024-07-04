@@ -280,15 +280,19 @@ def _craft_object_for(client: Client, path: Path | str, timeout_ms: int, skip_in
                 
                 if not ro:
                     wrapper = wrapper_for(sig)
-                    prop = prop.setter(lambda self, *value, trait=trait, elem=elem: self._client.set(self._path, (trait, elem),
-                        wrapper(value), timeout_ms=self._timeout_ms))
+                    prop = prop.setter(lambda self, *value, trait=trait, elem=elem, wrapper=wrapper: self._client.set(
+                        self._path, (trait, elem), wrapper(value), timeout_ms=self._timeout_ms))
 
                 synthesised = prop
 
             elif dtype == _OPERATION:
                 wrapper = wrapper_for(sig)
-                synthesised = lambda self, *args, trait=trait, elem=elem: self._client.exec(self._path, (trait, elem), 
-                    wrapper(args), timeout_ms=self._timeout_ms)
+                synthesised = lambda self, *args, trait=trait, elem=elem, wrapper=wrapper: self._client.exec(
+                    self._path,
+                    (trait, elem), 
+                    wrapper(args),
+                    timeout_ms=self._timeout_ms
+                )
 
             elif dtype == _SIGNAL:
                 synthesised = Event(client, path, (trait, elem))
