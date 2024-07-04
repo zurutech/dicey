@@ -93,7 +93,7 @@ cdef _to_array(const dicey_value *const value, object args):
     else:
         l = _to_list(&lst, args)
 
-        return Array(type=l[0].__class__ if l else type(None), values=l)
+        return Array[l[0].__class__ if l else type(None)](*l)
     
 cdef _to_bool(const dicey_value *const value, object args):
     cdef c_bool dest = 0
@@ -201,7 +201,7 @@ cdef _to_pair(const dicey_value *const value, object args):
 
     _check(dicey_value_get_pair(value, &pair))
 
-    return (_to_value(&pair.first, args), _to_value(&pair.second, args))
+    return Pair(_to_value(&pair.first, args), _to_value(&pair.second, args))
 
 cdef _to_path(const dicey_value *const value, object args):
     cdef const char *s = NULL
@@ -281,7 +281,7 @@ cdef _to_value(const dicey_value *const value, object args):
     return args.value_hook(py_val) if args.value_hook else py_val
 
 # note: the default array class here is tuple due to the fact it is immutable, and thus can be used as a dict key
-cdef pythonize_value(const dicey_value *const value, object value_hook=None, type array_cls=tuple, bint pair_lists_as_dict=True):
+cdef pythonize_value(const dicey_value *const value, object value_hook=None, type array_cls=tuple, bint pair_lists_as_dict=False):
     args = _AssocArgs(
         array_cls = array_cls,
         pair_lists_as_dict = pair_lists_as_dict,

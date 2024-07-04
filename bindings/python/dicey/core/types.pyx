@@ -20,8 +20,14 @@ from libc.stdint cimport INT16_MIN, INT16_MAX, INT32_MIN, INT32_MAX, INT64_MIN, 
 
 from .errors import DiceyError
 
+class _MetaArray(type):
+    def __getitem__(cls, inner: type):
+        return type(f"{cls.__name__}[{inner.__name__}]", (cls,), {
+            '__init__': lambda self, *values: cls.__init__(self, inner, values)
+        })
+
 @_dataclass(frozen=True)
-class Array:
+class Array(metaclass=_MetaArray):
     type: type
     values: tuple 
 
@@ -127,6 +133,9 @@ class Int64:
 class Pair:
     first: object
     second: object
+
+    def __iter__(self) -> _Iterable:
+        return iter((self.first, self.second))
 
 @_dataclass(frozen=True)
 class Path:

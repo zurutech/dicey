@@ -55,11 +55,13 @@ cdef void on_cevent(dicey_client *const cclient, void *const ctx, dicey_packet *
         callback(msg.value)
 
 cdef class Client:
-    cdef dicey_client *client
+    cdef dicey_client *_client
+    cdef Address _addr
 
     _on_event: GlobalEventCallback
 
     _event_map: dict[(Pair, Selector), set[EventCallback]]
+
 
     def __cinit__(self):
         cdef dicey_client_args args
@@ -67,9 +69,9 @@ cdef class Client:
         args.on_event = &on_cevent
         args.inspect_func = NULL
 
-        _check(dicey_client_new(&self.client, &args))
+        _check(dicey_client_new(&self._client, &args))
 
-        dicey_client_set_context(self.client, <void *> self)
+        dicey_client_set_context(self._client, <void *> self)
 
         self._on_event = None
         self._event_map = {}
@@ -89,22 +91,27 @@ cdef class Client:
             # ignore errors if any, this is just for safety
             pass
 
-        dicey_client_delete(self.client)
+        dicey_client_delete(self._client)
+
+    @property
+    def address(self) -> Address | None:
+        return self._addr
 
     def connect(self, addr: Address | str):
         cdef dicey_addr caddr
 
         if isinstance(addr, str):
-            caddr = Address(addr).leak()
+            self._addr = Address(addr)
         else:
-            # the address must be cloned: the client wants an owned copy, and I don't like stealing stuff
-            # from Python objects
-            caddr = addr.clone_raw()
+            self._addr = addr
+
+        # the address must be cloned: the client wants an owned copy
+        caddr = self._addr.clone_raw()
         
-        _check(dicey_client_connect(self.client, caddr))
+        _check(dicey_client_connect(self._client, caddr))
 
     def disconnect(self):
-        _check(dicey_client_disconnect(self.client))
+        _check(dicey_client_disconnect(self._client))
 
     def exec(self, path: Path | str, selector: Selector | (str, str), arg: _Any = None, *, timeout_ms: int = DEFAULT_TIMEOUT_MS) -> _Any:
         return self.request(Message(Operation.EXEC, path, selector, arg), timeout_ms=timeout_ms)
@@ -116,11 +123,13 @@ cdef class Client:
         cdef dicey_packet response
 
         if xml:
-            _check(dicey_client_inspect_path_as_xml(self.client, str(path).encode('ASCII'), &response, timeout_ms))
+            _check(dicey_client_inspect_path_as_xml(self._client, str(path).encode('ASCII'), &response, timeout_ms))
         else:
-            _check(dicey_client_inspect_path(self.client, str(path).encode('ASCII'), &response, timeout_ms))
+            _check(dicey_client_inspect_path(self._client, str(path).encode('ASCII'), &response, timeout_ms))
 
-        return Message.from_cpacket(response).value
+        entries = Message.from_cpacket(response).value
+
+        return {name : dict(trait) for name, trait in entries}
 
     def object(self, path: Path | str, *, timeout_ms: int = DEFAULT_TIMEOUT_MS):
         return _craft_object_for(self, path, timeout_ms=timeout_ms)
@@ -128,7 +137,7 @@ cdef class Client:
     def objects(self, timeout_ms: int = DEFAULT_TIMEOUT_MS) -> _Any:
         cdef dicey_packet response
 
-        _check(dicey_client_list_objects(self.client, &response, timeout_ms))
+        _check(dicey_client_list_objects(self._client, &response, timeout_ms))
 
         return Message.from_cpacket(response).value
 
@@ -152,7 +161,7 @@ cdef class Client:
 
     def request(self, message: Message, *, timeout_ms: int = DEFAULT_TIMEOUT_MS) -> _Any:
         cdef dicey_packet response
-        _check(dicey_client_request(self.client, message.to_cpacket(), &response, timeout_ms))
+        _check(dicey_client_request(self._client, message.to_cpacket(), &response, timeout_ms))
 
         cdef _PacketWrapper wrapper = _PacketWrapper.wrap(response)
 
@@ -160,7 +169,7 @@ cdef class Client:
 
     @property
     def running(self) -> bool:
-        return dicey_client_is_running(self.client)
+        return dicey_client_is_running(self._client)
 
     def set(self, path: Path | str, selector: Selector | (str, str), value: _Any, *, timeout_ms: int = DEFAULT_TIMEOUT_MS):
         self.request(Message(Operation.SET, path, selector, value), timeout_ms=timeout_ms)
@@ -173,7 +182,7 @@ cdef class Client:
         trait = selector.trait.encode('ASCII')
         elem = selector.elem.encode('ASCII')
 
-        _check(dicey_client_subscribe_to(self.client, path, dicey_selector(trait, elem), timeout_ms))
+        _check(dicey_client_subscribe_to(self._client, path, dicey_selector(trait, elem), timeout_ms))
 
     def traits(self, path: Path | str, *, timeout_ms: int = DEFAULT_TIMEOUT_MS) -> _Any:
         return self.request(Message(Operation.LIST_TRAITS, path), timeout_ms)
@@ -193,7 +202,10 @@ cdef class Client:
         trait = selector.trait.encode('ASCII')
         elem = selector.elem.encode('ASCII')
 
-        _check(dicey_client_unsubscribe_from(self.client, path, dicey_selector(trait, elem), timeout_ms))
+        _check(dicey_client_unsubscribe_from(self._client, path, dicey_selector(trait, elem), timeout_ms))
+
+    def __repr__(self):
+        return f"<Dicey client for dicey://[{self.address}]>"
 
 class Event:
     def __init__(self, client: Client, path: Path | str, selector: Selector | (str, str)):
@@ -234,6 +246,9 @@ class Object:
     @staticmethod
     def traits(obj: Object) -> tuple[str]:
         return tuple(obj._data.keys())
+
+    def __repr__(self):
+        return f"<Dicey wrapper for dicey://[{self._client.address}]{self._path}>"
 
 _PROPERTY = chr(dicey_element_type.DICEY_ELEMENT_TYPE_PROPERTY)
 _OPERATION = chr(dicey_element_type.DICEY_ELEMENT_TYPE_OPERATION)
