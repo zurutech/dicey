@@ -336,6 +336,8 @@ static bool hash_bucket_append(
     struct table_entry *const last = table->entries + last_item;
     last->next = new_entry_offs;
 
+    ++table->len; // don't forget to increment the length!
+
     return true;
 }
 
