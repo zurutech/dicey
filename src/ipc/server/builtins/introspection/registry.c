@@ -533,6 +533,8 @@ enum dicey_error introspection_dump_xml(
     }
 
     // ensure the object's XML is populated and get its serialised form
+    // note: DO NOT FREE THIS! It's cached internally per-object inside of dicey_object, and will be freed when the
+    // object is destroyed
     const xmlChar *xml = NULL;
     enum dicey_error err = introspection_object_populate_xml(registry, path, obj, &xml);
     if (err) {
