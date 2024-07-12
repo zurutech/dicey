@@ -14,7 +14,7 @@
 
 cmake_minimum_required(VERSION 3.26.0)
 
-project(dicey VERSION 0.3.4 LANGUAGES C)
+project(dicey VERSION 0.3.5 LANGUAGES C)
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 include(JoinPaths)
@@ -322,6 +322,10 @@ else()
     endif()
 endif()
 
+set(targets_export_name dicey-targets)
+install(TARGETS dicey EXPORT ${targets_export_name} FILE_SET headers) 
+install(FILES "${PROJECT_BINARY_DIR}/${PROJECT_NAME}_export.h" DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+
 # this probably only works on Linux/BSD with systemwide libraries - which is what's useful for 99% of the time
 if (GENERATE_EXPORTS)
     include(CMakePackageConfigHelpers)
@@ -330,7 +334,6 @@ if (GENERATE_EXPORTS)
     set(version_config ${PROJECT_BINARY_DIR}/dicey-config-version.cmake)
     set(project_config ${PROJECT_BINARY_DIR}/dicey-config.cmake)
     set(pkgconfig ${PROJECT_BINARY_DIR}/dicey.pc)
-    set(targets_export_name dicey-targets)
 
     set(PKGCONFIG_DIR ${CMAKE_INSTALL_LIBDIR}/pkgconfig CACHE STRING "Installation directory for pkgconfig (.pc) files")
 
@@ -341,8 +344,10 @@ if (GENERATE_EXPORTS)
         COMPATIBILITY AnyNewerVersion
     )
 
-    join_paths(libdir_for_pc_file "\${exec_prefix}" "${FMT_LIB_DIR}")
-    join_paths(includedir_for_pc_file "\${prefix}" "${FMT_INC_DIR}")
+    set(DICEY_LIB_NAME ${PROJECT_NAME})
+
+    join_paths(libdir_for_pc_file "\${exec_prefix}" "${CMAKE_INSTALL_LIBDIR}")
+    join_paths(includedir_for_pc_file "\${prefix}" "${CMAKE_INSTALL_INCLUDEDIR}")
 
     configure_file(
         "${PROJECT_SOURCE_DIR}/cmake/dicey.pc.in"
@@ -355,9 +360,6 @@ if (GENERATE_EXPORTS)
         ${project_config}
         INSTALL_DESTINATION ${CMAKE_DIR}
     )
-
-    install(TARGETS dicey EXPORT ${targets_export_name} FILE_SET headers) 
-    install(FILES "${PROJECT_BINARY_DIR}/${PROJECT_NAME}_export.h" DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
 
     export(TARGETS dicey NAMESPACE dicey:: FILE ${PROJECT_BINARY_DIR}/${targets_export_name}.cmake)
 
