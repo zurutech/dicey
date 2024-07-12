@@ -1,6 +1,9 @@
 @PACKAGE_INIT@
 
 if (NOT TARGET dicey::dicey)
+  find_dependency(UV)
+  find_dependency(LibXml2)
+  
   include(${CMAKE_CURRENT_LIST_DIR}/@targets_export_name@.cmake)
 endif ()
 
