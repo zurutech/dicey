@@ -14,7 +14,10 @@
 
 cmake_minimum_required(VERSION 3.26.0)
 
-project(dicey VERSION 0.2.1 LANGUAGES C)
+project(dicey VERSION 0.3.3 LANGUAGES C)
+
+set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
+include(JoinPaths)
 
 if (NOT CMAKE_C_BYTE_ORDER STREQUAL "LITTLE_ENDIAN")
     message(FATAL_ERROR "Big endian is not supported")
@@ -318,8 +321,52 @@ else()
     endif()
 endif()
 
-install(TARGETS dicey FILE_SET headers)
+include(CMakePackageConfigHelpers)
+
+set(CMAKE_DIR ${CMAKE_INSTALL_LIBDIR}/cmake/dicey CACHE STRING "Installation directory for cmake files")
+set(version_config ${PROJECT_BINARY_DIR}/dicey-config-version.cmake)
+set(project_config ${PROJECT_BINARY_DIR}/dicey-config.cmake)
+set(pkgconfig ${PROJECT_BINARY_DIR}/dicey.pc)
+set(targets_export_name dicey-targets)
+
+set(PKGCONFIG_DIR ${CMAKE_INSTALL_LIBDIR}/pkgconfig CACHE STRING "Installation directory for pkgconfig (.pc) files")
+
+# Generate the version, config and target files into the build directory.
+write_basic_package_version_file(
+    ${version_config}
+    VERSION ${DICEY_VERSION}
+    COMPATIBILITY AnyNewerVersion
+)
+
+join_paths(libdir_for_pc_file "\${exec_prefix}" "${FMT_LIB_DIR}")
+join_paths(includedir_for_pc_file "\${prefix}" "${FMT_INC_DIR}")
+
+configure_file(
+    "${PROJECT_SOURCE_DIR}/cmake/dicey.pc.in"
+    "${pkgconfig}"
+    @ONLY
+)
+
+configure_package_config_file(
+    ${PROJECT_SOURCE_DIR}/cmake/dicey-config.cmake.in
+    ${project_config}
+    INSTALL_DESTINATION ${CMAKE_DIR}
+)
+
+install(TARGETS dicey EXPORT ${targets_export_name} FILE_SET headers) 
 install(FILES "${PROJECT_BINARY_DIR}/${PROJECT_NAME}_export.h" DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+
+export(TARGETS dicey NAMESPACE dicey:: FILE ${PROJECT_BINARY_DIR}/${targets_export_name}.cmake)
+
+# Install version, config and target files.
+install(
+    FILES ${project_config} ${version_config}
+    DESTINATION ${CMAKE_DIR}
+)
+
+install(EXPORT ${targets_export_name} DESTINATION ${CMAKE_DIR} NAMESPACE dicey::)
+
+install(FILES "${pkgconfig}" DESTINATION "${PKGCONFIG_DIR}")
 
 if (BUILD_SAMPLES)
     add_subdirectory(samples)
