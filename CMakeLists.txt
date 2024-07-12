@@ -14,7 +14,7 @@
 
 cmake_minimum_required(VERSION 3.26.0)
 
-project(dicey VERSION 0.3.5 LANGUAGES C)
+project(dicey VERSION 0.3.6 LANGUAGES C)
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 include(JoinPaths)
@@ -80,21 +80,16 @@ if (NOT BUILD_UV)
     if (DEFINED UV_INCLUDE_DIRS AND DEFINED UV_LIBS)
         target_include_directories(${PROJECT_NAME} PUBLIC ${UV_INCLUDE_DIRS})
         target_link_libraries(${PROJECT_NAME} PUBLIC ${UV_LIBS})
-        set(LibUV_FOUND TRUE)
+        set(UV_FOUND TRUE)
     elseif (NOT DEFINED RAW_CROSS)
-        find_package(PkgConfig QUIET)
-
-        if (PkgConfig_FOUND)
-            pkg_check_modules(LibUV QUIET IMPORTED_TARGET libuv)
-
-            if (LibUV_FOUND)
-                target_link_libraries(${PROJECT_NAME} PUBLIC PkgConfig::LibUV)
-            endif()
+        find_package(UV QUIET)
+        if (UV_FOUND)
+            target_link_libraries(${PROJECT_NAME} PUBLIC uv)
         endif()
     endif()
 endif()
 
-if (NOT LibUV_FOUND)
+if (NOT UV_FOUND)
     include(FetchContent)
 
     # I have no tricks left in my bag, so I'll do this the stupid way
@@ -335,6 +330,7 @@ if (GENERATE_EXPORTS)
     set(project_config ${PROJECT_BINARY_DIR}/dicey-config.cmake)
     set(pkgconfig ${PROJECT_BINARY_DIR}/dicey.pc)
 
+    set(DICEY_VERSION ${CMAKE_PROJECT_VERSION})
     set(PKGCONFIG_DIR ${CMAKE_INSTALL_LIBDIR}/pkgconfig CACHE STRING "Installation directory for pkgconfig (.pc) files")
 
     # Generate the version, config and target files into the build directory.
@@ -362,10 +358,11 @@ if (GENERATE_EXPORTS)
     )
 
     export(TARGETS dicey NAMESPACE dicey:: FILE ${PROJECT_BINARY_DIR}/${targets_export_name}.cmake)
+    set(find_uv "${CMAKE_CURRENT_SOURCE_DIR}/cmake/FindUV.cmake") 
 
     # Install version, config and target files.
     install(
-        FILES ${project_config} ${version_config}
+        FILES ${project_config} ${version_config} ${find_uv}
         DESTINATION ${CMAKE_DIR}
     )
 
