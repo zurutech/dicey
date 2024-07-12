@@ -14,7 +14,7 @@
 
 cmake_minimum_required(VERSION 3.26.0)
 
-project(dicey VERSION 0.3.3 LANGUAGES C)
+project(dicey VERSION 0.3.4 LANGUAGES C)
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 include(JoinPaths)
@@ -42,6 +42,7 @@ set(CMAKE_C_STANDARD_REQUIRED ON)
 option(BUILD_SHARED_LIBS "Build using shared libraries" ON)
 option(BUILD_LIBXML2 "Always build libxml2 from source" OFF)
 option(BUILD_UV "Always build libuv from source" OFF)
+option(GENERATE_EXPORTS "Generate exports for PkgConfig and CMake (for systemwide installation)" OFF)
 
 option(USE_VENDORED_LIBS "Use vendored libraries (implies BUILD_LIBXML2 and BUILD_UV)" OFF)
 
@@ -321,52 +322,55 @@ else()
     endif()
 endif()
 
-include(CMakePackageConfigHelpers)
+# this probably only works on Linux/BSD with systemwide libraries - which is what's useful for 99% of the time
+if (GENERATE_EXPORTS)
+    include(CMakePackageConfigHelpers)
 
-set(CMAKE_DIR ${CMAKE_INSTALL_LIBDIR}/cmake/dicey CACHE STRING "Installation directory for cmake files")
-set(version_config ${PROJECT_BINARY_DIR}/dicey-config-version.cmake)
-set(project_config ${PROJECT_BINARY_DIR}/dicey-config.cmake)
-set(pkgconfig ${PROJECT_BINARY_DIR}/dicey.pc)
-set(targets_export_name dicey-targets)
+    set(CMAKE_DIR ${CMAKE_INSTALL_LIBDIR}/cmake/dicey CACHE STRING "Installation directory for cmake files")
+    set(version_config ${PROJECT_BINARY_DIR}/dicey-config-version.cmake)
+    set(project_config ${PROJECT_BINARY_DIR}/dicey-config.cmake)
+    set(pkgconfig ${PROJECT_BINARY_DIR}/dicey.pc)
+    set(targets_export_name dicey-targets)
 
-set(PKGCONFIG_DIR ${CMAKE_INSTALL_LIBDIR}/pkgconfig CACHE STRING "Installation directory for pkgconfig (.pc) files")
+    set(PKGCONFIG_DIR ${CMAKE_INSTALL_LIBDIR}/pkgconfig CACHE STRING "Installation directory for pkgconfig (.pc) files")
 
-# Generate the version, config and target files into the build directory.
-write_basic_package_version_file(
-    ${version_config}
-    VERSION ${DICEY_VERSION}
-    COMPATIBILITY AnyNewerVersion
-)
+    # Generate the version, config and target files into the build directory.
+    write_basic_package_version_file(
+        ${version_config}
+        VERSION ${DICEY_VERSION}
+        COMPATIBILITY AnyNewerVersion
+    )
 
-join_paths(libdir_for_pc_file "\${exec_prefix}" "${FMT_LIB_DIR}")
-join_paths(includedir_for_pc_file "\${prefix}" "${FMT_INC_DIR}")
+    join_paths(libdir_for_pc_file "\${exec_prefix}" "${FMT_LIB_DIR}")
+    join_paths(includedir_for_pc_file "\${prefix}" "${FMT_INC_DIR}")
 
-configure_file(
-    "${PROJECT_SOURCE_DIR}/cmake/dicey.pc.in"
-    "${pkgconfig}"
-    @ONLY
-)
+    configure_file(
+        "${PROJECT_SOURCE_DIR}/cmake/dicey.pc.in"
+        "${pkgconfig}"
+        @ONLY
+    )
 
-configure_package_config_file(
-    ${PROJECT_SOURCE_DIR}/cmake/dicey-config.cmake.in
-    ${project_config}
-    INSTALL_DESTINATION ${CMAKE_DIR}
-)
+    configure_package_config_file(
+        ${PROJECT_SOURCE_DIR}/cmake/dicey-config.cmake.in
+        ${project_config}
+        INSTALL_DESTINATION ${CMAKE_DIR}
+    )
 
-install(TARGETS dicey EXPORT ${targets_export_name} FILE_SET headers) 
-install(FILES "${PROJECT_BINARY_DIR}/${PROJECT_NAME}_export.h" DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+    install(TARGETS dicey EXPORT ${targets_export_name} FILE_SET headers) 
+    install(FILES "${PROJECT_BINARY_DIR}/${PROJECT_NAME}_export.h" DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
 
-export(TARGETS dicey NAMESPACE dicey:: FILE ${PROJECT_BINARY_DIR}/${targets_export_name}.cmake)
+    export(TARGETS dicey NAMESPACE dicey:: FILE ${PROJECT_BINARY_DIR}/${targets_export_name}.cmake)
 
-# Install version, config and target files.
-install(
-    FILES ${project_config} ${version_config}
-    DESTINATION ${CMAKE_DIR}
-)
+    # Install version, config and target files.
+    install(
+        FILES ${project_config} ${version_config}
+        DESTINATION ${CMAKE_DIR}
+    )
 
-install(EXPORT ${targets_export_name} DESTINATION ${CMAKE_DIR} NAMESPACE dicey::)
+    install(EXPORT ${targets_export_name} DESTINATION ${CMAKE_DIR} NAMESPACE dicey::)
 
-install(FILES "${pkgconfig}" DESTINATION "${PKGCONFIG_DIR}")
+    install(FILES "${pkgconfig}" DESTINATION "${PKGCONFIG_DIR}")
+endif()
 
 if (BUILD_SAMPLES)
     add_subdirectory(samples)
