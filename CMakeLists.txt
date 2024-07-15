@@ -14,7 +14,7 @@
 
 cmake_minimum_required(VERSION 3.26.0)
 
-project(dicey VERSION 0.3.8 LANGUAGES C)
+project(dicey VERSION 0.3.9 LANGUAGES C)
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 include(JoinPaths)
