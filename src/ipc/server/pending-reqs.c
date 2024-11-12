@@ -164,7 +164,7 @@ static ptrdiff_t pending_requests_make_room(struct dicey_pending_requests **reqs
 
         reqs->cap = new_cap;
 
-        // reset the indeces - we are operating on a new circular memory block
+        // reset the indices - we are operating on a new circular memory block
         reqs->start = 0;
         reqs->end = reqs->len;
 
@@ -222,7 +222,7 @@ static struct dicey_pending_requests *pending_requests_new(const uint32_t last_s
 static bool room_available(const struct dicey_pending_requests *const reqs) {
     // the structure has room available if:
     // - it has a capacity (i.e. it's not empty)
-    // - the start and end indeces are different (and if cap is not 0, it means we've ran the circular buffer back to
+    // - the start and end indices are different (and if cap is not 0, it means we've ran the circular buffer back to
     // the start)
     return reqs->cap && reqs->start != reqs->end;
 }

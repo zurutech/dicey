@@ -788,8 +788,8 @@ static enum dicey_error server_shutdown(struct dicey_server *const server) {
         }
     }
 
-    // avoid deadlocks: if there are no clients, we can finalize the shutdown immediately without wating for all byes to
-    // be sent
+    // avoid deadlocks: if there are no clients, we can finalize the shutdown immediately without waiting for all byes
+    // to be sent
     return empty ? server_finalize_shutdown(server) : err;
 }
 
@@ -1281,7 +1281,7 @@ static void loop_request_inbound(uv_async_t *const async) {
             if (!req->err) {
                 // do not unlock anything here - it will be done later, when an actual shutdown happens
                 if (!req->sem) {
-                    // there's nobody wating for this, so we must delete it
+                    // there's nobody waiting for this, so we must delete it
                     free(req);
                 }
 

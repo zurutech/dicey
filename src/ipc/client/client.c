@@ -202,7 +202,7 @@ static struct dicey_task_result send_bye(
     assert(client->state >= CLIENT_STATE_CONNECT_START);
 
     if (!uv_is_active((uv_handle_t *) &client->pipe)) {
-        // the server probaly died
+        // the server probably died
 
         return dicey_task_next(); // fast forward to the next task
     }
@@ -716,7 +716,7 @@ static struct dicey_task_result check_response(
     struct dicey_packet *const resp_ptr = input;
     assert(dicey_packet_is_valid(*resp_ptr));
 
-    // steal the packet: we will use it outselves, and got_packet doesn't need it anymore
+    // steal the packet: we will use it ourselves, and got_packet doesn't need it anymore
     ctx->response = *resp_ptr;
     *resp_ptr = (struct dicey_packet) { 0 };
 

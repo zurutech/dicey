@@ -154,7 +154,7 @@ static bool checksig(struct dicey_view *const sig, const struct dicey_value *con
         }
 
     default:
-        // ok, we are compatibile and not a composite type, we are done
+        // ok, we are compatible and not a composite type, we are done
         return true;
     }
 }

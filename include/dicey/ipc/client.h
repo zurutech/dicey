@@ -33,7 +33,7 @@ extern "C" {
  * @brief Represents all the possible client events
  */
 enum dicey_client_event_type {
-    DICEY_CLIENT_EVENT_CONNECT,         /**< Raised whenever `connect()` succeedes - i.e., if the server is up */
+    DICEY_CLIENT_EVENT_CONNECT,         /**< Raised whenever `connect()` succeeds - i.e., if the server is up */
     DICEY_CLIENT_EVENT_ERROR,           /**< Raised whenever an error occurs, which always causes the client to drop */
     DICEY_CLIENT_EVENT_HANDSHAKE_START, /**< Raised when the client starts the handshake by sending the Hello packet */
     DICEY_CLIENT_EVENT_INIT,            /**< Raised when the client is initialized (before any connect takes place) */
