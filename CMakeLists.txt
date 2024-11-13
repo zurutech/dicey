@@ -99,7 +99,7 @@ if (NOT UV_FOUND)
     FetchContent_Declare(
         libuv
         GIT_REPOSITORY https://github.com/libuv/libuv.git
-        GIT_TAG        v1.49.0
+        GIT_TAG        v1.49.2
     )
 
     FetchContent_MakeAvailable(libuv)
@@ -133,7 +133,7 @@ if (NOT LibXml2_FOUND)
     FetchContent_Declare(
         libxml2
         GIT_REPOSITORY https://gitlab.gnome.org/GNOME/libxml2.git
-        GIT_TAG        v2.13.1
+        GIT_TAG        v2.13.4
     )
 
     FetchContent_MakeAvailable(libxml2)
