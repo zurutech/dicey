@@ -14,12 +14,14 @@
  * limitations under the License.
  */
 
+#include "asprintf.h"
+
+#if defined(DICEY_BUILD_ASPRINTF)
+
 #include <stdarg.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
-
-#include "asprintf.h"
 
 int asprintf(char **const dest, const char *const fmt, ...) {
     va_list args;
@@ -51,3 +53,5 @@ int vasprintf(char **const dest, const char *const fmt, va_list args) {
 
     return -1;
 }
+
+#endif // DICEY_BUILD_ASPRINTF

@@ -21,7 +21,10 @@
 #define _GNU_SOURCE
 #include <stdio.h>
 #else
+
 #include <stdarg.h>
+
+#define DICEY_BUILD_ASPRINTF
 
 int asprintf(char **const s, const char *const fmt, ...);
 int vasprintf(char **const s, const char *const fmt, va_list ap);
