@@ -22,7 +22,6 @@
 
 #include "../core/errors.h"
 #include "../core/packet.h"
-#include "../core/type.h"
 
 #include "address.h"
 #include "registry.h"
@@ -108,6 +107,9 @@ struct dicey_server_args {
     dicey_server_on_error_fn *on_error;           /**< The callback to be called when an error occurs. */
 
     dicey_server_on_request_fn *on_request; /**< The callback to be called when a request is received. */
+
+    /** If set, the path where the plugins are located. If not set, the plugin system will be disabled  */
+    const char *plugin_path;
 };
 
 /**
@@ -123,6 +125,8 @@ DICEY_EXPORT void dicey_server_delete(struct dicey_server *state);
  * @return     Error code. The possible values are several and include:
  *             - OK: the server was successfully created
  *             - ENOMEM: memory allocation failed
+ *             - ENOENT: the plugin path does not exist
+ *             - ENOTDIR: the plugin path is not a directory
  */
 DICEY_EXPORT enum dicey_error dicey_server_new(struct dicey_server **dest, const struct dicey_server_args *args);
 

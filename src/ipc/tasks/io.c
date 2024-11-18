@@ -23,7 +23,7 @@
 #include <dicey/core/errors.h>
 #include <dicey/ipc/address.h>
 
-#include "ipc/uvtools.h"
+#include "sup/uvtools.h"
 
 #include "io.h"
 #include "loop.h"

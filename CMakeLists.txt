@@ -27,9 +27,6 @@ set(DICEY_ROOT ${CMAKE_CURRENT_LIST_DIR})
 
 include(GenerateExportHeader)
 
-option(BUILD_DOC "Build documentation" OFF)
-option(BUILD_SAMPLES "Build samples" ON)
-
 if (CMAKE_CROSSCOMPILING AND NOT CMAKE_SYSROOT)
     set(RAW_CROSS ON)
     message(STATUS "Cross compiling without a sysroot - switching to internal libraries")
@@ -39,12 +36,18 @@ set(CMAKE_C_STANDARD 17)
 
 set(CMAKE_C_STANDARD_REQUIRED ON)
 
+option(BUILD_DOC "Build documentation" OFF)
+option(BUILD_SAMPLES "Build samples" ON)
 option(BUILD_SHARED_LIBS "Build using shared libraries" ON)
 option(BUILD_LIBXML2 "Always build libxml2 from source" OFF)
 option(BUILD_UV "Always build libuv from source" OFF)
 option(GENERATE_EXPORTS "Generate exports for PkgConfig and CMake (for systemwide installation)" OFF)
-
+option(PLUGIN_SUPPORT "Enable plugin support" ON)
 option(USE_VENDORED_LIBS "Use vendored libraries (implies BUILD_LIBXML2 and BUILD_UV)" OFF)
+
+if (PLUGIN_SUPPORT)
+    set (DICEY_HAS_PLUGINS 1)
+endif()
 
 if (USE_VENDORED_LIBS)
     set(BUILD_LIBXML2 ON)
@@ -153,6 +156,16 @@ endif()
 
 generate_export_header(${PROJECT_NAME})
 
+set(CONFIG_HEADER_NAME "dicey_config.h")
+set(CONFIG_HEADER "${PROJECT_BINARY_DIR}/${CONFIG_HEADER_NAME}")
+
+# generate config.h
+configure_file(
+    "${PROJECT_SOURCE_DIR}/cmake/${CONFIG_HEADER_NAME}.in"
+    "${CONFIG_HEADER}"
+    @ONLY
+)
+
 set(PUBLIC_HEADERS
     "include/dicey/dicey.h"
 
@@ -185,6 +198,14 @@ set(PUBLIC_HEADERS
     "include/dicey/ipc/builtins/server.h"
 )
 
+if (PLUGIN_SUPPORT)
+    list(APPEND PUBLIC_HEADERS
+        "include/dicey/ipc/plugins.h"
+
+        "include/dicey/ipc/builtins/plugins.h"
+    )
+endif()
+
 set(CORE_SOURCES
     # common
     src/errors.c
@@ -213,6 +234,8 @@ set(CORE_SOURCES
     
     # sup    
     src/sup/assume.h
+    src/sup/fs.c
+    src/sup/fs.h
     src/sup/hashset.c
     src/sup/hashtable.c
     src/sup/trace.c
@@ -221,6 +244,8 @@ set(CORE_SOURCES
     src/sup/unsafe.h
     src/sup/util.c
     src/sup/util.h
+    src/sup/uvtools.c
+    src/sup/uvtools.h
     src/sup/view-ops.c
     src/sup/view-ops.h
 
@@ -232,8 +257,6 @@ set(CORE_SOURCES
     src/ipc/elemdescr.h
     src/ipc/queue.c
     src/ipc/queue.h
-    src/ipc/uvtools.c
-    src/ipc/uvtools.h
     
     # ipc/client
     src/ipc/client/client.c
@@ -245,9 +268,12 @@ set(CORE_SOURCES
     src/ipc/server/client-data.h
     src/ipc/server/pending-reqs.c
     src/ipc/server/pending-reqs.h
+    src/ipc/server/plugins.c
     src/ipc/server/registry.c
     src/ipc/server/registry-internal.h
     src/ipc/server/server.c
+    src/ipc/server/server.h
+    src/ipc/server/server-loopreq.h
     src/ipc/server/shared-packet.c
     src/ipc/server/shared-packet.h
     src/ipc/server/traits.c
@@ -320,6 +346,7 @@ endif()
 set(targets_export_name dicey-targets)
 install(TARGETS dicey EXPORT ${targets_export_name} FILE_SET headers) 
 install(FILES "${PROJECT_BINARY_DIR}/${PROJECT_NAME}_export.h" DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+install(FILES "${PROJECT_BINARY_DIR}/${PROJECT_NAME}_config.h" DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
 
 # this probably only works on Linux/BSD with systemwide libraries - which is what's useful for 99% of the time
 if (GENERATE_EXPORTS)

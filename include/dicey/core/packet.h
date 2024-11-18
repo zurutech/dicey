@@ -37,6 +37,7 @@ enum dicey_bye_reason {
 
     DICEY_BYE_REASON_SHUTDOWN = 1, /**< Client or server are shutting down cleanly */
     DICEY_BYE_REASON_ERROR = 2,    /**< A serious error has happened. The client must immediately disconnect */
+    DICEY_BYE_REASON_KICKED = 3,   /**< The client has been kicked by the server */
 };
 
 /**
@@ -168,6 +169,11 @@ struct dicey_packet {
     void *payload; /**< Raw payload, castable to uint8_t* and ready to be sent on the wire */
     size_t nbytes; /**< Number of bytes allocated in payload*/
 };
+
+/**
+ * @brief Quick macro to initialize an empty packet.
+ */
+#define DICEY_EMPTY_PACKET ((struct dicey_packet) { .payload = NULL, .nbytes = 0 })
 
 /**
  * @brief Loads a packet from data pointer at `data`.

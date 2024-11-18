@@ -28,6 +28,7 @@ static const struct dicey_error_def error_info[] = {
     ERROR_INFO_FOR(DICEY_EAGAIN, "TryAgain", "not enough data"),
     ERROR_INFO_FOR(DICEY_ENOENT, "FileNotFound", "no such file or directory"),
     ERROR_INFO_FOR(DICEY_ENOMEM, "OutOfMemory", "out of memory"),
+    ERROR_INFO_FOR(DICEY_ENOTDIR, "NotADirectory", "not a directory"),
     ERROR_INFO_FOR(DICEY_EINVAL, "InvalidData", "invalid argument"),
     ERROR_INFO_FOR(DICEY_ENODATA, "NoDataAvailable", "no data available"),
     ERROR_INFO_FOR(DICEY_EBADMSG, "BadMessage", "bad message"),
@@ -77,6 +78,7 @@ bool dicey_error_is_valid(enum dicey_error errnum) {
     case DICEY_OK:
     case DICEY_EAGAIN:
     case DICEY_ENOENT:
+    case DICEY_ENOTDIR:
     case DICEY_ENOMEM:
     case DICEY_EINVAL:
     case DICEY_ENODATA:

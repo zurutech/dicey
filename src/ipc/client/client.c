@@ -41,12 +41,11 @@
 #include "sup/assume.h"
 #include "sup/trace.h"
 #include "sup/util.h"
+#include "sup/uvtools.h"
 
 #include "ipc/chunk.h"
 #include "ipc/tasks/io.h"
-#include "ipc/tasks/list.h"
 #include "ipc/tasks/loop.h"
-#include "ipc/uvtools.h"
 
 #include "waiting-list.h"
 

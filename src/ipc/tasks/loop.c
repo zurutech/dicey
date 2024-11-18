@@ -26,8 +26,9 @@
 
 #include <dicey/core/errors.h>
 
+#include "sup/uvtools.h"
+
 #include "ipc/queue.h"
-#include "ipc/uvtools.h"
 
 #include "list.h"
 #include "loop.h"
