@@ -17,9 +17,15 @@
 #if !defined(XVAUPCELRC_STREXT_H)
 #define XVAUPCELRC_STREXT_H
 
+// always include string.h - on POSIX, it will be needed for strndup
 #include <string.h>
 
-#if defined(_MSC_VER) && __STDC_VERSION__ < 202311L
+#include <dicey/dicey.h>
+
+#if defined(DICEY_IS_WINDOWS) && __STDC_VERSION__ < 202311L
+
+#include <stddef.h>
+#include <stdlib.h>
 
 static inline char *strndup(const char *const str, const size_t maxlen) {
     const size_t len = strnlen(str, maxlen);

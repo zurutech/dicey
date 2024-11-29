@@ -20,4 +20,8 @@
 #define DICEY_CC_IS_GCC 1
 #endif
 
+#if defined(__MINGW32__) || defined(__MINGW64__)
+#define DICEY_IS_MINGW 1
+#endif
+
 #endif // APUTVMMVFJ_CONFIG_H

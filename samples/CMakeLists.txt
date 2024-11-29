@@ -26,7 +26,9 @@ foreach(SAMPLE IN LISTS SAMPLE_FILES)
 
     if (MSVC)
         target_compile_options("${target_name}" PRIVATE /W4 /WX)
-    else()
+    elseif(NOT MINGW)
+        # again, we have random warnings with libuv and MinGW that are not problematic
+
         target_compile_options("${target_name}" PRIVATE -Wall -Wextra -pedantic -Werror)
     endif()
     

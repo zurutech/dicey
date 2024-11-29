@@ -77,8 +77,14 @@ if (MSVC)
             message(FATAL_ERROR "MSVC is too old - no C11 atomics support")
         endif()
     endif()
-else()
-    target_compile_options(${PROJECT_NAME} PRIVATE -Wall -Wextra -pedantic -Werror)
+elseif(NOT MINGW)
+    # On MinGW there are wonky warnings around libuv that cause pedantic and Werror to fail randomly.
+
+    list(APPEND IGNORED_WARNINGS
+        -Wno-gnu-statement-expression # these are useful for container_of and the like
+    )
+    
+    target_compile_options(${PROJECT_NAME} PRIVATE -Wall -Wextra -pedantic -Werror ${IGNORED_WARNINGS})
 endif()
 
 if (NOT BUILD_UV)

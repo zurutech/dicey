@@ -67,7 +67,9 @@ add_library(samples_util STATIC)
 
 if (MSVC)
     target_compile_options(samples_util PRIVATE /W4 /WX)
-else()
+elseif(NOT MINGW)
+    # bypass spurious warnings with libuv on MinGW
+
     target_compile_options(samples_util PRIVATE -Wall -Wextra -pedantic -Werror)
 endif()
 
