@@ -49,29 +49,30 @@ enum dicey_error {
     DICEY_ECONNRESET = -0x010E,   /**< Connection reset. */
     DICEY_EEXIST = -0x010F,       /**< Object exists. */
     DICEY_EADDRINUSE = -0x0110,   /**< Address in use. */
+    DICEY_EACCES = -0x0111,       /**< Permission denied. */
 
-    DICEY_EPATH_TOO_LONG = -0x0211,  /**< A path is too long. */
-    DICEY_ETUPLE_TOO_LONG = -0x0212, /**< Tuple too long. (currently unused) */
-    DICEY_EARRAY_TOO_LONG = -0x0213, /**< Array too long. (currently unused) */
+    DICEY_EPATH_TOO_LONG = -0x0212,  /**< A path is too long. */
+    DICEY_ETUPLE_TOO_LONG = -0x0213, /**< Tuple too long. (currently unused) */
+    DICEY_EARRAY_TOO_LONG = -0x0214, /**< Array too long. (currently unused) */
 
-    DICEY_EVALUE_TYPE_MISMATCH = -0x0314, /**< Value type mismatch. */
+    DICEY_EVALUE_TYPE_MISMATCH = -0x0315, /**< Value type mismatch. */
 
-    DICEY_ENOT_SUPPORTED = -0x0415,       /**< Operation not supported. */
-    DICEY_ECLIENT_TOO_OLD = -0x0416,      /**< Client is too old. */
-    DICEY_ESERVER_TOO_OLD = -0x0417,      /**< Client is too old. */
-    DICEY_EPATH_DELETED = -0x0418,        /**< Path has been deleted. */
-    DICEY_EPATH_NOT_FOUND = -0x0419,      /**< Path not found. */
-    DICEY_EPATH_MALFORMED = -0x041A,      /**< Path is malformed */
-    DICEY_ETRAIT_NOT_FOUND = -0x041B,     /**< Trait not found. */
-    DICEY_EELEMENT_NOT_FOUND = -0x041C,   /**< Element not found. */
-    DICEY_ESIGNATURE_MALFORMED = -0x041D, /**< Signature is malformed. */
-    DICEY_ESIGNATURE_MISMATCH = -0x041E,  /**< Signature is mismatched. */
-    DICEY_EPROPERTY_READ_ONLY = -0x041F,  /**< Property is read-only. */
-    DICEY_EPEER_NOT_FOUND = -0x0420,      /**< Peer not found. */
-    DICEY_ESEQNUM_MISMATCH = -0x0421,     /**< Sequence number mismatch. */
-    DICEY_EUUID_NOT_VALID = -0x0422,      /**< UUID is not valid. */
+    DICEY_ENOT_SUPPORTED = -0x0416,       /**< Operation not supported. */
+    DICEY_ECLIENT_TOO_OLD = -0x0417,      /**< Client is too old. */
+    DICEY_ESERVER_TOO_OLD = -0x0418,      /**< Client is too old. */
+    DICEY_EPATH_DELETED = -0x0419,        /**< Path has been deleted. */
+    DICEY_EPATH_NOT_FOUND = -0x041A,      /**< Path not found. */
+    DICEY_EPATH_MALFORMED = -0x041B,      /**< Path is malformed */
+    DICEY_ETRAIT_NOT_FOUND = -0x041C,     /**< Trait not found. */
+    DICEY_EELEMENT_NOT_FOUND = -0x041D,   /**< Element not found. */
+    DICEY_ESIGNATURE_MALFORMED = -0x041E, /**< Signature is malformed. */
+    DICEY_ESIGNATURE_MISMATCH = -0x041F,  /**< Signature is mismatched. */
+    DICEY_EPROPERTY_READ_ONLY = -0x0420,  /**< Property is read-only. */
+    DICEY_EPEER_NOT_FOUND = -0x0421,      /**< Peer not found. */
+    DICEY_ESEQNUM_MISMATCH = -0x0422,     /**< Sequence number mismatch. */
+    DICEY_EUUID_NOT_VALID = -0x0423,      /**< UUID is not valid. */
 
-    DICEY_EUV_UNKNOWN = -0x0523 /**< Unknown libuv error. */
+    DICEY_EUV_UNKNOWN = -0x0524 /**< Unknown libuv error. */
 };
 
 /**
