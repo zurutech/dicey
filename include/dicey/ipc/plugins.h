@@ -25,48 +25,86 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include "../core/errors.h"
+
 #include "server.h"
 
 /**
- * @brief The maximum length of a plugin name, in bytes
+ * @brief Represents the basic info about a plugin.
  */
-#define DICEY_PLUGIN_MAX_NAME_LEN ((size_t) 64U)
-
-/**
- * @brief Describes the version of a plugin.
- */
-struct dicey_plugin_version {
-    union {
-        struct {
-            uint32_t major; /**< Major version number. */
-            uint32_t minor; /**< Minor version number. */
-            uint32_t patch; /**< Patch version number. */
-        };
-
-        uint32_t rolling; /**< Rolling version number, if used */
-    };
-
-    bool is_rolling; /**< Whether the version is "rolling" (i.e. r123) */
-};
-
 struct dicey_plugin_info {
-    const char name[DICEY_PLUGIN_MAX_NAME_LEN + 1U]; /**< The name of the plugin. Max DICEY_PLUGIN_MAX_NAME_LEN bytes */
-    struct dicey_plugin_version version;             /**< The version of the plugin. */
-    const char *description;                         /**< The description of the plugin. Assumed to be static */
+    const char *name; /**< The name of the plugin. May be NULL if the plugin hasn't yet registered itself */
+    char *path;       /**< The path to the plugin. If the OS uses wide characters, the path is in whatever 8-bit
+                           encoding the OS uses. Mutable due to libuv constraints, but shouldn't be mutated ever */
 };
 
 /**
- * @brief Lists all the available plugins from the plugin directory.
- * @param server The server to list the plugins for. Must have a valid plugin path set.
+ * @brief List of all event kinds that can occur with a plugin.
+ */
+enum dicey_plugin_event_kind {
+    DICEY_PLUGIN_EVENT_SPAWNED,      /**< A plugin was spawned; it hasn't handshaked yet, and still is not registered */
+    DICEY_PLUGIN_EVENT_READY,        /**< A plugin was loaded. It is now registered and ready to be used */
+    DICEY_PLUGIN_EVENT_QUITTING,     /**< A plugin is quitting */
+    DICEY_PLUGIN_EVENT_QUIT,         /**< A plugin quit cleanly */
+    DICEY_PLUGIN_EVENT_FAILED,       /**< A plugin returned non-zero */
+    DICEY_PLUGIN_EVENT_UNRESPONSIVE, /**< A plugin was killed because it failed to handshake in time. Expect a FAILED
+                                        event */
+};
+
+/**
+ * @brief A struct that represents an event that occurred with a plugin.
+ */
+struct dicey_plugin_event {
+    enum dicey_plugin_event_kind kind; /**< The kind of event. */
+    struct dicey_plugin_info info;     /**< The info of the affected plugin */
+};
+
+/**
+ * @brief Lists all the plugins currently running.
+ * @param server The server to list the plugins for.
  * @param buf    A pointer to a buffer that will be allocated to store the plugin information. if *buf is NULL, a new
  *               buffer will be allocated. If *buf is not NULL, the buffer will be used only if it is large enough.
  * @param count  A pointer to a size_t that will be set to the number of plugins found. If set, *count is assumed to be
  *               the size of the buffer pointed to by *buf. After the call, *count will be set to the number of plugins
  *               found and stored in *buf. If *count is too small, the function will return DICEY_EOVERFLOW and *count
  *               will be set to the number of plugins found.
- * @return       either
+ * @return       Error code. A (non-exhaustive) list of possible values are:
+ *               - OK: the plugins were successfully listed
+ *               - EINVAL: the server is in the wrong state (i.e. not running)
+ *               - ENOMEM: memory allocation failed (out of memory)
+ *               - EOVERFLOW: the buffer is too small
  */
-enum dicey_error dicey_server_plugins_list(struct dicey_server *server, struct dicey_plugin_info **buf, size_t *count);
+enum dicey_error dicey_server_list_plugins(struct dicey_server *server, struct dicey_plugin_info **buf, size_t *count);
+
+/**
+ * @brief Spawns the plugin at the given path. The binary is expected to be an executable file or a file the OS can
+ * execute directly, like a script with a shebang, binfmt, PATHEXT, ...
+ * @note  This function is asynchronous and will return immediately. The caller should listen for the plugin events on
+ *        the `dicey_server_on_plugin_event_fn` callback.
+ * @param server The server to spawn the plugin for.
+ * @param path   The path to the plugin binary.
+ * @return       Error code. A (non-exhaustive) list of possible values are:
+ *               - OK: the plugin was successfully spawned
+ */
+enum dicey_error dicey_server_spawn_plugin(struct dicey_server *server, const char *path);
+
+/**
+ * @brief Spawns the plugin at the given path. The binary is expected to be an executable file or a file the OS can
+ * execute directly, like a script with a shebang, binfmt, PATHEXT, ...
+ * @note  This function is synchronous and will block until the plugin has been spawned correctly.
+ * @param server The server to spawn the plugin for.
+ * @param path   The path to the plugin binary.
+ * @return       Error code. A (non-exhaustive) list of possible values are:
+ *               - OK: the plugin was successfully spawned
+ */
+enum dicey_error dicey_server_spawn_plugin_and_wait(struct dicey_server *server, const char *path);
+
+/**
+ * @brief Callback type for when a plugin event occurs.
+ * @param server The server instance where the event occurred.
+ * @param event  The event that occurred.
+ */
+typedef void dicey_server_on_plugin_event_fn(struct dicey_server *server, const struct dicey_plugin_event event);
 
 #endif // DICEY_HAS_PLUGINS
 

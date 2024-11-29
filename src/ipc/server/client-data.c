@@ -59,32 +59,41 @@ static struct dicey_client_list *client_list_grow(struct dicey_client_list *list
     return list;
 }
 
-void dicey_client_data_delete(struct dicey_client_data *const client) {
-    if (!client) {
-        return;
+static enum dicey_error finish_client_data_cleanup(struct dicey_client_data *client) {
+    if (client) {
+        dicey_hashset_delete(client->subscriptions);
+
+        free(client->chunk);
+        free(client->pending);
+        free(client);
     }
 
-    dicey_hashset_delete(client->subscriptions);
-
-    free(client->chunk);
-    free(client->pending);
-    free(client);
+    return DICEY_OK;
 }
 
-struct dicey_client_data *dicey_client_data_new(struct dicey_server *const parent, const size_t id) {
+enum dicey_error dicey_client_data_cleanup(struct dicey_client_data *const client) {
+    if (!client) {
+        return DICEY_OK; // nothing to do means nothing to fail
+    }
+
+    // if there's a cleanup callback, call it. Otherwise, call the cleanup function directly
+    return client->cleanup_cb ? client->cleanup_cb(client, &finish_client_data_cleanup)
+                              : finish_client_data_cleanup(client);
+}
+
+struct dicey_client_data *dicey_client_data_init(
+    struct dicey_client_data *const client,
+    struct dicey_server *const parent,
+    const size_t id
+) {
+    assert(client && parent);
+
     struct dicey_hashset *const subscriptions = dicey_hashset_new();
     if (!subscriptions) {
         return NULL;
     }
 
-    struct dicey_client_data *new_client = calloc(1U, sizeof *new_client);
-    if (!new_client) {
-        dicey_hashset_delete(subscriptions);
-
-        return NULL;
-    }
-
-    *new_client = (struct dicey_client_data) {
+    *client = (struct dicey_client_data) {
         .info = {
             .id = id,
         },
@@ -92,6 +101,23 @@ struct dicey_client_data *dicey_client_data_new(struct dicey_server *const paren
         .parent = parent,
         .subscriptions = subscriptions,
     };
+
+    return client;
+}
+
+struct dicey_client_data *dicey_client_data_new(struct dicey_server *const parent, const size_t id) {
+    // ok, we should malloc + *client = (struct dicey_client_data) { 0 } here instead, but really, where will this
+    // not work?
+    struct dicey_client_data *new_client = calloc(1U, sizeof *new_client);
+    if (!new_client) {
+        return NULL;
+    }
+
+    if (!dicey_client_data_init(new_client, parent, id)) {
+        free(new_client);
+
+        return NULL;
+    }
 
     return new_client;
 }
@@ -167,7 +193,33 @@ struct dicey_client_data *dicey_client_list_get_client(const struct dicey_client
     return NULL;
 }
 
-struct dicey_client_data **dicey_client_list_new_bucket(
+// in short: this function is used to find an empty slot in the client list
+// `bucket_dest` is a pointer to the slot, and `id` is the index of the slot
+// given that the list is a list of pointers, the function should ideally return a pointer to a slot the caller can then
+// fill. This is a "bucket" and has type `struct dicey_client_data **`.
+// Given that the function also returns the index as an output value, the function does not return the pointer directly,
+// but rather through a pointer-to-pointer. This unfortunately ends up the type of `bucket_dest` as `struct
+// dicey_client_data ***`, a triple pointer, which is a cumbersome way of saying "a pointer to a variable that can hold
+// a pointer to a slot in a list of pointers".
+//
+//                                ── ───┬──────┬── ──
+//                                      │      │
+//                                      │      │
+//                                      │      │
+//                                ──── ─┴──────┴── ───
+//                                     └────────┘
+//                                         ▲
+//                                         │
+//                                         │
+//                                         │
+//                                         │
+//    ┌─────────────┬──────────────────────┘
+//    │             │
+//    │ bucket_dest │
+//    │             │
+//    └─────────────┘
+//
+bool dicey_client_list_new_bucket(
     struct dicey_client_list **const list_ptr,
     struct dicey_client_data ***const bucket_dest,
     size_t *const id
@@ -185,7 +237,7 @@ struct dicey_client_data **dicey_client_list_new_bucket(
                 *id = i;
                 *bucket_dest = &list->clients[i];
 
-                return *bucket_dest;
+                return true;
             }
         }
 
@@ -195,10 +247,11 @@ struct dicey_client_data **dicey_client_list_new_bucket(
     // if there's no list, or no empty slot, grow the list and return the first new slot
     *list_ptr = client_list_grow(*list_ptr);
     if (!*list_ptr) {
-        return NULL;
+        return false;
     }
 
     *id = old_cap;
+    *bucket_dest = &(*list_ptr)->clients[old_cap];
 
-    return *bucket_dest = &(*list_ptr)->clients[old_cap];
+    return true;
 }

@@ -17,6 +17,7 @@
 #if !defined(NFXODQMLCB_CLIENT_DATA_H)
 #define NFXODQMLCB_CLIENT_DATA_H
 
+#include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 
@@ -26,11 +27,15 @@
 #include <dicey/core/hashset.h>
 #include <dicey/core/type.h>
 #include <dicey/core/version.h>
+#include <dicey/ipc/server-api.h>
 #include <dicey/ipc/server.h>
 
 #include "ipc/chunk.h"
 
 #include "pending-reqs.h"
+#include "plugins.h"
+
+#include "dicey_config.h"
 
 #if defined(_MSC_VER)
 #pragma warning(disable : 4200)
@@ -41,6 +46,17 @@ enum dicey_client_state {
     CLIENT_STATE_RUNNING,
     CLIENT_STATE_DEAD,
 };
+
+struct dicey_client_data;
+
+// cleanup callback that a data cleanup is bound to call after the cleanup is done
+typedef enum dicey_error dicey_client_data_after_cleanup_fn(struct dicey_client_data *client);
+
+// cleanup callback used by plugins to clean up their data
+typedef enum dicey_error dicey_client_data_cleanup_fn(
+    struct dicey_client_data *client,
+    dicey_client_data_after_cleanup_fn *after_cleanup
+);
 
 struct dicey_client_data {
     uv_pipe_t pipe;
@@ -59,11 +75,21 @@ struct dicey_client_data {
     struct dicey_pending_requests *pending;
 
     struct dicey_hashset *subscriptions;
+
+    dicey_client_data_cleanup_fn *cleanup_cb;
+
+#if DICEY_HAS_PLUGINS
+    bool is_plugin;
+#endif
 };
 
-void dicey_client_data_delete(struct dicey_client_data *client);
+enum dicey_error dicey_client_data_cleanup(struct dicey_client_data *client);
+struct dicey_client_data *dicey_client_data_init(
+    struct dicey_client_data *client,
+    struct dicey_server *parent,
+    size_t id
+);
 struct dicey_client_data *dicey_client_data_new(struct dicey_server *parent, size_t id);
-
 bool dicey_client_data_is_subscribed(const struct dicey_client_data *client, const char *elemdescr);
 enum dicey_error dicey_client_data_subscribe(struct dicey_client_data *client, const char *elemdescr);
 bool dicey_client_data_unsubscribe(struct dicey_client_data *client, const char *elemdescr);
@@ -75,10 +101,7 @@ struct dicey_client_data *dicey_client_list_drop_client(struct dicey_client_list
 struct dicey_client_data *const *dicey_client_list_end(const struct dicey_client_list *list);
 struct dicey_client_data *dicey_client_list_get_client(const struct dicey_client_list *list, size_t id);
 bool dicey_client_list_is_empty(const struct dicey_client_list *list);
-struct dicey_client_data **dicey_client_list_new_bucket(
-    struct dicey_client_list **list,
-    struct dicey_client_data ***bucket_dest,
-    size_t *id
-);
+
+bool dicey_client_list_new_bucket(struct dicey_client_list **list, struct dicey_client_data ***bucket_dest, size_t *id);
 
 #endif // NFXODQMLCB_CLIENT_DATA_H

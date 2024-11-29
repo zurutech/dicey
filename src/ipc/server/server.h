@@ -24,12 +24,16 @@
 #include <dicey/core/errors.h>
 #include <dicey/core/packet.h>
 #include <dicey/core/views.h>
+#include <dicey/ipc/plugins.h>
 #include <dicey/ipc/registry.h>
 #include <dicey/ipc/server.h>
 
 #include "ipc/queue.h"
 
 #include "client-data.h"
+#include "plugins.h"
+
+#include "dicey_config.h"
 
 enum dicey_server_state {
     SERVER_STATE_UNINIT,
@@ -66,7 +70,9 @@ struct dicey_server {
 
     struct dicey_view_mut scratchpad;
 
-    char *plugin_path;
+#if DICEY_HAS_PLUGINS
+    dicey_server_on_plugin_event_fn *on_plugin_event;
+#endif
 
     void *ctx;
 };

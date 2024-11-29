@@ -24,9 +24,12 @@
 #include <uv.h>
 
 #include <dicey/core/errors.h>
+#include <dicey/core/views.h>
+#include <dicey/ipc/server.h>
+
+#include "sup/view-ops.h"
 
 #include "client-data.h"
-#include "server.h"
 
 // - server may be null. If this is the case, it means the request has been cancelled and the callback should only
 //   clean up the payload in request data
@@ -36,7 +39,7 @@
 typedef enum dicey_error dicey_server_loop_request_fn(
     struct dicey_server *server,
     struct dicey_client_data *client,
-    const void *req_data
+    void *req_data
 );
 
 // a request to be processed in the server loop.
@@ -59,11 +62,22 @@ struct dicey_server_loop_request {
     char payload[];
 };
 
+// these macros are designed to make pretty unsafe things safe(r). Use with caution.
+
 #define DICEY_SERVER_LOOP_REQ_NO_TARGET ((ptrdiff_t) -1)
-#define DICEY_SERVER_LOOP_REQ_NEW(TYPE) calloc(1, sizeof(struct dicey_server_loop_request) + sizeof(TYPE))
-#define DICEY_SERVER_LOOP_REQ_NEW_EMPTY() calloc(1, sizeof(struct dicey_server_loop_request))
-#define DICEY_SERVER_LOOP_GET_PAYLOAD(DEST, REQ, TYPE) ((void) memcpy((DEST), (REQ).payload, sizeof(TYPE)))
+#define DICEY_SERVER_LOOP_REQ_NEW_WITH_BYTES(N) calloc(1, sizeof(struct dicey_server_loop_request) + (N))
+#define DICEY_SERVER_LOOP_REQ_NEW(TYPE) DICEY_SERVER_LOOP_REQ_NEW_WITH_BYTES(sizeof(TYPE))
+#define DICEY_SERVER_LOOP_REQ_NEW_EMPTY() DICEY_SERVER_LOOP_REQ_NEW_WITH_BYTES(0)
+#define DICEY_SERVER_LOOP_REQ_GET_PAYLOAD(DEST, REQ, TYPE) ((void) memcpy((DEST), (REQ).payload, sizeof(TYPE)))
+#define DICEY_SERVER_LOOP_REQ_GET_PAYLOAD_AS_VIEW_MUT(REQ, SIZE) dicey_view_mut_from((REQ).payload, (SIZE))
+
+#define DICEY_SERVER_LOOP_SET_PAYLOAD_BYTES(DEST, PAYLOADPTR, N) ((void) memcpy((DEST)->payload, (PAYLOADPTR), (N)))
+
 #define DICEY_SERVER_LOOP_SET_PAYLOAD(DEST, TYPE, PAYLOADPTR)                                                          \
-    ((void) memcpy((DEST)->payload, (PAYLOADPTR), sizeof(TYPE)))
+    DICEY_SERVER_LOOP_SET_PAYLOAD_BYTES(DEST, PAYLOADPTR, sizeof(TYPE))
+
+// req is always malloc'd, and will be freed by these functions
+enum dicey_error dicey_server_submit_request(struct dicey_server *server, struct dicey_server_loop_request *req);
+enum dicey_error dicey_server_blocking_request(struct dicey_server *server, struct dicey_server_loop_request *req);
 
 #endif // LLUCQCORBC_SERVER_LOOPREQ_H

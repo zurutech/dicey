@@ -36,6 +36,7 @@
 #include <dicey/core/value.h>
 #include <dicey/ipc/address.h>
 #include <dicey/ipc/registry.h>
+#include <dicey/ipc/server-api.h>
 #include <dicey/ipc/server.h>
 #include <dicey/ipc/traits.h>
 
@@ -51,6 +52,7 @@
 
 #include "client-data.h"
 #include "pending-reqs.h"
+#include "server-clients.h"
 #include "server-loopreq.h"
 #include "server.h"
 #include "shared-packet.h"
@@ -408,31 +410,29 @@ quit:
 
 #define READ_MINBUF 256U // 256B
 
-static void on_client_end(uv_handle_t *const handle) {
-    struct dicey_client_data *const client = (struct dicey_client_data *) handle;
-
-    if (client->parent->on_disconnect) {
-        client->parent->on_disconnect(client->parent, &client->info);
-    }
-
-    dicey_client_data_delete(client);
-}
-
-static ptrdiff_t server_add_client(struct dicey_server *const server, struct dicey_client_data **const dest) {
+static ptrdiff_t server_new_peer(struct dicey_server *const server, struct dicey_client_data **const dest) {
     struct dicey_client_data **client_bucket = NULL;
     size_t id = 0U;
 
-    if (!dicey_client_list_new_bucket(&server->clients, &client_bucket, &id)) {
-        return TRACE(DICEY_ENOMEM);
+    enum dicey_error err = dicey_server_reserve_id(server, &client_bucket, &id);
+    if (err) {
+        return err;
     }
 
     struct dicey_client_data *const client = *client_bucket = dicey_client_data_new(server, id);
     if (!client) {
+        // release the id
+        (void) dicey_server_release_id(server, id);
+
         return TRACE(DICEY_ENOMEM);
     }
 
     if (uv_pipe_init(&server->loop, &client->pipe, 0)) {
-        free(client);
+        // release the id and free the client data struct
+        err = dicey_server_cleanup_id(server, id);
+        if (err) {
+            return err;
+        }
 
         return TRACE(DICEY_EUV_UNKNOWN);
     }
@@ -440,47 +440,6 @@ static ptrdiff_t server_add_client(struct dicey_server *const server, struct dic
     *dest = client;
 
     return client->info.id;
-}
-
-static enum dicey_error server_submit_request(
-    struct dicey_server *const server,
-    struct dicey_server_loop_request *const req
-) {
-    assert(server && req);
-
-    const bool success = dicey_queue_push(&server->queue, req, DICEY_LOCKING_POLICY_BLOCKING);
-
-    assert(success);
-    (void) success; // suppress unused variable warning with NDEBUG and MSVC
-
-    return dicey_error_from_uv(uv_async_send(&server->async));
-}
-
-static enum dicey_error server_blocking_request(
-    struct dicey_server *const server,
-    struct dicey_server_loop_request *const req // must be malloc'd, and will be freed by this function
-) {
-    assert(server && req);
-
-    uv_sem_t sem = { 0 };
-    uv_sem_init(&sem, 0);
-
-    req->sem = &sem;
-
-    enum dicey_error err = server_submit_request(server, req);
-
-    // there is no way async send can fail, honestly, and it if does, there is no possible way to recover
-    assert(!err);
-    (void) err; // suppress unused variable warning with NDEBUG and MSVC
-
-    uv_sem_wait(&sem);
-
-    uv_sem_destroy(&sem);
-
-    err = req->err;
-    free(req);
-
-    return err;
 }
 
 static void server_shutdown_at_end(uv_handle_t *const handle) {
@@ -545,22 +504,6 @@ static enum dicey_error server_kick_client(
     }
 
     return err;
-}
-
-static enum dicey_error server_remove_client(struct dicey_server *const server, const size_t index) {
-    if (!server) {
-        return TRACE(DICEY_EINVAL);
-    }
-
-    struct dicey_client_data *const bucket = dicey_client_list_drop_client(server->clients, index);
-
-    if (!bucket) {
-        return TRACE(DICEY_EINVAL);
-    }
-
-    uv_close((uv_handle_t *) bucket, &on_client_end);
-
-    return DICEY_OK;
 }
 
 static enum dicey_error server_report_error(
@@ -743,7 +686,7 @@ static ptrdiff_t client_got_bye(struct dicey_client_data *client, const struct d
 
     assert(client);
 
-    server_remove_client(client->parent, client->info.id);
+    dicey_server_remove_client(client->parent, client->info.id);
 
     return CLIENT_STATE_DEAD;
 }
@@ -1039,9 +982,9 @@ static void on_write(uv_write_t *const req, const int status) {
     const struct dicey_packet packet = outbound_packet_borrow(write_req->packet);
 
     if (dicey_packet_get_kind(packet) == DICEY_PACKET_KIND_BYE) {
-        const enum dicey_error err = server_remove_client(write_req->server, write_req->client_id);
+        const enum dicey_error err = dicey_server_remove_client(write_req->server, write_req->client_id);
         if (err) {
-            server->on_error(server, err, info, "server_remove_client: %s\n", dicey_error_name(err));
+            server->on_error(server, err, info, "dicey_server_remove_client: %s\n", dicey_error_name(err));
         }
     }
 
@@ -1089,10 +1032,10 @@ static void on_read(uv_stream_t *const stream, const ssize_t nread, const uv_buf
             server->on_error(server, dicey_error_from_uv(uverr), &client->info, "Read error %s\n", uv_strerror(uverr));
         }
 
-        const enum dicey_error remove_err = server_remove_client(client->parent, client->info.id);
+        const enum dicey_error remove_err = dicey_server_remove_client(client->parent, client->info.id);
         if (remove_err) {
             server->on_error(
-                server, remove_err, &client->info, "server_remove_client: %s\n", dicey_error_name(remove_err)
+                server, remove_err, &client->info, "dicey_server_remove_client: %s\n", dicey_error_name(remove_err)
             );
         }
 
@@ -1141,7 +1084,7 @@ struct object_info {
 static enum dicey_error loop_request_add_object(
     struct dicey_server *const server,
     struct dicey_client_data *const client,
-    const void *const payload
+    void *const payload
 ) {
     (void) client;
 
@@ -1167,7 +1110,7 @@ static enum dicey_error loop_request_add_object(
 static enum dicey_error loop_request_add_trait(
     struct dicey_server *const server,
     struct dicey_client_data *const client,
-    const void *const payload
+    void *const payload
 ) {
     (void) client;
 
@@ -1189,7 +1132,7 @@ static enum dicey_error loop_request_add_trait(
 static enum dicey_error loop_request_del_object(
     struct dicey_server *const server,
     struct dicey_client_data *const client,
-    const void *const payload
+    void *const payload
 ) {
     (void) client;
 
@@ -1212,7 +1155,7 @@ static enum dicey_error loop_request_del_object(
 static enum dicey_error loop_request_kick_client(
     struct dicey_server *const server,
     struct dicey_client_data *const client,
-    const void *const payload
+    void *const payload
 ) {
     enum dicey_bye_reason reason = DICEY_BYE_REASON_INVALID;
 
@@ -1229,7 +1172,7 @@ static enum dicey_error loop_request_kick_client(
 static enum dicey_error loop_request_raise_event(
     struct dicey_server *const server,
     struct dicey_client_data *const client,
-    const void *const payload
+    void *const payload
 ) {
     (void) client;
 
@@ -1256,7 +1199,7 @@ static enum dicey_error loop_request_raise_event(
 static enum dicey_error loop_request_send_response(
     struct dicey_server *const server,
     struct dicey_client_data *const client,
-    const void *const payload
+    void *const payload
 ) {
     struct dicey_packet packet = { 0 };
 
@@ -1298,7 +1241,7 @@ quit:
 static enum dicey_error loop_request_shutdown_phony_handler(
     struct dicey_server *const server,
     struct dicey_client_data *const client,
-    const void *const payload
+    void *const payload
 ) {
     (void) client;
     (void) payload;
@@ -1390,7 +1333,7 @@ static void on_connect(uv_stream_t *const stream, const int status) {
 
     struct dicey_client_data *client = NULL;
 
-    const ptrdiff_t id = server_add_client(server, &client);
+    const ptrdiff_t id = server_new_peer(server, &client);
     if (id < 0) {
         server->on_error(server, id, NULL, "server_add_client: %s", dicey_error_name(id));
 
@@ -1403,13 +1346,13 @@ static void on_connect(uv_stream_t *const stream, const int status) {
     if (accept_err) {
         server->on_error(server, dicey_error_from_uv(accept_err), NULL, "uv_accept: %s", uv_strerror(accept_err));
 
-        server_remove_client(server, (size_t) id);
+        dicey_server_remove_client(server, (size_t) id);
     }
 
     if (server->on_connect && !server->on_connect(server, (size_t) id, &client->info.user_data)) {
         server->on_error(server, DICEY_ECONNREFUSED, &client->info, "connection refused by user code");
 
-        server_remove_client(server, (size_t) id);
+        dicey_server_remove_client(server, (size_t) id);
 
         return;
     }
@@ -1419,7 +1362,7 @@ static void on_connect(uv_stream_t *const stream, const int status) {
     if (err < 0) {
         server->on_error(server, dicey_error_from_uv(err), &client->info, "read_start fail: %s", uv_strerror(err));
 
-        server_remove_client(server, (size_t) id);
+        dicey_server_remove_client(server, (size_t) id);
     }
 }
 
@@ -1503,16 +1446,6 @@ enum dicey_error dicey_server_new(struct dicey_server **const dest, const struct
         if (args->on_error) {
             server->on_error = args->on_error;
         }
-
-        if (args->plugin_path) {
-
-            server->plugin_path = strdup(args->plugin_path);
-            if (!server->plugin_path) {
-                goto free_clients;
-
-                return TRACE(DICEY_ENOMEM);
-            }
-        }
     }
 
     int uverr = uv_loop_init(&server->loop);
@@ -1520,14 +1453,6 @@ enum dicey_error dicey_server_new(struct dicey_server **const dest, const struct
         err = dicey_error_from_uv(uverr);
 
         goto free_clients;
-    }
-
-    // validate the plugin path now that we have a loop
-    if (server->plugin_path) {
-        err = dicey_fs_is_dir(&server->loop, server->plugin_path);
-        if (err) {
-            goto free_loop;
-        }
     }
 
     uverr = dicey_queue_init(&server->queue);
@@ -1567,7 +1492,6 @@ free_loop:
     uv_loop_close(&server->loop);
 
 free_clients:
-    free(server->plugin_path);
     free(server->clients);
 
     dicey_registry_deinit(&server->registry);
@@ -1620,7 +1544,7 @@ enum dicey_error dicey_server_add_object(
 
             DICEY_SERVER_LOOP_SET_PAYLOAD(req, struct object_info, &object_info);
 
-            return server_submit_request(server, req);
+            return dicey_server_submit_request(server, req);
         }
 
     default:
@@ -1707,7 +1631,7 @@ enum dicey_error dicey_server_add_trait(struct dicey_server *const server, struc
 
             DICEY_SERVER_LOOP_SET_PAYLOAD(req, struct dicey_trait *, &trait);
 
-            return server_submit_request(server, req);
+            return dicey_server_submit_request(server, req);
         }
 
     default:
@@ -1750,7 +1674,7 @@ enum dicey_error dicey_server_delete_object(struct dicey_server *const server, c
 
             DICEY_SERVER_LOOP_SET_PAYLOAD(req, const char *, path_copy);
 
-            return server_submit_request(server, req);
+            return dicey_server_submit_request(server, req);
         }
 
     default:
@@ -1786,7 +1710,7 @@ enum dicey_error dicey_server_kick(struct dicey_server *const server, const size
 
     DICEY_SERVER_LOOP_SET_PAYLOAD(req, enum dicey_bye_reason, &reason);
 
-    return server_blocking_request(server, req);
+    return dicey_server_blocking_request(server, req);
 }
 
 enum dicey_error dicey_server_raise(struct dicey_server *const server, const struct dicey_packet packet) {
@@ -1808,7 +1732,7 @@ enum dicey_error dicey_server_raise(struct dicey_server *const server, const str
 
     DICEY_SERVER_LOOP_SET_PAYLOAD(req, struct dicey_packet, &packet);
 
-    return server_submit_request(server, req);
+    return dicey_server_submit_request(server, req);
 }
 
 enum dicey_error dicey_server_raise_and_wait(struct dicey_server *const server, const struct dicey_packet packet) {
@@ -1830,7 +1754,7 @@ enum dicey_error dicey_server_raise_and_wait(struct dicey_server *const server, 
 
     DICEY_SERVER_LOOP_SET_PAYLOAD(req, struct dicey_packet, &packet);
 
-    return server_blocking_request(server, req);
+    return dicey_server_blocking_request(server, req);
 }
 
 enum dicey_error dicey_server_send_response(
@@ -1860,7 +1784,7 @@ enum dicey_error dicey_server_send_response(
 
     DICEY_SERVER_LOOP_SET_PAYLOAD(req, struct dicey_packet, &packet);
 
-    return server_submit_request(server, req);
+    return dicey_server_submit_request(server, req);
 }
 
 enum dicey_error dicey_server_send_response_and_wait(
@@ -1890,7 +1814,7 @@ enum dicey_error dicey_server_send_response_and_wait(
 
     DICEY_SERVER_LOOP_SET_PAYLOAD(req, struct dicey_packet, &packet);
 
-    return server_blocking_request(server, req);
+    return dicey_server_blocking_request(server, req);
 }
 
 void *dicey_server_set_context(struct dicey_server *const server, void *const new_context) {
@@ -1942,7 +1866,7 @@ enum dicey_error dicey_server_stop(struct dicey_server *const server) {
 
     *req = LOOP_REQUEST_SHUTDOWN;
 
-    const enum dicey_error err = server_submit_request(server, req);
+    const enum dicey_error err = dicey_server_submit_request(server, req);
     if (err) {
         free(req);
 
@@ -1966,5 +1890,5 @@ enum dicey_error dicey_server_stop_and_wait(struct dicey_server *const server) {
 
     *req = LOOP_REQUEST_SHUTDOWN;
 
-    return server_blocking_request(server, req);
+    return dicey_server_blocking_request(server, req);
 }

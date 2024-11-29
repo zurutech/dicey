@@ -197,6 +197,7 @@ set(PUBLIC_HEADERS
     "include/dicey/ipc/builtins.h"
     "include/dicey/ipc/client.h"
     "include/dicey/ipc/registry.h"
+    "include/dicey/ipc/server-api.h"
     "include/dicey/ipc/server.h"
     "include/dicey/ipc/traits.h"
 
@@ -205,24 +206,17 @@ set(PUBLIC_HEADERS
     "include/dicey/ipc/builtins/server.h"
 )
 
-if (PLUGIN_SUPPORT)
-    list(APPEND PUBLIC_HEADERS
-        "include/dicey/ipc/plugins.h"
-
-        "include/dicey/ipc/builtins/plugins.h"
-    )
-endif()
-
 set(CORE_SOURCES
     # common
     src/errors.c
     src/version.c
 
     # wirefmt    
-    src/wirefmt/builders.c 
+    src/wirefmt/builders.c
     src/wirefmt/packet-args.c
     src/wirefmt/packet-args.h
     src/wirefmt/packet.c
+    src/wirefmt/typedescr.c
     src/wirefmt/uuid.c
     src/wirefmt/value-validate.c
     src/wirefmt/value.c
@@ -232,7 +226,6 @@ set(CORE_SOURCES
     src/wirefmt/dtf/payload.c
     src/wirefmt/dtf/payload.h
     src/wirefmt/dtf/to.h
-    src/wirefmt/typedescr.c
     src/wirefmt/dtf/value-probe.c
     src/wirefmt/dtf/value-write.c
     src/wirefmt/dtf/value.h
@@ -240,9 +233,9 @@ set(CORE_SOURCES
     src/wirefmt/dtf/writer.h
     
     # sup    
+    src/sup/asprintf.c
+    src/sup/asprintf.h
     src/sup/assume.h
-    src/sup/fs.c
-    src/sup/fs.h
     src/sup/hashset.c
     src/sup/hashtable.c
     src/sup/trace.c
@@ -275,11 +268,13 @@ set(CORE_SOURCES
     src/ipc/server/client-data.h
     src/ipc/server/pending-reqs.c
     src/ipc/server/pending-reqs.h
-    src/ipc/server/plugins.c
     src/ipc/server/registry.c
     src/ipc/server/registry-internal.h
     src/ipc/server/server.c
     src/ipc/server/server.h
+    src/ipc/server/server-clients.c
+    src/ipc/server/server-clients.h
+    src/ipc/server/server-loopreq.c
     src/ipc/server/server-loopreq.h
     src/ipc/server/shared-packet.c
     src/ipc/server/shared-packet.h
@@ -311,8 +306,21 @@ set(CORE_SOURCES
     src/ipc/tasks/loop.h
 )
 
-if (WIN32)
-    list(APPEND CORE_SOURCES src/sup/asprintf.c)
+set(PLUGIN_SOURCES
+    src/ipc/plugin-macros.h
+
+    src/ipc/server/plugins.c
+    src/ipc/server/plugins.h
+)
+
+if (PLUGIN_SUPPORT)
+    list(APPEND PUBLIC_HEADERS
+        "include/dicey/ipc/plugins.h"
+
+        "include/dicey/ipc/builtins/plugins.h"
+    )
+
+    list(APPEND CORE_SOURCES ${PLUGIN_SOURCES})
 endif()
 
 target_sources(
