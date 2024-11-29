@@ -23,7 +23,39 @@
 
 #include <dicey/core/views.h>
 
+#include "dicey_config.h"
+
+#define DICEY_LENOF(ARR) (sizeof(ARR) / sizeof(*(ARR)))
 #define DICEY_UNUSED(X) ((void) (X))
+
+#if defined(NDEBUG) && defined(__has_builtin) && __has_builtin(__builtin_unreachable)
+#define DICEY_UNREACHABLE(X) __builtin_unreachable()
+#else
+#define DICEY_UNREACHABLE(X) assert(!"Unreachable code reached")
+#endif
+
+#if defined(__STDC_VERSION__) && __STDC_VERSION__ >= 202311L
+#define DICEY_FALLTHROUGH [[fallthrough]]
+#elif defined(__has_attribute) && __has_attribute(fallthrough)
+#define DICEY_FALLTHROUGH __attribute__((fallthrough))
+#else
+#define DICEY_FALLTHROUGH
+#endif
+
+#if defined(DICEY_CC_IS_GCC) || defined(DICEY_CC_IS_CLANG)
+
+// if we have GNU extensions, we can use the kernel version with type checking using typeof and GCC's expression
+// statements
+
+#define DICEY_CONTAINEROF(PTR, TYPE, MEMBER)                                                                           \
+    ({                                                                                                                 \
+        const __typeof__(((TYPE *) NULL)->MEMBER) *const _ptr_to_member_with_unique_name = (PTR);                      \
+        (TYPE *) ((char *) _ptr_to_member_with_unique_name - offsetof(TYPE, MEMBER));                                  \
+    })
+
+#else
+#define DICEY_CONTAINEROF(PTR, TYPE, MEMBER) ((TYPE *) ((char *) (PTR) -offsetof(TYPE, MEMBER)))
+#endif
 
 /**
  * @brief Get a pointer to a member of a struct
@@ -37,7 +69,7 @@
  */
 #define MEMBER_PTR(STRUCT, NAME, BASE) ((uint8_t *) (BASE) + offsetof(STRUCT, NAME))
 
-#if defined(__GNUC__) || defined(__clang__)
+#if defined(DICEY_CC_IS_GCC) || defined(DICEY_CC_IS_CLANG)
 #define SAFE_ADD(DEST, A, B) (!__builtin_add_overflow((A), (B), (DEST)))
 #else
 

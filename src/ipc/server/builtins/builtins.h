@@ -30,8 +30,6 @@
 
 #include "ipc/server/client-data.h"
 
-#define DICEY_LENOF(ARR) (sizeof(ARR) / sizeof(ARR)[0])
-
 struct dicey_builtin_context {
     struct dicey_registry *registry;
 

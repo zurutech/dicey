@@ -122,7 +122,7 @@ static bool valbuilder_is_valid(const struct dicey_value_builder *const builder)
 
 #endif
 
-enum dicey_error valbuilder_list_start(
+static enum dicey_error valbuilder_list_start(
     struct dicey_value_builder *const builder,
     const enum builder_state list_kind,
     const enum dicey_type type

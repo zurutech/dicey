@@ -27,7 +27,7 @@
 #define HAS_ABSTRACT_SOCKETS 0
 #endif
 
-char *cnkdup(const char *const str, const size_t len) {
+static char *cnkdup(const char *const str, const size_t len) {
     assert(str);
 
     char *const copy = malloc(len);
