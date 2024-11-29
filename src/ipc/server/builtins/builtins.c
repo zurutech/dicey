@@ -23,6 +23,7 @@
 #include <dicey/ipc/traits.h>
 
 #include "sup/trace.h"
+#include "sup/util.h"
 
 #include "introspection/introspection.h"
 #include "server/server.h"

@@ -40,7 +40,6 @@
 #include <dicey/ipc/traits.h>
 
 #include "sup/assume.h"
-#include "sup/fs.h"
 #include "sup/trace.h"
 #include "sup/uvtools.h"
 

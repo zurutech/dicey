@@ -31,6 +31,7 @@
 #include <dicey/ipc/traits.h>
 
 #include "sup/trace.h"
+#include "sup/util.h"
 
 #include "ipc/server/builtins/builtins.h"
 #include "ipc/server/client-data.h"

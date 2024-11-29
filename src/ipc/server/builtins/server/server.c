@@ -33,6 +33,7 @@
 #include "ipc/server/client-data.h"
 
 #include "sup/trace.h"
+#include "sup/util.h"
 
 #include "server.h"
 
