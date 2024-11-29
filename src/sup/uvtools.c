@@ -34,6 +34,9 @@ enum dicey_error dicey_error_from_uv(const int uv_error) {
     case UV_ENOMEM:
         return TRACE(DICEY_ENOMEM);
 
+    case UV_EACCES:
+        return TRACE(DICEY_EACCES);
+
     case UV_ENOTDIR:
         return TRACE(DICEY_ENOTDIR);
 
