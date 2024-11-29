@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 #define _CRT_NONSTDC_NO_DEPRECATE 1
+#define _XOPEN_SOURCE 700
 
 #include <assert.h>
 #include <inttypes.h>

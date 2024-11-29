@@ -14,10 +14,9 @@
  * limitations under the License.
  */
 
-#include "dicey/ipc/server.h"
-#include "dicey/core/builders.h"
-#include "dicey/core/packet.h"
 #define _CRT_NONSTDC_NO_DEPRECATE 1
+#define _XOPEN_SOURCE 700
+
 #include <assert.h>
 #include <inttypes.h>
 #include <stdarg.h>
@@ -38,9 +37,9 @@
 #include "sval.h"
 #include "timer.h"
 
-#if defined(__linux__) || defined(_WIN32)
+#if defined(DICEY_IS_LINUX) || defined(DICEY_IS_WINDOWS)
 #define PIPE_NEEDS_CLEANUP false
-#if defined(_WIN32)
+#if defined(DICEY_IS_WINDOWS)
 #define PIPE_NAME "\\\\.\\pipe\\uvsock"
 #else
 #define PIPE_NAME "@/tmp/.uvsock"
@@ -105,7 +104,7 @@ static inline void dump_packet(const struct dicey_packet packet) {
     }
 }
 
-#if defined(_WIN32)
+#if defined(DICEY_IS_WINDOWS)
 
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
@@ -126,7 +125,7 @@ static bool register_break_hook(void) {
     return SetConsoleCtrlHandler(&quit_server, TRUE);
 }
 
-#elif defined(__unix__) || defined(__unix) || defined(unix) || (defined(__APPLE__) && defined(__MACH__))
+#elif defined(DICEY_IS_UNIX)
 
 #include <unistd.h>
 

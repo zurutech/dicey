@@ -14,7 +14,8 @@
  * limitations under the License.
  */
 
-#include "dicey/core/type.h"
+#define _XOPEN_SOURCE 700
+
 #include <assert.h>
 #include <ctype.h>
 #include <errno.h>

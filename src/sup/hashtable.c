@@ -15,6 +15,7 @@
  */
 
 #define _CRT_SECURE_NO_WARNINGS 1
+#define _XOPEN_SOURCE 700
 
 #include <assert.h>
 #include <stdbool.h>

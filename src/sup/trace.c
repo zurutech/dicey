@@ -24,9 +24,11 @@
 
 #include "trace.h"
 
+#include "dicey_config.h"
+
 #if !defined(NDEBUG)
 
-#if defined(_WIN32)
+#if defined(DICEY_IS_WINDOWS)
 #define DICEY_TRACE_ENABLED 1
 
 #include <stdio.h>
@@ -102,7 +104,7 @@ static void print_trace(const enum dicey_error errnum) {
     }
 }
 
-#elif (defined(__unix__) || defined(__unix) || (defined(__APPLE__) && defined(__MACH__))) && !defined(__CYGWIN__)
+#elif defined(DICEY_IS_UNIX) && !defined(DICEY_IS_CYGWIN)
 #define DICEY_TRACE_ENABLED 1
 
 #include <signal.h>
@@ -112,7 +114,7 @@ static void print_trace(const enum dicey_error errnum) {
 
 #include <execinfo.h>
 
-#if defined(__linux__)
+#if defined(DICEY_IS_LINUX)
 
 #include <ctype.h>
 #include <string.h>
@@ -150,7 +152,7 @@ static bool is_debugger_present(void) {
 
     return false;
 }
-#elif defined(__APPLE__) && defined(__MACH__)
+#elif defined(DICEY_IS_DARWIN)
 
 #include <assert.h>
 

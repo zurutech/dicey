@@ -16,6 +16,8 @@
 
 // thank you MS, but just no
 #define _CRT_SECURE_NO_WARNINGS 1
+#define _XOPEN_SOURCE 700
+
 #if defined(_MSC_VER)
 #pragma warning(disable : 4200) // borked C11 flex array
 #pragma warning(disable : 4996) // strdup
@@ -31,14 +33,14 @@
 #include <stdlib.h>
 #include <string.h>
 
-#if defined(_WIN32)
+#include <dicey/dicey.h>
+
+#if defined(DICEY_IS_WINDOWS)
 #define WIN32_LEAN_AND_MEAN 1
 #include <windows.h>
 #endif
 
 #include <uv.h>
-
-#include <dicey/dicey.h>
 
 #include <util/dumper.h>
 #include <util/getopt.h>
@@ -569,7 +571,7 @@ int main(const int argc, char *const *argv) {
         return EXIT_FAILURE;
     }
 
-#if defined(_WIN32)
+#if defined(DICEY_IS_WINDOWS)
     if (args.output == stdout) {
         SetConsoleOutputCP(CP_UTF8);
     }

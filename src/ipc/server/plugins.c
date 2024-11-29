@@ -14,6 +14,9 @@
  * limitations under the License.
  */
 
+#define _CRT_NONSTDC_NO_DEPRECATE 1
+#define _XOPEN_SOURCE 700
+
 #include "dicey_config.h"
 
 #if DICEY_HAS_PLUGINS
