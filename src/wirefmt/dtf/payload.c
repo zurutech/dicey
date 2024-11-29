@@ -103,7 +103,7 @@ static ptrdiff_t message_header_read(struct dtf_message_head *const head, struct
         return TRACE(DICEY_EINVAL);
     }
 
-    return dicey_view_read(src, (struct dicey_view_mut) { .data = head, .len = sizeof *head });
+    return dicey_view_read_ptr(src, head, sizeof *head);
 }
 
 static ptrdiff_t message_header_write(
@@ -112,17 +112,13 @@ static ptrdiff_t message_header_write(
     const uint32_t seq,
     const uint32_t trailer_size
 ) {
-    const struct dicey_view header = {
-        .data =
-            &(struct dtf_message_head) {
-                                        .kind = kind,
-                                        .seq = seq,
-                                        .data_len = trailer_size,
-                                        },
-        .len = sizeof(struct dtf_message_head),
+    const struct dtf_message_head header = {
+        .kind = kind,
+        .seq = seq,
+        .data_len = trailer_size,
     };
 
-    return dicey_view_mut_write(dest, header);
+    return dicey_view_mut_write_ptr(dest, &header, sizeof header);
 }
 
 static ptrdiff_t payload_header_read(struct dtf_payload_head *const head, struct dicey_view *const src) {
@@ -130,7 +126,7 @@ static ptrdiff_t payload_header_read(struct dtf_payload_head *const head, struct
         return TRACE(DICEY_EINVAL);
     }
 
-    return dicey_view_read(src, (struct dicey_view_mut) { .data = head, .len = sizeof *head });
+    return dicey_view_read_ptr(src, head, sizeof *head);
 }
 
 static ptrdiff_t trailer_read_size(struct dicey_view src, const enum dtf_payload_kind kind) {
@@ -189,7 +185,7 @@ struct dtf_result dtf_bye_write(struct dicey_view_mut dest, const uint32_t seq, 
         .reason = reason,
     };
 
-    const ptrdiff_t write_res = dicey_view_mut_write(&dest, (struct dicey_view) { .data = &bye, .len = sizeof bye });
+    const ptrdiff_t write_res = dicey_view_mut_write_ptr(&dest, &bye, sizeof bye);
     assert(write_res >= 0);
     DICEY_UNUSED(write_res); // suppress unused warning
 
@@ -211,8 +207,7 @@ struct dtf_result dtf_hello_write(struct dicey_view_mut dest, const uint32_t seq
         .version = version,
     };
 
-    const ptrdiff_t write_res =
-        dicey_view_mut_write(&dest, (struct dicey_view) { .data = &hello, .len = sizeof hello });
+    const ptrdiff_t write_res = dicey_view_mut_write_ptr(&dest, &hello, sizeof hello);
     assert(write_res >= 0);
     DICEY_UNUSED(write_res); // suppress unused warning
 
@@ -547,10 +542,8 @@ struct dtf_result dtf_payload_load(union dtf_payload *const payload, struct dice
         return res;
     }
 
-    struct dicey_view_mut dest = { .data = data, .len = (size_t) needed_len };
-
     struct dicey_view remainder = *src;
-    read_res = dicey_view_read(&remainder, dest);
+    read_res = dicey_view_read_ptr(&remainder, data, (size_t) needed_len);
     assert(read_res >= 0);
 
     // success: return the payload and advance the pointer
@@ -573,9 +566,7 @@ enum dicey_error dtf_payload_set_seq(const union dtf_payload msg, const uint32_t
         .len = sizeof msg.header->seq,
     };
 
-    struct dicey_view src = { .data = &seq, .len = sizeof seq };
-
-    const ptrdiff_t write_res = dicey_view_mut_write(&dest, src);
+    const ptrdiff_t write_res = dicey_view_mut_write_ptr(&dest, &seq, sizeof seq);
 
     return write_res < 0 ? TRACE((enum dicey_error) write_res) : DICEY_OK;
 }

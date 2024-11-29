@@ -38,13 +38,7 @@ static uint16_t take_elem(struct dicey_view *const sig) {
 
     uint8_t elem = 0U;
 
-    if (!dicey_view_read(
-            sig,
-            (struct dicey_view_mut) {
-                .data = &elem,
-                .len = sizeof elem,
-            }
-        )) {
+    if (!dicey_view_read_ptr(sig, &elem, sizeof elem)) {
         return DICEY_TYPE_INVALID;
     }
 
@@ -56,13 +50,7 @@ static int skip_char(struct dicey_view *const sig) {
 
     uint8_t byte = 0U;
 
-    const ptrdiff_t read = dicey_view_read(
-        sig,
-        (struct dicey_view_mut) {
-            .data = &byte,
-            .len = sizeof byte,
-        }
-    );
+    const ptrdiff_t read = dicey_view_read_ptr(sig, &byte, sizeof byte);
 
     assert(read == sizeof byte);
 

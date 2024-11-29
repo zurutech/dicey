@@ -42,8 +42,7 @@ static ptrdiff_t list_probe(struct dicey_view *const src, const uint32_t nbytes,
 static ptrdiff_t array_header_read(struct dicey_view *const src, struct dtf_array_header *const header) {
     assert(src && header);
 
-    const ptrdiff_t read_bytes =
-        dicey_view_read(src, (struct dicey_view_mut) { .data = header, .len = sizeof *header });
+    const ptrdiff_t read_bytes = dicey_view_read_ptr(src, header, sizeof *header);
 
     if (read_bytes >= 0 && !dicey_type_is_valid(header->type)) {
         return TRACE(DICEY_EBADMSG);
@@ -87,7 +86,7 @@ static ptrdiff_t array_probe(struct dicey_view *const src, union _dicey_data_inf
 static ptrdiff_t bytes_header_read(struct dicey_view *const src, struct dtf_bytes_header *const header) {
     assert(src && header);
 
-    return dicey_view_read(src, (struct dicey_view_mut) { .data = header, .len = sizeof *header });
+    return dicey_view_read_ptr(src, header, sizeof *header);
 }
 
 static ptrdiff_t bytes_probe(struct dicey_view *const src, struct dtf_probed_bytes *const dest) {
@@ -125,7 +124,7 @@ static ptrdiff_t bytes_probe(struct dicey_view *const src, struct dtf_probed_byt
 static ptrdiff_t error_header_read(struct dicey_view *const src, struct dtf_error_header *const header) {
     assert(src && header);
 
-    return dicey_view_read(src, (struct dicey_view_mut) { .data = header, .len = sizeof *header });
+    return dicey_view_read_ptr(src, header, sizeof *header);
 }
 
 static ptrdiff_t error_probe(struct dicey_view *const src, struct dicey_errmsg *const dest) {
@@ -162,7 +161,7 @@ static ptrdiff_t error_probe(struct dicey_view *const src, struct dicey_errmsg *
 static ptrdiff_t pair_header_read(struct dicey_view *const src, struct dtf_pair_header *const header) {
     assert(src && header);
 
-    return dicey_view_read(src, (struct dicey_view_mut) { .data = header, .len = sizeof *header });
+    return dicey_view_read_ptr(src, header, sizeof *header);
 }
 
 static ptrdiff_t pair_probe(struct dicey_view *const src, union _dicey_data_info *const data) {
@@ -200,7 +199,7 @@ static ptrdiff_t pair_probe(struct dicey_view *const src, union _dicey_data_info
 static ptrdiff_t tuple_header_read(struct dicey_view *const src, struct dtf_tuple_header *const header) {
     assert(src && header);
 
-    return dicey_view_read(src, (struct dicey_view_mut) { .data = header, .len = sizeof *header });
+    return dicey_view_read_ptr(src, header, sizeof *header);
 }
 
 static ptrdiff_t tuple_probe(struct dicey_view *const src, union _dicey_data_info *const data) {
@@ -291,7 +290,7 @@ ptrdiff_t type_size(const enum dicey_type type) {
 static ptrdiff_t value_header_read(struct dicey_view *const src, struct dtf_value_header *const header) {
     assert(src && header);
 
-    const ptrdiff_t result = dicey_view_read(src, (struct dicey_view_mut) { .data = header, .len = sizeof *header });
+    const ptrdiff_t result = dicey_view_read_ptr(src, header, sizeof *header);
     if (result < 0) {
         return result;
     }
@@ -401,5 +400,5 @@ ptrdiff_t dtf_value_probe_as(
                                     // so we can ignore the technicalities. If this weren't actually possible to do
                                     // then no OS ever would ever work. Given that we only support a limited set of
                                     // compilers, we can safely assume that this is fine.
-                                    : dicey_view_read(src, (struct dicey_view_mut) { .data = info, .len = size });
+                                    : dicey_view_read_ptr(src, info, size);
 }

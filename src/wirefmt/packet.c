@@ -492,10 +492,9 @@ void dicey_packet_deinit(struct dicey_packet *const packet) {
 enum dicey_error dicey_packet_dump(const struct dicey_packet packet, void **const data, size_t *const nbytes) {
     assert(dicey_packet_is_valid(packet) && data && *data && nbytes);
 
-    struct dicey_view src = { .data = packet.payload, .len = packet.nbytes };
-    struct dicey_view_mut dest = { .data = *data, .len = *nbytes };
+    struct dicey_view_mut dest = dicey_view_mut_from(*data, *nbytes);
 
-    const ptrdiff_t dump_err = dicey_view_mut_write(&dest, src);
+    const ptrdiff_t dump_err = dicey_view_mut_write_ptr(&dest, packet.payload, packet.nbytes);
     if (dump_err < 0) {
         return dump_err;
     }
