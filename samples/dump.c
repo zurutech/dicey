@@ -27,7 +27,7 @@
 
 #include "util/dumper.h"
 
-#if defined(__unix__) || defined(__APPLE__)
+#if defined(DICEY_IS_UNIX)
 #include <unistd.h>
 #define STDOUT_IS_PIPED() (!isatty(fileno(stdout)))
 #else

@@ -21,6 +21,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include "dicey_config.h"
 #include "dicey_export.h"
 
 #include "errors.h"
@@ -108,7 +109,7 @@ DICEY_EXPORT bool dicey_selector_is_valid(struct dicey_selector selector);
  */
 DICEY_EXPORT ptrdiff_t dicey_selector_size(struct dicey_selector sel);
 
-#if defined(__GNUC__) || defined(__clang__)
+#if defined(DICEY_CC_IS_GCC) || defined(DICEY_CC_IS_CLANG)
 #define DICEY_UUID_SIZE sizeof(__uint128_t)
 #else
 #define DICEY_UUID_SIZE (sizeof(uint64_t) * 2U)

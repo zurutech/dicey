@@ -18,17 +18,28 @@
 #define IJDIIZJEMO_DICEY_H
 
 #include "core/builders.h"
+#include "core/data-info.h"
 #include "core/errors.h"
+#include "core/hashset.h"
+#include "core/hashtable.h"
 #include "core/packet.h"
 #include "core/type.h"
+#include "core/typedescr.h"
 #include "core/value.h"
 #include "core/version.h"
-
+#include "core/views.h"
 #include "ipc/address.h"
 #include "ipc/builtins.h"
+#include "ipc/builtins/introspection.h"
+#include "ipc/builtins/plugins.h"
+#include "ipc/builtins/server.h"
 #include "ipc/client.h"
+#include "ipc/plugins.h"
 #include "ipc/registry.h"
+#include "ipc/server-api.h"
 #include "ipc/server.h"
 #include "ipc/traits.h"
+
+#include "dicey_config.h"
 
 #endif // IJDIIZJEMO_DICEY_H

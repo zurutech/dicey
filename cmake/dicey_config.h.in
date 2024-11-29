@@ -1,0 +1,23 @@
+#if !defined(APUTVMMVFJ_CONFIG_H)
+#define APUTVMMVFJ_CONFIG_H
+
+#cmakedefine01 DICEY_HAS_PLUGINS
+
+#define DICEY_IS_${DICEY_OS} 1
+
+#if defined(__unix__) || defined(__unix) || defined(DICEY_IS_DARWIN)
+#define DICEY_IS_UNIX 1
+#endif
+
+#define DICEY_CC_IS_${DICEY_COMPILER} 1
+
+// very safe assumption: clang pretends to be gcc everywhere except windows
+#if defined(DICEY_CC_IS_CLANG) && !defined(DICEY_IS_WINDOWS)
+#define DICEY_CC_IS_GNU 1
+
+// if the compiler identifies as GNU and it's not Clang, it's GCC. Define a macro that allows to pinpoint GCC specifically
+#elif defined(DICEY_CC_IS_GNU)
+#define DICEY_CC_IS_GCC 1
+#endif
+
+#endif // APUTVMMVFJ_CONFIG_H

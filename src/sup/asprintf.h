@@ -17,7 +17,9 @@
 #if !defined(HFKNEIUTND_ASPRINTF_H)
 #define HFKNEIUTND_ASPRINTF_H
 
-#if defined(__unix__) || defined(__unix) || defined(unix) || (defined(__APPLE__) && defined(__MACH__))
+#include "dicey_config.h"
+
+#if defined(DICEY_IS_UNIX)
 #define _GNU_SOURCE
 #include <stdio.h>
 #else
