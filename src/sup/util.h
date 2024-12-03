@@ -28,18 +28,26 @@
 #define DICEY_LENOF(ARR) (sizeof(ARR) / sizeof(*(ARR)))
 #define DICEY_UNUSED(X) ((void) (X))
 
-#if defined(NDEBUG) && defined(__has_builtin) && __has_builtin(__builtin_unreachable)
+#if defined(NDEBUG) && defined(__has_builtin)
+#if __has_builtin(__builtin_unreachable)
 #define DICEY_UNREACHABLE(X) __builtin_unreachable()
+#else
+#define DICEY_UNREACHABLE(X) // do nothing, we're in release mode and we don't have a builtin
+#endif
 #else
 #define DICEY_UNREACHABLE(X) assert(!"Unreachable code reached")
 #endif
 
 #if defined(__STDC_VERSION__) && __STDC_VERSION__ >= 202311L
 #define DICEY_FALLTHROUGH [[fallthrough]]
-#elif defined(__has_attribute) && __has_attribute(fallthrough)
+#elif defined(__has_attribute)
+#if __has_attribute(fallthrough)
 #define DICEY_FALLTHROUGH __attribute__((fallthrough))
-#else
-#define DICEY_FALLTHROUGH
+#endif
+#endif
+
+#if !defined(DICEY_FALLTHROUGH)
+#define DICEY_FALLTHROUGH // for msvc and friends
 #endif
 
 #if defined(DICEY_CC_IS_GCC) || defined(DICEY_CC_IS_CLANG)

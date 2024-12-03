@@ -131,6 +131,21 @@ void dicey_arg_free_contents(const struct dicey_arg *const arg) {
     }
 }
 
+void dicey_arg_free_list(const struct dicey_arg *const arglist, const size_t nitems) {
+    if (!arglist || !nitems) {
+        return;
+    }
+
+    const struct dicey_arg *const end = arglist + nitems;
+    for (const struct dicey_arg *it = arglist; it != end; ++it) {
+        dicey_arg_free(it);
+    }
+
+    // these are guaranteed to come from malloc - so I have no problems casting them back to mutable.
+    // free is just a bad API
+    free((void *) arglist);
+}
+
 void dicey_arg_get_list(
     const struct dicey_arg *const arg,
     const struct dicey_arg **const list,

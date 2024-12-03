@@ -311,13 +311,14 @@ set(PLUGIN_SOURCES
 
     src/ipc/server/plugins.c
     src/ipc/server/plugins.h
+
+    src/ipc/server/builtins/plugins/plugins.c
+    src/ipc/server/builtins/plugins/plugins.h
 )
 
 if (PLUGIN_SUPPORT)
     list(APPEND PUBLIC_HEADERS
         "include/dicey/ipc/plugins.h"
-
-        "include/dicey/ipc/builtins/plugins.h"
     )
 
     list(APPEND CORE_SOURCES ${PLUGIN_SOURCES})

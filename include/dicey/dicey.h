@@ -31,7 +31,6 @@
 #include "ipc/address.h"
 #include "ipc/builtins.h"
 #include "ipc/builtins/introspection.h"
-#include "ipc/builtins/plugins.h"
 #include "ipc/builtins/server.h"
 #include "ipc/client.h"
 #include "ipc/plugins.h"

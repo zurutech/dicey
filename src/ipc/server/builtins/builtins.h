@@ -62,7 +62,7 @@ struct dicey_default_element {
 
 struct dicey_default_object {
     const char *path;
-    const char **traits;
+    const char *const *traits;
 };
 
 struct dicey_default_trait {

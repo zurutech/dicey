@@ -64,6 +64,8 @@ struct dicey_plugin_event {
  * @param server The server to list the plugins for.
  * @param buf    A pointer to a buffer that will be allocated to store the plugin information. if *buf is NULL, a new
  *               buffer will be allocated. If *buf is not NULL, the buffer will be used only if it is large enough.
+ *               If buf is null, the function will count the number of plugins set *count to the number of plugins found
+ *               and return DICEY_OK.
  * @param count  A pointer to a size_t that will be set to the number of plugins found. If set, *count is assumed to be
  *               the size of the buffer pointed to by *buf. After the call, *count will be set to the number of plugins
  *               found and stored in *buf. If *count is too small, the function will return DICEY_EOVERFLOW and *count
@@ -74,7 +76,11 @@ struct dicey_plugin_event {
  *               - ENOMEM: memory allocation failed (out of memory)
  *               - EOVERFLOW: the buffer is too small
  */
-enum dicey_error dicey_server_list_plugins(struct dicey_server *server, struct dicey_plugin_info **buf, size_t *count);
+enum dicey_error dicey_server_list_plugins(
+    struct dicey_server *server,
+    struct dicey_plugin_info **buf,
+    uint16_t *count
+);
 
 /**
  * @brief Spawns the plugin at the given path. The binary is expected to be an executable file or a file the OS can

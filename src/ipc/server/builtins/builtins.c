@@ -16,6 +16,8 @@
 
 #define _XOPEN_SOURCE 700
 
+#include "dicey_config.h"
+
 #include <assert.h>
 
 #include <dicey/core/errors.h>
@@ -28,6 +30,12 @@
 #include "introspection/introspection.h"
 #include "server/server.h"
 
+#if DICEY_HAS_PLUGINS
+
+#include "plugins/plugins.h"
+
+#endif // DICEY_HAS_PLUGINS
+
 #include "builtins.h"
 
 #define BASE_OF(X) ((size_t) (((X) &0xFF00U) >> 8U))
@@ -38,6 +46,11 @@
 static const struct dicey_registry_builtin_set *default_builtins[] = {
     &dicey_registry_introspection_builtins,
     &dicey_registry_server_builtins,
+
+#if DICEY_HAS_PLUGINS
+// &dicey_registry_plugins_builtins,
+#endif // DICEY_HAS_PLUGINS
+
 };
 
 static enum dicey_error populate_objects(

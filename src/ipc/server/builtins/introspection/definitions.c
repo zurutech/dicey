@@ -137,7 +137,7 @@ static const struct dicey_default_element trait_elements[] = {
 static const struct dicey_default_object introspection_objects[] = {
     {
      .path = DICEY_REGISTRY_PATH,
-     .traits = (const char *[]) { DICEY_REGISTRY_TRAIT_NAME, NULL },
+     .traits = (const char *const[]) { DICEY_REGISTRY_TRAIT_NAME, NULL },
      },
 };
 

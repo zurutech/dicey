@@ -14,13 +14,10 @@
  * limitations under the License.
  */
 
-#if !defined(SAIQXMCLUN_PLUGINS_H)
-#define SAIQXMCLUN_PLUGINS_H
+#define _XOPEN_SOURCE 700
 
-#include "dicey_config.h"
+#include "../builtins.h"
 
-#if DICEY_HAS_PLUGINS
+#include "plugins.h"
 
-#endif // DICEY_HAS_PLUGINS
-
-#endif // SAIQXMCLUN_PLUGINS_H
+const struct dicey_registry_builtin_set dicey_registry_plugins_builtins = { 0 };

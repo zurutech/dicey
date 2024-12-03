@@ -214,6 +214,13 @@ enum dicey_error dicey_message_builder_build(
 void dicey_message_builder_discard(struct dicey_message_builder *const builder) {
     assert(builder);
 
+    if (builder->_borrowed_to) {
+        // free any lingering list elements
+        const struct _dicey_value_builder_list *const list = &builder->_borrowed_to->_list;
+
+        dicey_arg_free_list(list->elems, list->nitems);
+    }
+
     dicey_arg_free(builder->_root);
 
     *builder = (struct dicey_message_builder) { 0 };
@@ -326,7 +333,9 @@ enum dicey_error dicey_message_builder_value_end(
     }
 
     *value = (struct dicey_value_builder) { 0 };
+
     builder->_state = BUILDER_STATE_PENDING;
+    builder->_borrowed_to = NULL;
 
     return DICEY_OK;
 }

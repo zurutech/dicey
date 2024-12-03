@@ -24,6 +24,7 @@
 #include <assert.h>
 #include <signal.h>
 #include <stddef.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -322,6 +323,20 @@ static void plugin_no_handshake_timeout(uv_timer_t *const timer) {
     }
 }
 
+static enum dicey_error plugin_data_set_info(
+    struct dicey_plugin_data *const data,
+    const struct dicey_plugin_info info
+) {
+    assert(info.name && info.path);
+
+    const enum dicey_error err = info_dup_to(info, &data->info);
+    if (err) {
+        free(data);
+    }
+
+    return err;
+}
+
 static enum dicey_error plugin_spawn_retrieve_request(
     struct plugin_spawn_request *const data,
     struct plugin_spawn_metadata *const md,
@@ -431,7 +446,7 @@ static enum dicey_error plugin_spawn(
 
     assert(new_plugin); // we just created it
 
-    err = dicey_plugin_data_set_info(new_plugin, (struct dicey_plugin_info) { .name = NULL, .path = path });
+    err = plugin_data_set_info(new_plugin, (struct dicey_plugin_info) { .name = NULL, .path = path });
 
     if (err) {
         goto quit;
@@ -495,36 +510,43 @@ enum dicey_plugin_state dicey_plugin_data_get_state(const struct dicey_plugin_da
     return data->state;
 }
 
-enum dicey_error dicey_plugin_data_set_info(struct dicey_plugin_data *const data, const struct dicey_plugin_info info) {
-    assert(info.name && info.path);
-
-    const enum dicey_error err = info_dup_to(info, &data->info);
-    if (err) {
-        free(data);
-    }
-
-    return err;
-}
-
 enum dicey_error dicey_server_list_plugins(
     struct dicey_server *const server,
     struct dicey_plugin_info **const buf,
-    size_t *const count
+    uint16_t *const count
 ) {
-    assert(server && buf && count);
+    assert(server && count);
 
     if (server->state != SERVER_STATE_RUNNING) {
         return TRACE(DICEY_EINVAL);
     }
 
     const size_t plugin_count = count_plugins(server->clients);
+    if (plugin_count > UINT16_MAX) {
+        return TRACE(DICEY_EOVERFLOW);
+    }
+
+    if (!plugin_count) {
+        // quick shortcircuit: set NULL and quit
+        *buf = NULL;
+        *count = 0U;
+
+        return DICEY_OK;
+    }
+
+    // null target buffer: just count the plugins
+    if (!buf) {
+        *count = (uint16_t) plugin_count;
+
+        return DICEY_OK;
+    }
 
     // if the user provides a count, we assume that buf of size *count and the user doesn't want to allocate a new
     // buffer
     if (*count && plugin_count > *count) {
         assert(*buf);
 
-        *count = plugin_count;
+        *count = (uint16_t) plugin_count;
 
         return TRACE(DICEY_EOVERFLOW);
     }
@@ -536,7 +558,7 @@ enum dicey_error dicey_server_list_plugins(
         }
     }
 
-    *count = plugin_count;
+    *count = (uint16_t) plugin_count;
 
     struct dicey_plugin_info *plugins = *buf;
 

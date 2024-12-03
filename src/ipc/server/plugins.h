@@ -26,10 +26,8 @@ enum dicey_plugin_state {
 
 struct dicey_plugin_data;
 
-void dicey_plugin_data_delete(struct dicey_plugin_data *data);
 struct dicey_plugin_info dicey_plugin_data_get_info(const struct dicey_plugin_data *data);
 enum dicey_plugin_state dicey_plugin_data_get_state(const struct dicey_plugin_data *data);
-enum dicey_error dicey_plugin_data_set_info(struct dicey_plugin_data *data, struct dicey_plugin_info info);
 
 #endif // DICEY_HAS_PLUGINS
 

@@ -33,8 +33,6 @@
 
 #include "../../registry-internal.h"
 
-#include "introspection.h"
-
 #include "introspection-internal.h"
 
 static enum dicey_error craft_bool_response(
