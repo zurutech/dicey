@@ -19,6 +19,11 @@
 
 #include <dicey/ipc/registry.h>
 
+#include "sup/util.h"
+
+// formats a string (ideally a path) using an internal buffer. The buffer is reallocated if necessary
+const char *dicey_registry_format_metaname(struct dicey_registry *registry, const char *fmt, ...) DICEY_FORMAT(2, 3);
+
 struct dicey_object *dicey_registry_get_object_mut(const struct dicey_registry *registry, const char *path);
 
 #endif // FNMCVSLICR_REGISTRY_INTERNAL_H

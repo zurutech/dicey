@@ -21,6 +21,8 @@
 
 #include <dicey/core/errors.h>
 
+#include "sup/util.h"
+
 #if defined(_MSC_VER)
 #pragma warning(disable : 4200)
 #endif
@@ -37,7 +39,7 @@ struct dicey_task_error {
     char message[];
 };
 
-struct dicey_task_error *dicey_task_error_new(enum dicey_error error, const char *fmt, ...);
+struct dicey_task_error *dicey_task_error_new(enum dicey_error error, const char *fmt, ...) DICEY_FORMAT(2, 3);
 
 struct dicey_task_loop;
 

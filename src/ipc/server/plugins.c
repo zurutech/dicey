@@ -30,6 +30,9 @@
 
 #include <uv.h>
 
+#include <dicey/core/errors.h>
+#include <dicey/core/views.h>
+#include <dicey/ipc/builtins/plugins.h>
 #include <dicey/ipc/plugins.h>
 #include <dicey/ipc/server.h>
 
@@ -42,6 +45,7 @@
 
 #include "client-data.h"
 #include "plugins.h"
+#include "registry-internal.h"
 #include "server-clients.h"
 #include "server-loopreq.h"
 #include "server.h"
@@ -50,6 +54,8 @@
 
 // note: the double cast is necessary to avoid a warning with MSVC
 #define CLIENT_DATA_IS_PLUGIN(CLIENTPTR) ((CLIENTPTR)->is_plugin)
+
+#define METAPLUGIN_FORMAT DICEY_SERVER_PLUGINS_PATH "/%s"
 
 // this is the time the plugin has to start up and handshake with the server before we consider it dead (one second)
 #define PLUGIN_TIMEOUT_MS 1000U
@@ -66,6 +72,12 @@
 #define KILL_SIGNAL SIGTERM
 #endif
 
+// the fixed, non variable-sized bits of the request
+struct plugin_spawn_metadata {
+    uv_sem_t *spawn_wait_sem;       // optional, only for blocking requests
+    enum dicey_error *spawn_result; // optional, used to report the result of the spawn if it's a blocking request
+};
+
 struct dicey_plugin_data {
     struct dicey_client_data client; // must remain the first field for the cast to work
 
@@ -77,14 +89,8 @@ struct dicey_plugin_data {
     enum dicey_plugin_state state;
     struct dicey_plugin_info info;
 
-    // semaphore used by dicey_server_spawn_plugin_and_wait to wait for the plugin to spawn and fully handshake
-    uv_sem_t *spawn_wait_sem;
-};
-
-// the fixed, non variable-sized bits of the request
-struct plugin_spawn_metadata {
-    uv_sem_t *spawn_wait_sem;       // optional, only for blocking requests
-    enum dicey_error *spawn_result; // optional, used to report the result of the spawn if it's a blocking request
+    // spawn metadata
+    struct plugin_spawn_metadata spawn_md;
 };
 
 struct plugin_spawn_request {
@@ -93,8 +99,19 @@ struct plugin_spawn_request {
     char path[];
 };
 
-struct dicey_plugin_data *as_plugin(struct dicey_client_data *const client) {
+static struct dicey_plugin_data *as_plugin(struct dicey_client_data *const client) {
     return client && CLIENT_DATA_IS_PLUGIN(client) ? (struct dicey_plugin_data *) client : NULL;
+}
+
+static enum dicey_error plugin_object_delete(struct dicey_registry *const registry, const char *const name) {
+    assert(registry && name);
+
+    const char *const metaplugin_name = dicey_registry_format_metaname(registry, METAPLUGIN_FORMAT, name);
+    if (!metaplugin_name) {
+        return TRACE(DICEY_ENOMEM); // extraordinarily unlikely
+    }
+
+    return dicey_registry_delete_object(registry, metaplugin_name);
 }
 
 static enum dicey_error plugin_data_cleanup(
@@ -104,6 +121,11 @@ static enum dicey_error plugin_data_cleanup(
     if (client) {
         const struct dicey_plugin_data *const data = as_plugin(client);
         assert(data);
+
+        // deregister the plugin from the registry
+        const enum dicey_error err = plugin_object_delete(&data->client.parent->registry, data->info.name);
+        (void) err; // silence MSVC, we can't really return this error because we've to call after_cleanup
+        assert(!err);
 
         // the strings were either NULL or strdup'd in dicey_plugin_data_set, so we can cast away the const safely
 
@@ -201,7 +223,7 @@ static size_t count_plugins(const struct dicey_client_list *const list) {
     return count;
 }
 
-static enum dicey_error info_dup_to(struct dicey_plugin_info src, struct dicey_plugin_info *const dst) {
+static enum dicey_error info_dup_to(struct dicey_plugin_info *const dst, struct dicey_plugin_info src) {
     assert(dst);
 
     char *const name = strdup(src.name);
@@ -323,20 +345,6 @@ static void plugin_no_handshake_timeout(uv_timer_t *const timer) {
     }
 }
 
-static enum dicey_error plugin_data_set_info(
-    struct dicey_plugin_data *const data,
-    const struct dicey_plugin_info info
-) {
-    assert(info.name && info.path);
-
-    const enum dicey_error err = info_dup_to(info, &data->info);
-    if (err) {
-        free(data);
-    }
-
-    return err;
-}
-
 static enum dicey_error plugin_spawn_retrieve_request(
     struct plugin_spawn_request *const data,
     struct plugin_spawn_metadata *const md,
@@ -446,7 +454,7 @@ static enum dicey_error plugin_spawn(
 
     assert(new_plugin); // we just created it
 
-    err = plugin_data_set_info(new_plugin, (struct dicey_plugin_info) { .name = NULL, .path = path });
+    err = info_dup_to(&new_plugin->info, (struct dicey_plugin_info) { .name = NULL, .path = path });
 
     if (err) {
         goto quit;
@@ -575,6 +583,60 @@ enum dicey_error dicey_server_list_plugins(
     }
 
     return DICEY_OK;
+}
+
+enum dicey_error dicey_server_plugin_handshake(
+    struct dicey_server *const server,
+    struct dicey_client_data *const client,
+    const char *const name
+) {
+    assert(server && client && name);
+
+    enum dicey_error err = DICEY_OK;
+    struct dicey_plugin_data *const plugin = as_plugin(client);
+    if (!plugin || plugin->state != PLUGIN_STATE_SPAWNED) {
+        err = TRACE(DICEY_EINVAL);
+
+        goto quit;
+    }
+
+    // the name must not be set yet
+    assert(!plugin->info.name);
+
+    err = info_dup_to(&plugin->info, (struct dicey_plugin_info) { .name = name, .path = plugin->info.path });
+    if (err) {
+        goto quit;
+    }
+
+    // create the plugin object
+    const char *const metaplugin_name = dicey_registry_format_metaname(&server->registry, METAPLUGIN_FORMAT, name);
+    if (!metaplugin_name) {
+        err = TRACE(DICEY_ENOMEM);
+
+        goto quit;
+    }
+
+    err = dicey_registry_add_object_with(&server->registry, metaplugin_name, DICEY_PLUGIN_TRAIT_NAME, NULL);
+    if (err) {
+        goto quit;
+    }
+
+    // this has to be the last thing ever done in the handshake, otherwise we need to restart it if something fails
+    err = dicey_error_from_uv(uv_timer_stop(&plugin->process_timer));
+    if (err) {
+        goto quit;
+    }
+
+quit:
+    {
+        uv_sem_t *const spawn_wait_sem = plugin->spawn_md.spawn_wait_sem;
+        if (spawn_wait_sem) {
+            *plugin->spawn_md.spawn_result = err;
+            uv_sem_post(spawn_wait_sem);
+        }
+    }
+
+    return err;
 }
 
 enum dicey_error dicey_server_spawn_plugin(struct dicey_server *const server, const char *const path) {

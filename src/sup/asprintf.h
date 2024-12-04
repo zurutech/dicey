@@ -17,6 +17,8 @@
 #if !defined(HFKNEIUTND_ASPRINTF_H)
 #define HFKNEIUTND_ASPRINTF_H
 
+#include "util.h"
+
 #include "dicey_config.h"
 
 #if defined(DICEY_IS_UNIX)
@@ -28,7 +30,7 @@
 
 #define DICEY_BUILD_ASPRINTF
 
-int asprintf(char **const s, const char *const fmt, ...);
+int asprintf(char **const s, const char *const fmt, ...) DICEY_FORMAT(2, 3);
 int vasprintf(char **const s, const char *const fmt, va_list ap);
 #endif
 

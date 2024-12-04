@@ -82,7 +82,7 @@
 static struct dicey_server *global_server = NULL;
 static bool print_logs = false;
 
-int out(const char *fmt, ...) {
+static int out(const char *fmt, ...) {
     if (!print_logs) {
         return 0;
     }

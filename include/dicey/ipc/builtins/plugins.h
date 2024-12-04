@@ -27,7 +27,7 @@
  *     ListPlugins: () -> {ss} // returns a list of plugins, each with a name and path
  *
  *     // internal operation used by the plugin API. Never call directly!
- *     HandshakeInternal: {ts} -> @ // takes {token, name} and returns the plugin object path
+ *     HandshakeInternal: s -> @ // takes the name and returns the plugin object path
  * }
  */
 
@@ -37,7 +37,7 @@
 #define DICEY_PLUGINMANAGER_LISTPLUGINS_OP_SIG "$ -> [{ss}]"
 
 #define DICEY_PLUGINMANAGER_HANDSHAKEINTERNAL_OP_NAME "HandshakeInternal"
-#define DICEY_PLUGINMANAGER_HANDSHAKEINTERNAL_OP_SIG "{ts} -> @"
+#define DICEY_PLUGINMANAGER_HANDSHAKEINTERNAL_OP_SIG "s -> @"
 
 /**
  * trait dicey.Plugin {

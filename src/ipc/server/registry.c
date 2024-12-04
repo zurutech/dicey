@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+#define _XOPEN_SOURCE 700
+
 #include <assert.h>
 #include <stdarg.h>
 #include <stdbool.h>
@@ -41,34 +43,6 @@
 #define METATRAIT_FORMAT DICEY_REGISTRY_TRAITS_PATH "/%s"
 
 static_assert(sizeof(NULL) == sizeof(void *), "NULL is not a pointer");
-
-static const char *metatrait_name_for(struct dicey_registry *const registry, const char *const trait_name) {
-    assert(registry && trait_name);
-
-    const int will_write = snprintf(NULL, 0, METATRAIT_FORMAT, trait_name);
-    if (will_write < 0) {
-        return NULL; // probably very bad
-    }
-
-    const size_t needed = (size_t) will_write + 1U;
-
-    char *buffer = registry->_buffer.data;
-
-    if (registry->_buffer.len < needed) {
-        buffer = realloc(buffer, needed);
-        if (!buffer) {
-            return NULL;
-        }
-
-        registry->_buffer = dicey_view_mut_from(buffer, needed);
-    }
-
-    if (snprintf(buffer, needed, METATRAIT_FORMAT, trait_name) < will_write) {
-        return NULL; // probably very bad
-    }
-
-    return buffer;
-}
 
 static void object_free(void *const ptr) {
     struct dicey_object *const object = ptr;
@@ -224,7 +198,7 @@ static enum dicey_error registry_add_trait(
     struct dicey_trait *const trait
 ) {
     // path of the metaobject that represents this trait under /dicey/registry
-    const char *const metapath = metatrait_name_for(registry, trait_name);
+    const char *const metapath = dicey_registry_format_metaname(registry, METATRAIT_FORMAT, trait_name);
     if (!metapath) {
         return TRACE(DICEY_ENOMEM);
     }
@@ -555,6 +529,44 @@ enum dicey_error dicey_registry_delete_object(struct dicey_registry *const regis
     assert(registry && name);
 
     return registry_del_object(registry, name);
+}
+
+const char *dicey_registry_format_metaname(struct dicey_registry *registry, const char *const fmt, ...) {
+    assert(registry && fmt);
+
+    va_list ap, ap_copy;
+    va_start(ap, fmt);
+    va_copy(ap_copy, ap);
+
+    char *buffer = registry->_buffer.data;
+
+    const int will_write = vsnprintf(NULL, 0, fmt, ap_copy);
+    if (will_write < 0) {
+        buffer = NULL; // probably very bad
+
+        goto quit;
+    }
+
+    const size_t needed = (size_t) will_write + 1U;
+
+    if (registry->_buffer.len < needed) {
+        buffer = realloc(buffer, needed);
+        if (!buffer) {
+            return NULL;
+        }
+
+        registry->_buffer = dicey_view_mut_from(buffer, needed);
+    }
+
+    if (vsnprintf(buffer, needed, fmt, ap) < will_write) {
+        buffer = NULL; // probably very bad
+    }
+
+quit:
+    va_end(ap_copy);
+    va_end(ap);
+
+    return buffer;
 }
 
 const struct dicey_element *dicey_registry_get_element(

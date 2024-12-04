@@ -345,8 +345,14 @@ target_include_directories(${PROJECT_NAME}
 )
     
 set_target_properties(${PROJECT_NAME} PROPERTIES POSITION_INDEPENDENT_CODE ${BUILD_SHARED_LIBS})
+set_target_properties(${PROJECT_NAME} PROPERTIES C_VISIBILITY_PRESET hidden)
 
 if(UNIX)
+    if (GNU OR Clang)
+        set_target_properties(${PROJECT_NAME} PROPERTIES CMAKE_C_EXTENSIONS ON)
+        set_target_properties(${PROJECT_NAME} PROPERTIES CMAKE_VISIBILITY_INLINES_HIDDEN ON)
+    endif()
+
     include(GNUInstallDirs)
 else()
     if (WIN32)

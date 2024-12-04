@@ -25,17 +25,28 @@
 
 #include "dicey_config.h"
 
-#define DICEY_LENOF(ARR) (sizeof(ARR) / sizeof(*(ARR)))
-#define DICEY_UNUSED(X) ((void) (X))
+#if defined(DICEY_CC_IS_GCC) || defined(DICEY_CC_IS_CLANG)
 
-#if defined(NDEBUG) && defined(__has_builtin)
-#if __has_builtin(__builtin_unreachable)
-#define DICEY_UNREACHABLE(X) __builtin_unreachable()
+// if we have GNU extensions, we can use the kernel version with type checking using typeof and GCC's expression
+// statements
+
+#define DICEY_CONTAINEROF(PTR, TYPE, MEMBER)                                                                           \
+    (__extension__({                                                                                                   \
+        const __typeof__(((TYPE *) NULL)->MEMBER) *const _ptr_to_member_with_unique_name = (PTR);                      \
+        (TYPE *) ((char *) _ptr_to_member_with_unique_name - offsetof(TYPE, MEMBER));                                  \
+    }))
+
+// if we have GNU extensions, we can check the format string and the arguments using GCC's format attribute
+
+#if defined(DICEY_IS_MINGW) && defined(DICEY_CC_IS_GCC) // clang on Windows doesn't support ms_printf
+#define DICEY_FORMAT(FPOS, VAPOS) __attribute__((format(ms_printf, FPOS, VAPOS)))
 #else
-#define DICEY_UNREACHABLE(X) // do nothing, we're in release mode and we don't have a builtin
-#endif
+#define DICEY_FORMAT(FPOS, VAPOS) __attribute__((format(printf, FPOS, VAPOS)))
+#endif // DICEY_IS_WINDOWS
+
 #else
-#define DICEY_UNREACHABLE(X) assert(!"Unreachable code reached")
+#define DICEY_CONTAINEROF(PTR, TYPE, MEMBER) ((TYPE *) ((char *) (PTR) -offsetof(TYPE, MEMBER)))
+#define DICEY_FORMAT(FPOS, VAPOS) // do not bother with SAL on MSVC
 #endif
 
 #if defined(__STDC_VERSION__) && __STDC_VERSION__ >= 202311L
@@ -50,19 +61,18 @@
 #define DICEY_FALLTHROUGH // for msvc and friends
 #endif
 
-#if defined(DICEY_CC_IS_GCC) || defined(DICEY_CC_IS_CLANG)
+#define DICEY_LENOF(ARR) (sizeof(ARR) / sizeof(*(ARR)))
 
-// if we have GNU extensions, we can use the kernel version with type checking using typeof and GCC's expression
-// statements
+#define DICEY_UNUSED(X) ((void) (X))
 
-#define DICEY_CONTAINEROF(PTR, TYPE, MEMBER)                                                                           \
-    ({                                                                                                                 \
-        const __typeof__(((TYPE *) NULL)->MEMBER) *const _ptr_to_member_with_unique_name = (PTR);                      \
-        (TYPE *) ((char *) _ptr_to_member_with_unique_name - offsetof(TYPE, MEMBER));                                  \
-    })
-
+#if defined(NDEBUG) && defined(__has_builtin)
+#if __has_builtin(__builtin_unreachable)
+#define DICEY_UNREACHABLE(X) __builtin_unreachable()
 #else
-#define DICEY_CONTAINEROF(PTR, TYPE, MEMBER) ((TYPE *) ((char *) (PTR) -offsetof(TYPE, MEMBER)))
+#define DICEY_UNREACHABLE(X) // do nothing, we're in release mode and we don't have a builtin
+#endif
+#else
+#define DICEY_UNREACHABLE(X) assert(!"Unreachable code reached")
 #endif
 
 /**
