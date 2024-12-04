@@ -20,7 +20,7 @@
 #include "dicey_config.h"
 
 /**
- * object "/dicey/server" : dicey.EventManager, dicey.PluginManager
+ * object "/dicey/server" : dicey.EventManager, dicey.PluginManager (if plugins are enabled)
  */
 #define DICEY_SERVER_PATH "/dicey/server"
 
@@ -38,20 +38,5 @@
 
 #define DICEY_EVENTMANAGER_UNSUBSCRIBE_OP_NAME "Unsubscribe"
 #define DICEY_EVENTMANAGER_UNSUBSCRIBE_OP_SIG "{@%} -> $"
-
-#if DICEY_HAS_PLUGINS
-
-/**
- * trait dicey.PluginManager {
- *     ListPlugins: () -> {ss} // returns a list of plugins, each with a name and path
- * }
- */
-
-#define DICEY_PLUGINMANAGER_TRAIT_NAME "dicey.PluginManager"
-
-#define DICEY_PLUGINMANAGER_LISTPLUGINS_OP_NAME "ListPlugins"
-#define DICEY_PLUGINMANAGER_LISTPLUGINS_OP_SIG "$ -> [{ss}]"
-
-#endif // DICEY_HAS_PLUGINS
 
 #endif // GFBKZEFZQX_SERVER_H

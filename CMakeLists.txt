@@ -318,6 +318,7 @@ set(PLUGIN_SOURCES
 
 if (PLUGIN_SUPPORT)
     list(APPEND PUBLIC_HEADERS
+        "include/dicey/ipc/builtins/plugins.h"
         "include/dicey/ipc/plugins.h"
     )
 

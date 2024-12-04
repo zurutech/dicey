@@ -45,11 +45,13 @@
 
 static const struct dicey_registry_builtin_set *default_builtins[] = {
     &dicey_registry_introspection_builtins,
-    &dicey_registry_server_builtins,
 
 #if DICEY_HAS_PLUGINS
-// &dicey_registry_plugins_builtins,
+    // note: plugin traits must be registered before the server traits, because the server is a PluginManager
+    &dicey_registry_plugins_builtins,
 #endif // DICEY_HAS_PLUGINS
+
+    &dicey_registry_server_builtins,
 
 };
 
@@ -58,7 +60,7 @@ static enum dicey_error populate_objects(
     const struct dicey_default_object *const objects,
     size_t nobjects
 ) {
-    assert(registry && objects);
+    assert(registry);
 
     const struct dicey_default_object *const end = objects + nobjects;
     for (const struct dicey_default_object *obj_def = objects; obj_def < end; ++obj_def) {
