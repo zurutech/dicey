@@ -16,6 +16,7 @@
 
 // thank you MS, but just no
 #define _CRT_SECURE_NO_WARNINGS 1
+#define _XOPEN_SOURCE 700
 
 #include <stdbool.h>
 #include <stdint.h>
