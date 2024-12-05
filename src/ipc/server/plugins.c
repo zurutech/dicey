@@ -118,14 +118,14 @@ static enum dicey_error plugin_data_cleanup(
     struct dicey_client_data *const client,
     dicey_client_data_after_cleanup_fn *const after_cleanup
 ) {
+    enum dicey_error err = DICEY_OK;
+
     if (client) {
         const struct dicey_plugin_data *const data = as_plugin(client);
         assert(data);
 
-        // deregister the plugin from the registry
-        const enum dicey_error err = plugin_object_delete(&data->client.parent->registry, data->info.name);
-        (void) err; // silence MSVC, we can't really return this error because we've to call after_cleanup
-        assert(!err);
+        // deregister the plugin from the registry. Set the error for later
+        err = plugin_object_delete(&data->client.parent->registry, data->info.name);
 
         // the strings were either NULL or strdup'd in dicey_plugin_data_set, so we can cast away the const safely
 
@@ -140,7 +140,16 @@ static enum dicey_error plugin_data_cleanup(
     }
 
     // continue the cleanup if there's an after_cleanup
-    return after_cleanup ? after_cleanup(client) : DICEY_OK;
+    if (after_cleanup) {
+        const enum dicey_error after_err = after_cleanup(client);
+        if (after_err) {
+            // if there was an error in the after_cleanup, we return that instead of the previous error
+            // if after_err is DICEY_OK, we return the previous error if any
+            err = after_err;
+        }
+    }
+
+    return err;
 }
 
 static enum dicey_error client_data_new_plugin(
@@ -223,6 +232,19 @@ static size_t count_plugins(const struct dicey_client_list *const list) {
     return count;
 }
 
+static void kill_unruly_child(struct dicey_plugin_data *const plugin) {
+    // Our child misbehaved by failing to complete the handshake in time, either because it's too slow or because it's
+    // not a plugin at all.
+    // We can then kill it immediately, as prescribed by the plugin API:
+    assert(plugin && uv_is_active((uv_handle_t *) &plugin->process));
+
+    const int uverr = uv_process_kill(&plugin->process, KILL_SIGNAL);
+    if (uverr < 0) {
+        // we can't really do anything about it
+        DICEY_UNREACHABLE();
+    }
+}
+
 static enum dicey_error info_dup_to(struct dicey_plugin_info *const dst, struct dicey_plugin_info src) {
     assert(dst);
 
@@ -298,19 +320,6 @@ static void plugin_change_state(struct dicey_plugin_data *const plugin, const en
     }
 }
 
-static void kill_unruly_child(struct dicey_plugin_data *const plugin) {
-    // Our child misbehaved by failing to complete the handshake in time, either because it's too slow or because it's
-    // not a plugin at all.
-    // We can then kill it immediately, as prescribed by the plugin API:
-    assert(plugin && uv_is_active((uv_handle_t *) &plugin->process));
-
-    const int uverr = uv_process_kill(&plugin->process, KILL_SIGNAL);
-    if (uverr < 0) {
-        // we can't really do anything about it
-        DICEY_UNREACHABLE();
-    }
-}
-
 static void plugin_exit_cb(uv_process_t *const proc, const int64_t exit_status, const int term_signal) {
     assert(proc);
 
@@ -324,6 +333,12 @@ static void plugin_exit_cb(uv_process_t *const proc, const int64_t exit_status, 
 
     struct dicey_server *const server = plugin->client.parent;
     assert(server);
+
+    const struct dicey_client_info *const info = &plugin->client.info;
+    const enum dicey_error err = dicey_server_remove_client(server, info->id);
+    if (err && server->on_error) {
+        server->on_error(server, err, info, "failed to cleanup plugin: %s\n", dicey_error_name(err));
+    }
 }
 
 static void plugin_no_handshake_timeout(uv_timer_t *const timer) {
@@ -588,10 +603,12 @@ enum dicey_error dicey_server_list_plugins(
 enum dicey_error dicey_server_plugin_handshake(
     struct dicey_server *const server,
     struct dicey_client_data *const client,
-    const char *const name
+    const char *const name,
+    const char **const out_path
 ) {
-    assert(server && client && name);
+    assert(server && client && name && out_path);
 
+    const char *metaplugin_name = NULL;
     enum dicey_error err = DICEY_OK;
     struct dicey_plugin_data *const plugin = as_plugin(client);
     if (!plugin || plugin->state != PLUGIN_STATE_SPAWNED) {
@@ -609,7 +626,7 @@ enum dicey_error dicey_server_plugin_handshake(
     }
 
     // create the plugin object
-    const char *const metaplugin_name = dicey_registry_format_metaname(&server->registry, METAPLUGIN_FORMAT, name);
+    metaplugin_name = dicey_registry_format_metaname(&server->registry, METAPLUGIN_FORMAT, name);
     if (!metaplugin_name) {
         err = TRACE(DICEY_ENOMEM);
 
@@ -635,6 +652,8 @@ quit:
             uv_sem_post(spawn_wait_sem);
         }
     }
+
+    *out_path = metaplugin_name;
 
     return err;
 }

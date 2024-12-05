@@ -18,14 +18,18 @@
 
 #include <assert.h>
 #include <stdbool.h>
+#include <stddef.h>
 #include <stdlib.h>
 
 #include <dicey/core/builders.h>
+#include <dicey/core/value.h>
 #include <dicey/ipc/builtins/plugins.h>
 #include <dicey/ipc/builtins/server.h>
 
 #include "sup/trace.h"
 #include "sup/util.h"
+
+#include "ipc/server/plugins-internal.h"
 
 #include "../builtins.h"
 
@@ -69,6 +73,86 @@ static const struct dicey_default_trait plugin_traits[] = {
     {.name = DICEY_PLUGIN_TRAIT_NAME,         .elements = plugin_elements, .num_elements = DICEY_LENOF(plugin_elements)},
     { .name = DICEY_PLUGINMANAGER_TRAIT_NAME, .elements = pm_elements,     .num_elements = DICEY_LENOF(pm_elements)    },
 };
+
+static enum dicey_error craft_handshake_reply(
+    struct dicey_message_builder *const builder,
+    const char *const obj_path,
+    struct dicey_packet *const response
+) {
+    assert(builder && obj_path && response);
+
+    enum dicey_error err = dicey_message_builder_begin(builder, DICEY_OP_RESPONSE);
+    if (err) {
+        return err;
+    }
+
+    err = dicey_message_builder_set_path(builder, DICEY_SERVER_PATH);
+    if (err) {
+        return err;
+    }
+
+    err = dicey_message_builder_set_selector(
+        builder,
+        (struct dicey_selector) {
+            .trait = DICEY_PLUGINMANAGER_TRAIT_NAME,
+            .elem = DICEY_PLUGINMANAGER_HANDSHAKEINTERNAL_OP_NAME,
+        }
+    );
+
+    if (err) {
+        return err;
+    }
+
+    err = dicey_message_builder_set_value(
+        builder,
+        (struct dicey_arg) {
+            .type = DICEY_TYPE_PATH,
+            .path = obj_path,
+        }
+    );
+
+    if (err) {
+        return err;
+    }
+
+    return dicey_message_builder_build(builder, response);
+}
+
+static enum dicey_error handle_handshake(
+    struct dicey_server *server,
+    struct dicey_client_data *client,
+    const struct dicey_value *const value,
+    struct dicey_packet *const response
+) {
+    assert(server && client && value && response);
+
+    const char *name = NULL;
+    enum dicey_error err = dicey_value_get_str(value, &name);
+    if (err) {
+        return err;
+    }
+
+    const char *obj_path = NULL;
+    err = dicey_server_plugin_handshake(server, client, name, &obj_path);
+    if (err) {
+        return err;
+    }
+
+    assert(obj_path);
+
+    struct dicey_message_builder builder = { 0 };
+    err = dicey_message_builder_init(&builder);
+    if (err) {
+        return err;
+    }
+
+    err = craft_handshake_reply(&builder, obj_path, response);
+    if (err) {
+        dicey_message_builder_discard(&builder);
+    }
+
+    return err;
+}
 
 static enum dicey_error handle_list_plugins(struct dicey_server *const server, struct dicey_packet *const response) {
     assert(server && response);
@@ -178,6 +262,7 @@ static enum dicey_error handle_plugin_operation(
     const struct dicey_value *const value,
     struct dicey_packet *const response
 ) {
+    (void) context;
     (void) src_path;
     (void) src_entry;
 
@@ -185,6 +270,7 @@ static enum dicey_error handle_plugin_operation(
 
     switch (opcode) {
     case PLUGIN_OP_HANDSHAKEINTERNAL:
+        return handle_handshake(client->parent, client, value, response);
 
     case PLUGIN_OP_LIST:
         if (!dicey_value_is_unit(value)) {

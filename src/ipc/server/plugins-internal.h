@@ -7,6 +7,9 @@
 
 #include <dicey/core/errors.h>
 #include <dicey/ipc/plugins.h>
+#include <dicey/ipc/server.h>
+
+#include "client-data.h"
 
 enum dicey_plugin_state {
     PLUGIN_STATE_INVALID,
@@ -28,6 +31,13 @@ struct dicey_plugin_data;
 
 struct dicey_plugin_info dicey_plugin_data_get_info(const struct dicey_plugin_data *data);
 enum dicey_plugin_state dicey_plugin_data_get_state(const struct dicey_plugin_data *data);
+
+enum dicey_error dicey_server_plugin_handshake(
+    struct dicey_server *server,
+    struct dicey_client_data *client,
+    const char *name,
+    const char **obj_path // careful - borrowed from the registry, do not store!
+);
 
 #endif // DICEY_HAS_PLUGINS
 
