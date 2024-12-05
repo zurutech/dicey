@@ -33,12 +33,18 @@
 #include "ipc/builtins/introspection.h"
 #include "ipc/builtins/server.h"
 #include "ipc/client.h"
-#include "ipc/plugins.h"
 #include "ipc/registry.h"
 #include "ipc/server-api.h"
 #include "ipc/server.h"
 #include "ipc/traits.h"
 
 #include "dicey_config.h"
+
+#if DICEY_HAS_PLUGINS
+
+#include "ipc/builtins/plugins.h"
+#include "ipc/plugins.h"
+
+#endif // DICEY_HAS_PLUGINS
 
 #endif // IJDIIZJEMO_DICEY_H
