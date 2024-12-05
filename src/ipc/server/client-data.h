@@ -33,7 +33,6 @@
 #include "ipc/chunk.h"
 
 #include "pending-reqs.h"
-#include "plugins.h"
 
 #include "dicey_config.h"
 
@@ -66,7 +65,6 @@ struct dicey_client_data {
     uint32_t seq_cnt;
 
     struct dicey_client_info info;
-    struct dicey_version version;
 
     struct dicey_chunk *chunk;
 
