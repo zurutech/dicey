@@ -44,7 +44,7 @@
 #include "ipc/plugin-macros.h"
 
 #include "client-data.h"
-#include "plugins.h"
+#include "plugins-internal.h"
 #include "registry-internal.h"
 #include "server-clients.h"
 #include "server-loopreq.h"

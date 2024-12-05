@@ -310,7 +310,7 @@ set(PLUGIN_SOURCES
     src/ipc/plugin-macros.h
 
     src/ipc/server/plugins.c
-    src/ipc/server/plugins.h
+    src/ipc/server/plugins-internal.h
 
     src/ipc/server/builtins/plugins/plugins.c
     src/ipc/server/builtins/plugins/plugins.h

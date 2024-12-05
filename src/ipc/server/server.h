@@ -31,7 +31,6 @@
 #include "ipc/queue.h"
 
 #include "client-data.h"
-#include "plugins.h"
 
 #include "dicey_config.h"
 
