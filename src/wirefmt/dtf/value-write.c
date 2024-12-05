@@ -332,7 +332,7 @@ static ptrdiff_t item_write(
 
     // paths do not allow NULL, so we can't safely use str_write here
     case DICEY_TYPE_PATH:
-        content_bytes = dtf_bytes_writer_write_zstring(dest, item->str);
+        content_bytes = dtf_bytes_writer_write_zstring(dest, item->path);
         break;
 
     case DICEY_TYPE_SELECTOR:

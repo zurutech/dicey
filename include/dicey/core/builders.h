@@ -184,6 +184,12 @@ struct dicey_arg {
         /**< String value. Note: strings are never copied, and must be alive for the entire lifetime of the argument */
         const char *str;
 
+        /**
+         * Path value. Note: paths are never copied, and must be alive for the entire lifetime of the argument.
+         * Note: Identical to string
+         */
+        const char *path;
+
         struct dicey_uuid uuid; /**< UUID value. */
 
         /**<

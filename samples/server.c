@@ -881,7 +881,7 @@ static enum dicey_error on_test_add(
     }
 
     return send_reply(
-        server, cln, seq, req->path, req->selector, (struct dicey_arg) { .type = DICEY_TYPE_PATH, .str = str_buffer }
+        server, cln, seq, req->path, req->selector, (struct dicey_arg) { .type = DICEY_TYPE_PATH, .path = str_buffer }
     );
 }
 

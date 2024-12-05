@@ -390,7 +390,7 @@ enum dicey_error introspection_craft_pathlist(
             &element,
             (struct dicey_arg) {
                 .type = DICEY_TYPE_PATH,
-                .str = path,
+                .path = path,
             }
         );
 

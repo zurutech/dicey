@@ -1036,7 +1036,7 @@ static enum dicey_error client_subunsub(
         .pair = {
             .first = &(struct dicey_arg) {
                     .type = DICEY_TYPE_PATH,
-                    .str = path,
+                    .path = path,
             },
             .second = &(struct dicey_arg) {
                     .type = DICEY_TYPE_SELECTOR,
