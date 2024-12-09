@@ -23,7 +23,6 @@
 #include <dicey/core/value.h>
 #include <dicey/core/views.h>
 
-#include "sup/assume.h"
 #include "sup/util.h"
 #include "sup/view-ops.h"
 
@@ -88,13 +87,12 @@ static bool checksig(struct dicey_view *const sig, const struct dicey_value *con
             // we must now slurp the inner array signature using the signature parser, otherwise we will be out of sync
             const bool valid = dicey_typedescr_in_view(sig);
             assert(valid);
-            (void) valid; // MSVC again
+            DICEY_UNUSED(valid); // MSVC again
 
             // this now ought to be the missing closing bracket.
             const int cpar = skip_char(sig);
             assert(cpar == ']'); // TODO: export this as a constant, this requires a new header though
-            (void) cpar; // MSVC discards the assert before parsing it, so cpar appears unused: (void) is the historic
-                         // way to do [[maybe_unused]]
+            DICEY_UNUSED(cpar);  // MSVC discards the assert before parsing it, so cpar appears unused
 
             return true;
         }
@@ -116,7 +114,7 @@ static bool checksig(struct dicey_view *const sig, const struct dicey_value *con
 
             const int cpar = skip_char(sig);
             assert(cpar == ')'); // TODO: export this as a constant, this requires a new header though
-            (void) cpar;         // thank you again MSVC!
+            DICEY_UNUSED(cpar);  // thank you again MSVC!
 
             return true;
         }
@@ -136,7 +134,7 @@ static bool checksig(struct dicey_view *const sig, const struct dicey_value *con
 
             const int cpar = skip_char(sig);
             assert(cpar == '}'); // TODO: export this as a constant, this requires a new header though
-            (void) cpar;         // MSVC best compiler ever /s
+            DICEY_UNUSED(cpar);  // MSVC again
 
             return true;
         }

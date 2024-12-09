@@ -20,7 +20,7 @@ enum dicey_plugin_state {
     PLUGIN_STATE_RUNNING, // the child is running and has handshaked with the server
 
     // quitting states
-    PLUGIN_STATE_QUITTING, // the child is quitting (cleanly)
+    PLUGIN_STATE_DISCONNECTED, // the child has no working pipe anymore, so it was sent a signal to quit
 
     // final states
     PLUGIN_STATE_FAILED,   // the child is dead; either it failed to handshake or it returned a non-zero exit code

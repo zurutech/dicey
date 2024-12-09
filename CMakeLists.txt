@@ -77,14 +77,20 @@ if (MSVC)
             message(FATAL_ERROR "MSVC is too old - no C11 atomics support")
         endif()
     endif()
-elseif(NOT MINGW)
-    # On MinGW there are wonky warnings around libuv that cause pedantic and Werror to fail randomly.
-
+elseif(NOT (CMAKE_C_SIMULATE_ID STREQUAL "MSVC" AND CMAKE_C_COMPILER_FRONTEND_VARIANT STREQUAL "GNU"))
+    # note: clang with the GNU frontend on Windows doesn't enable all those pesky C/C++ extensions that Windows uses
+    # in its headers. This is an ugly whack-a-mole game, so we just don't enable anything with Clang GNU style on 
+    # MSVC. Clang on MinGW, Clang-cl will use -Werror instead.
     list(APPEND IGNORED_WARNINGS
         -Wno-gnu-statement-expression # these are useful for container_of and the like
     )
-    
+
     target_compile_options(${PROJECT_NAME} PRIVATE -Wall -Wextra -pedantic -Werror ${IGNORED_WARNINGS})
+endif()
+
+# On MinGW or Clang there are wonky warnings around libuv that cause pedantic and Werror to fail randomly.
+if (MINGW OR (MSVC AND CMAKE_C_COMPILER_ID STREQUAL "Clang"))
+    target_compile_options(${PROJECT_NAME} PRIVATE -Wno-missing-braces)
 endif()
 
 if (NOT BUILD_UV)
@@ -235,7 +241,6 @@ set(CORE_SOURCES
     # sup    
     src/sup/asprintf.c
     src/sup/asprintf.h
-    src/sup/assume.h
     src/sup/hashset.c
     src/sup/hashtable.c
     src/sup/trace.c
@@ -260,6 +265,7 @@ set(CORE_SOURCES
     
     # ipc/client
     src/ipc/client/client.c
+    src/ipc/client/client-internal.h
     src/ipc/client/waiting-list.c
     src/ipc/client/waiting-list.h
     
@@ -308,6 +314,8 @@ set(CORE_SOURCES
 
 set(PLUGIN_SOURCES
     src/ipc/plugin-macros.h
+
+    src/ipc/client/plugins.c
 
     src/ipc/server/plugins.c
     src/ipc/server/plugins-internal.h

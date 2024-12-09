@@ -40,8 +40,8 @@
 #include <dicey/ipc/server.h>
 #include <dicey/ipc/traits.h>
 
-#include "sup/assume.h"
 #include "sup/trace.h"
+#include "sup/util.h"
 #include "sup/uvtools.h"
 
 #include "ipc/chunk.h"
@@ -169,7 +169,7 @@ struct write_request {
 };
 
 static void loop_request_delete(void *const ctx, void *const ptr) {
-    (void) ctx;
+    DICEY_UNUSED(ctx);
 
     struct dicey_server_loop_request *const req = ptr;
     if (req) {
@@ -422,7 +422,7 @@ static ptrdiff_t server_new_peer(struct dicey_server *const server, struct dicey
     struct dicey_client_data *const client = *client_bucket = dicey_client_data_new(server, id);
     if (!client) {
         // release the id
-        (void) dicey_server_release_id(server, id);
+        DICEY_UNUSED(dicey_server_release_id(server, id));
 
         return TRACE(DICEY_ENOMEM);
     }
@@ -682,7 +682,7 @@ static enum dicey_error server_shutdown(struct dicey_server *const server) {
 }
 
 static ptrdiff_t client_got_bye(struct dicey_client_data *client, const struct dicey_bye bye) {
-    (void) bye; // unused
+    DICEY_UNUSED(bye); // unused
 
     assert(client);
 
@@ -1007,7 +1007,7 @@ static void on_write(uv_write_t *const req, const int status) {
 }
 
 static void alloc_buffer(uv_handle_t *const handle, const size_t suggested_size, uv_buf_t *const buf) {
-    (void) suggested_size; // useless, always 65k (max UDP packet size)
+    DICEY_UNUSED(suggested_size); // useless, always 65k (max UDP packet size)
 
     struct dicey_client_data *const client = (struct dicey_client_data *) handle;
     assert(client);
@@ -1018,7 +1018,7 @@ static void alloc_buffer(uv_handle_t *const handle, const size_t suggested_size,
 }
 
 static void on_read(uv_stream_t *const stream, const ssize_t nread, const uv_buf_t *const buf) {
-    (void) buf;
+    DICEY_UNUSED(buf);
 
     struct dicey_client_data *const client = (struct dicey_client_data *) stream;
     assert(client && client->parent && client->chunk);
@@ -1060,7 +1060,7 @@ static void on_read(uv_stream_t *const stream, const ssize_t nread, const uv_buf
     const enum dicey_error err = dicey_packet_load(&packet, &base, &remainder);
     switch (err) {
     case DICEY_OK:
-        (void) client_got_packet(client, packet);
+        DICEY_UNUSED(client_got_packet(client, packet));
 
         dicey_chunk_clear(chunk);
 
@@ -1070,7 +1070,7 @@ static void on_read(uv_stream_t *const stream, const ssize_t nread, const uv_buf
         break; // not enough data to parse a packet
 
     default:
-        (void) client_raised_error(client, err);
+        DICEY_UNUSED(client_raised_error(client, err));
 
         break;
     }
@@ -1086,7 +1086,7 @@ static enum dicey_error loop_request_add_object(
     struct dicey_client_data *const client,
     void *const payload
 ) {
-    (void) client;
+    DICEY_UNUSED(client);
 
     struct object_info nfo = { 0 };
 
@@ -1112,7 +1112,7 @@ static enum dicey_error loop_request_add_trait(
     struct dicey_client_data *const client,
     void *const payload
 ) {
-    (void) client;
+    DICEY_UNUSED(client);
 
     struct dicey_trait *trait = NULL;
 
@@ -1134,7 +1134,7 @@ static enum dicey_error loop_request_del_object(
     struct dicey_client_data *const client,
     void *const payload
 ) {
-    (void) client;
+    DICEY_UNUSED(client);
 
     const char *path = NULL;
 
@@ -1174,7 +1174,7 @@ static enum dicey_error loop_request_raise_event(
     struct dicey_client_data *const client,
     void *const payload
 ) {
-    (void) client;
+    DICEY_UNUSED(client);
 
     struct dicey_packet packet = { 0 };
 
@@ -1243,8 +1243,8 @@ static enum dicey_error loop_request_shutdown_phony_handler(
     struct dicey_client_data *const client,
     void *const payload
 ) {
-    (void) client;
-    (void) payload;
+    DICEY_UNUSED(client);
+    DICEY_UNUSED(payload);
 
     return server ? DICEY_EINVAL : DICEY_ECANCELLED;
 }
@@ -1373,14 +1373,14 @@ static void dummy_error_handler(
     const char *const msg,
     ...
 ) {
-    (void) state;
-    (void) err;
-    (void) cln;
-    (void) msg;
+    DICEY_UNUSED(state);
+    DICEY_UNUSED(err);
+    DICEY_UNUSED(cln);
+    DICEY_UNUSED(msg);
 }
 
 static void close_all_handles(uv_handle_t *const handle, void *const ctx) {
-    (void) ctx;
+    DICEY_UNUSED(ctx);
 
     // issue a close and pray
     uv_close(handle, NULL);
@@ -1392,7 +1392,7 @@ void dicey_server_delete(struct dicey_server *const server) {
     }
 
     if (server->state == SERVER_STATE_RUNNING) {
-        (void) dicey_server_stop_and_wait(server);
+        DICEY_UNUSED(dicey_server_stop_and_wait(server));
     }
 
     int uverr = uv_loop_close(&server->loop);

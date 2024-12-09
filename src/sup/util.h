@@ -25,6 +25,15 @@
 
 #include "dicey_config.h"
 
+#define DICEY_UNUSED(X) ((void) (X))
+
+#define DICEY_ASSUME(EXPR)                                                                                             \
+    do {                                                                                                               \
+        const enum dicey_error dicey__internal_err = (EXPR);                                                           \
+        assert(dicey__internal_err == DICEY_OK);                                                                       \
+        DICEY_UNUSED(dicey__internal_err);                                                                             \
+    } while (0)
+
 #if defined(DICEY_CC_IS_GCC) || defined(DICEY_CC_IS_CLANG)
 
 // if we have GNU extensions, we can use the kernel version with type checking using typeof and GCC's expression
@@ -63,16 +72,14 @@
 
 #define DICEY_LENOF(ARR) (sizeof(ARR) / sizeof(*(ARR)))
 
-#define DICEY_UNUSED(X) ((void) (X))
-
 #if defined(NDEBUG) && defined(__has_builtin)
 #if __has_builtin(__builtin_unreachable)
-#define DICEY_UNREACHABLE(X) __builtin_unreachable()
+#define DICEY_UNREACHABLE() __builtin_unreachable()
 #else
-#define DICEY_UNREACHABLE(X) // do nothing, we're in release mode and we don't have a builtin
+#define DICEY_UNREACHABLE() // do nothing, we're in release mode and we don't have a builtin
 #endif
 #else
-#define DICEY_UNREACHABLE(X) assert(!"Unreachable code reached")
+#define DICEY_UNREACHABLE() assert(!"Unreachable code reached")
 #endif
 
 /**

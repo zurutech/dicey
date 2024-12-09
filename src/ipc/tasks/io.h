@@ -31,7 +31,7 @@ struct dicey_task_error *dicey_task_op_connect_pipe(
     struct dicey_task_loop *tloop,
     int64_t id,
     uv_pipe_t *pipe,
-    const struct dicey_addr addr
+    struct dicey_addr addr
 );
 
 struct dicey_task_error *dicey_task_op_write(
@@ -46,6 +46,13 @@ struct dicey_task_error *dicey_task_op_write_and_wait(
     int64_t id,
     uv_stream_t *stream,
     uv_buf_t buf
+);
+
+struct dicey_task_error *dicey_task_op_open_pipe(
+    struct dicey_task_loop *tloop,
+    int64_t id,
+    uv_pipe_t *pipe,
+    uv_file fd
 );
 
 #endif // OCMWWAUVGQ_TASK_IO_H

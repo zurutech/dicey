@@ -67,10 +67,14 @@ add_library(samples_util STATIC)
 
 if (MSVC)
     target_compile_options(samples_util PRIVATE /W4 /WX)
-elseif(NOT MINGW)
-    # bypass spurious warnings with libuv on MinGW
-
+elseif(NOT (CMAKE_C_SIMULATE_ID STREQUAL "MSVC" AND CMAKE_C_COMPILER_FRONTEND_VARIANT STREQUAL "GNU"))
+        # again, `clang` targetting MSVC triggers too many warnings in MSVC headers, don't enable -Werror
     target_compile_options(samples_util PRIVATE -Wall -Wextra -pedantic -Werror)
+endif()
+
+# On MinGW or Clang there are wonky warnings around libuv that cause pedantic and Werror to fail randomly.
+if (MINGW OR (MSVC AND CMAKE_C_COMPILER_ID STREQUAL "Clang"))
+    target_compile_options(samples_util PRIVATE -Wno-missing-braces)
 endif()
 
 if (DEFINED CJSON_DIRS AND DEFINED CJSON_LIBS)

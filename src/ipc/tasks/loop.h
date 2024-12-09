@@ -103,6 +103,6 @@ enum dicey_error dicey_task_loop_submit(struct dicey_task_loop *tloop, struct di
 void dicey_task_loop_stop(struct dicey_task_loop *tloop);
 void dicey_task_loop_stop_and_wait(struct dicey_task_loop *tloop);
 
-uv_loop_t *dicey_task_loop_get_raw_handle(struct dicey_task_loop *tloop);
+uv_loop_t *dicey_task_loop_get_uv_handle(struct dicey_task_loop *tloop);
 
 #endif // JRUPPTCCIV_TASK_LOOP_H

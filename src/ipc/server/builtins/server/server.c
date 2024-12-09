@@ -163,8 +163,8 @@ static enum dicey_error handle_server_operation(
     const struct dicey_value *const value,
     struct dicey_packet *const response
 ) {
-    (void) src_path;
-    (void) src_entry;
+    DICEY_UNUSED(src_path);
+    DICEY_UNUSED(src_entry);
 
     assert(context && client && value && response);
 

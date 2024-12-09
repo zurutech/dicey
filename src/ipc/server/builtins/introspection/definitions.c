@@ -236,9 +236,9 @@ static enum dicey_error perform_introspection_op(
     const struct dicey_value *const value,
     struct dicey_packet *const response
 ) {
-    (void) client;
-    (void) entry;
-    (void) path;
+    DICEY_UNUSED(client);
+    DICEY_UNUSED(entry);
+    DICEY_UNUSED(path);
 
     assert(context && path && entry && entry->element && response);
 

@@ -27,7 +27,10 @@
 
 #include "../core/errors.h"
 
+#include "client.h"
 #include "server.h"
+
+#include "dicey_export.h"
 
 /**
  * @brief Represents the basic info about a plugin.
@@ -44,7 +47,7 @@ struct dicey_plugin_info {
 enum dicey_plugin_event_kind {
     DICEY_PLUGIN_EVENT_SPAWNED,      /**< A plugin was spawned; it hasn't handshaked yet, and still is not registered */
     DICEY_PLUGIN_EVENT_READY,        /**< A plugin was loaded. It is now registered and ready to be used */
-    DICEY_PLUGIN_EVENT_QUITTING,     /**< A plugin is quitting */
+    DICEY_PLUGIN_EVENT_QUITTING,     /**< A plugin is quitting. Meaningless on Windows */
     DICEY_PLUGIN_EVENT_QUIT,         /**< A plugin quit cleanly */
     DICEY_PLUGIN_EVENT_FAILED,       /**< A plugin returned non-zero */
     DICEY_PLUGIN_EVENT_UNRESPONSIVE, /**< A plugin was killed because it failed to handshake in time. Expect a FAILED
@@ -58,6 +61,27 @@ struct dicey_plugin_event {
     enum dicey_plugin_event_kind kind; /**< The kind of event. */
     struct dicey_plugin_info info;     /**< The info of the affected plugin */
 };
+
+/**
+ * @brief Initialises a plugin. This function is supposed to be called by the plugin itself as soon as it starts,
+ * ideally in its `main()` function.
+ * @param argc The number of arguments in `argv`.
+ * @param argv The arguments passed to the plugin.
+ * @param dest The destination pointer to the new client. Can be freed using `dicey_client_delete()`.
+ * @param args The arguments to use for the client instance. Can be NULL - in that case, the client will ignore all
+ * events.
+ * @return     Error code. Possible values are:
+ *             - OK: the client was successfully created
+ *             - ENOMEM: memory allocation failed (out of memory)
+ *             - EINVAL: the process is not a plugin (i.e. it was not spawned by a server). Note that this may not be
+ *                       possible to check for on platforms such as Win32.
+ */
+DICEY_EXPORT enum dicey_error dicey_plugin_init(
+    int argc,
+    const char *const argv[],
+    struct dicey_client **dest,
+    const struct dicey_client_args *args
+);
 
 /**
  * @brief Lists all the plugins currently running.
@@ -92,7 +116,7 @@ enum dicey_error dicey_server_list_plugins(
  * @return       Error code. A (non-exhaustive) list of possible values are:
  *               - OK: the plugin was successfully spawned
  */
-enum dicey_error dicey_server_spawn_plugin(struct dicey_server *server, const char *path);
+DICEY_EXPORT enum dicey_error dicey_server_spawn_plugin(struct dicey_server *server, const char *path);
 
 /**
  * @brief Spawns the plugin at the given path. The binary is expected to be an executable file or a file the OS can
@@ -103,7 +127,7 @@ enum dicey_error dicey_server_spawn_plugin(struct dicey_server *server, const ch
  * @return       Error code. A (non-exhaustive) list of possible values are:
  *               - OK: the plugin was successfully spawned
  */
-enum dicey_error dicey_server_spawn_plugin_and_wait(struct dicey_server *server, const char *path);
+DICEY_EXPORT enum dicey_error dicey_server_spawn_plugin_and_wait(struct dicey_server *server, const char *path);
 
 /**
  * @brief Callback type for when a plugin event occurs.

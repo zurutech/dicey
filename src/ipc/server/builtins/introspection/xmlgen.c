@@ -29,6 +29,7 @@
 #include <dicey/ipc/traits.h>
 
 #include "sup/trace.h"
+#include "sup/util.h"
 
 #include "introspection-internal.h"
 
@@ -118,7 +119,7 @@ static enum dicey_error object_dump_xml(
         return TRACE(DICEY_ENOMEM);
     }
 
-    (void) xmlDocSetRootElement(doc, obj_node);
+    DICEY_UNUSED(xmlDocSetRootElement(doc, obj_node));
 
     xmlNode *const docPI = xmlNewDocPI(doc, XML_MODEL_PI, XML_MODEL_XSD_CONTENT);
     if (!docPI) {

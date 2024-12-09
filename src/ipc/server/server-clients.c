@@ -24,6 +24,7 @@
 #include <dicey/ipc/server.h>
 
 #include "sup/trace.h"
+#include "sup/util.h"
 
 #include "client-data.h"
 #include "server-clients.h"
@@ -38,7 +39,7 @@ static void on_client_end(uv_handle_t *const handle) {
 
     // either ignore or assert on cleanup errors - there's nothing we can do here anyway
     const enum dicey_error err = dicey_client_data_cleanup(client);
-    (void) err;
+    DICEY_UNUSED(err);
     assert(!err);
 }
 

@@ -15,6 +15,7 @@
  */
 
 #define _CRT_SECURE_NO_WARNINGS 1
+#define _XOPEN_SOURCE 700
 
 #include <stdbool.h>
 
@@ -197,8 +198,11 @@ static void print_trace(const enum dicey_error errnum) {
 }
 
 #else
+
+#include "util.h"
+
 static inline void print_trace(const enum dicey_error errnum) {
-    (void) errnum;
+    DICEY_UNUSED(errnum);
 }
 #endif
 

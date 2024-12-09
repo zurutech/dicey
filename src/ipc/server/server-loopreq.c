@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+#define _XOPEN_SOURCE 700
+
 #include <assert.h>
 #include <stdbool.h>
 #include <stdlib.h>
@@ -22,6 +24,7 @@
 
 #include <dicey/core/errors.h>
 
+#include "sup/util.h"
 #include "sup/uvtools.h"
 
 #include "ipc/queue.h"
@@ -38,7 +41,7 @@ enum dicey_error dicey_server_submit_request(
     const bool success = dicey_queue_push(&server->queue, req, DICEY_LOCKING_POLICY_BLOCKING);
 
     assert(success);
-    (void) success; // suppress unused variable warning with NDEBUG and MSVC
+    DICEY_UNUSED(success); // suppress unused variable warning with NDEBUG and MSVC
 
     return dicey_error_from_uv(uv_async_send(&server->async));
 }
@@ -58,7 +61,7 @@ enum dicey_error dicey_server_blocking_request(
 
     // there is no way async send can fail, honestly, and it if does, there is no possible way to recover
     assert(!err);
-    (void) err; // suppress unused variable warning with NDEBUG and MSVC
+    DICEY_UNUSED(err); // suppress unused variable warning with NDEBUG and MSVC
 
     uv_sem_wait(&sem);
 
