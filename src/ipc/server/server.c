@@ -226,7 +226,7 @@ static enum dicey_error is_message_acceptable_for(
             return DICEY_EINVAL;
         }
 
-        if (elem.readonly) {
+        if (elem.flags & DICEY_ELEMENT_READONLY) {
             return DICEY_EPROPERTY_READ_ONLY;
         }
 

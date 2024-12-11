@@ -18,22 +18,55 @@
 
 #include <assert.h>
 #include <stddef.h>
+#include <stdint.h>
+#include <stdlib.h>
 
+#include <dicey/core/builders.h>
 #include <dicey/core/errors.h>
+#include <dicey/core/packet.h>
 #include <dicey/ipc/client.h>
 #include <dicey/ipc/plugins.h>
 
+#include "sup/trace.h"
 #include "sup/util.h"
 
 #include "ipc/plugin-macros.h"
 
 #include "client-internal.h"
 
-enum dicey_error dicey_plugin_init(
+struct dicey_plugin_work_ctx {
+    struct dicey_packet request;
+    struct dicey_message_builder builder;
+};
+
+struct dicey_plugin_work_list {
+    size_t len, cap;
+    struct dicey_plugin_work_ctx jobs[];
+};
+
+struct dicey_plugin {
+    struct dicey_client client;
+
+    dicey_plugin_quit_fn
+        *on_quit; //< the function to call when the server asks the plugin to quit, will call exit(FAILURE) if not set
+    dicey_plugin_do_work_fn *on_work_received; //< the function to call when the server asks the plugin to do work
+};
+
+static void quit_immediately(void) {
+    exit(EXIT_FAILURE);
+}
+
+void dicey_plugin_delete(struct dicey_plugin *const plugin) {
+    if (plugin) {
+        dicey_client_deinit(&plugin->client);
+    }
+}
+
+enum dicey_error dicey_plugin_new(
     const int argc,
     const char *const argv[],
-    struct dicey_client **const dest,
-    const struct dicey_client_args *const args
+    struct dicey_plugin **const dest,
+    const struct dicey_plugin_args *const args
 ) {
     // future proof: we don't do anything with argc and argv, but we might in the future
     // and it's better not having to change the signature of this function
@@ -42,21 +75,27 @@ enum dicey_error dicey_plugin_init(
 
     assert(argc && argv && dest && args);
 
-    struct dicey_client *client = NULL;
+    struct dicey_plugin *const plugin = calloc(1U, sizeof *plugin);
+    if (!plugin) {
+        return TRACE(DICEY_ENOMEM);
+    }
 
-    enum dicey_error err = dicey_client_new(&client, args);
+    enum dicey_error err = dicey_client_init(&plugin->client, &args->cargs);
     if (err) {
+        free(plugin);
+
         return err;
     }
 
-    assert(client);
+    plugin->on_quit = args->on_quit ? args->on_quit : &quit_immediately;
+    plugin->on_work_received = args->on_work_received;
 
-    err = dicey_client_open_fd(client, DICEY_PLUGIN_FD);
+    err = dicey_client_open_fd(&plugin->client, DICEY_PLUGIN_FD);
     if (err) {
-        dicey_client_delete(client);
+        dicey_plugin_delete(plugin);
     }
 
-    *dest = client;
+    *dest = plugin;
 
     return err;
 }

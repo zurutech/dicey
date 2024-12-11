@@ -109,7 +109,7 @@ static enum dicey_error populate_element_entry(
             &readonly_builder,
             (struct dicey_arg) {
                 .type = DICEY_TYPE_BOOL,
-                .boolean = elem->readonly,
+                .boolean = elem->flags & DICEY_ELEMENT_READONLY,
             }
         );
 

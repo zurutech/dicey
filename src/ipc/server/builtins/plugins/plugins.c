@@ -38,6 +38,7 @@
 enum plugin_op {
     PLUGIN_OP_HANDSHAKEINTERNAL = 0,
     PLUGIN_OP_LIST,
+    PLUGIN_CMD_RESPONSE,
 };
 
 static const struct dicey_default_element pm_elements[] = {
@@ -48,9 +49,10 @@ static const struct dicey_default_element pm_elements[] = {
      .opcode = PLUGIN_OP_LIST,
      },
     {
-     .name = DICEY_PLUGINMANAGER_HANDSHAKEINTERNAL_OP_NAME,
+     .name = PLUGINMANAGER_HANDSHAKEINTERNAL_OP_NAME,
      .type = DICEY_ELEMENT_TYPE_OPERATION,
-     .signature = DICEY_PLUGINMANAGER_HANDSHAKEINTERNAL_OP_SIG,
+     .signature = PLUGINMANAGER_HANDSHAKEINTERNAL_OP_SIG,
+     .flags = DICEY_ELEMENT_INTERNAL,
      },
 };
 
@@ -59,13 +61,27 @@ static const struct dicey_default_element plugin_elements[] = {
      .name = DICEY_PLUGIN_NAME_PROP_NAME,
      .type = DICEY_ELEMENT_TYPE_PROPERTY,
      .signature = DICEY_PLUGIN_NAME_PROP_SIG,
-     .readonly = true,
+     .flags = DICEY_ELEMENT_READONLY,
      },
     {
      .name = DICEY_PLUGIN_PATH_PROP_NAME,
      .type = DICEY_ELEMENT_TYPE_PROPERTY,
      .signature = DICEY_PLUGIN_PATH_PROP_SIG,
-     .readonly = true,
+     .flags = DICEY_ELEMENT_READONLY,
+     },
+
+ // internal stuff
+    {
+     .name = PLUGIN_COMMAND_SIGNAL_NAME,
+     .type = DICEY_ELEMENT_TYPE_SIGNAL,
+     .signature = PLUGIN_COMMAND_SIGNAL_SIG,
+     .flags = DICEY_ELEMENT_INTERNAL,
+     },
+    {
+     .name = PLUGIN_REPLY_OP_NAME,
+     .type = DICEY_ELEMENT_TYPE_OPERATION,
+     .signature = PLUGIN_REPLY_OP_SIG,
+     .flags = DICEY_ELEMENT_INTERNAL,
      },
 };
 
@@ -95,7 +111,7 @@ static enum dicey_error craft_handshake_reply(
         builder,
         (struct dicey_selector) {
             .trait = DICEY_PLUGINMANAGER_TRAIT_NAME,
-            .elem = DICEY_PLUGINMANAGER_HANDSHAKEINTERNAL_OP_NAME,
+            .elem = PLUGINMANAGER_HANDSHAKEINTERNAL_OP_NAME,
         }
     );
 

@@ -140,7 +140,13 @@ static struct dicey_task_error *client_task_send_and_queue(
     }
 
     // register that we expect a response on this task for sequence number `seq`
-    if (!dicey_waiting_list_append(&client->waiting_tasks, seq, id)) {
+    if (!dicey_waiting_list_append(
+            &client->waiting_tasks,
+            (struct dicey_waiting_task) {
+                .packet_seq = seq,
+                .task_id = id,
+            }
+        )) {
         return dicey_task_error_new(DICEY_ENOMEM, "Failed to register outbound request in waiting list");
     }
 
@@ -1081,14 +1087,6 @@ static enum dicey_error client_subunsub(
     return err;
 }
 
-void dicey_client_delete(struct dicey_client *const client) {
-    if (client) {
-        dicey_task_loop_delete(client->tloop);
-
-        free(client);
-    }
-}
-
 static void unlock_when_done(
     struct dicey_client *const client,
     void *const data,
@@ -1172,7 +1170,7 @@ static void reset_state(void *const ctx) {
     // the client is reused
 }
 
-enum dicey_error client_setup_async(
+static enum dicey_error client_setup_async(
     struct dicey_client *const client,
     const struct dicey_client_setup_info info,
     dicey_client_on_connect_fn *const cb,
@@ -1218,7 +1216,7 @@ enum dicey_error client_setup_async(
     return client_issue_setup(client, info, cb, data);
 }
 
-enum dicey_error client_open_async(
+static enum dicey_error client_open_async(
     struct dicey_client *const client,
     const uv_file fd,
     dicey_client_on_connect_fn *const cb,
@@ -1264,7 +1262,7 @@ enum dicey_error dicey_client_connect_async(
 ) {
     assert(client && addr.addr);
 
-    return client_issue_setup(
+    return client_setup_async(
         client,
         (struct dicey_client_setup_info) {
             .type = CLIENT_CONNECT_ADDR,
@@ -1273,6 +1271,18 @@ enum dicey_error dicey_client_connect_async(
         cb,
         data
     );
+}
+
+void dicey_client_deinit(struct dicey_client *const client) {
+    if (client) {
+        dicey_task_loop_delete(client->tloop);
+    }
+}
+
+void dicey_client_delete(struct dicey_client *const client) {
+    dicey_client_deinit(client);
+
+    free(client);
 }
 
 enum dicey_error dicey_client_disconnect(struct dicey_client *const client) {
@@ -1404,6 +1414,19 @@ void *dicey_client_get_context(const struct dicey_client *client) {
     assert(client);
 
     return client->ctx;
+}
+
+enum dicey_error dicey_client_init(struct dicey_client *const client, const struct dicey_client_args *const args) {
+    assert(client);
+
+    if (args) {
+        client->inspect_func = args->inspect_func;
+        client->on_event = args->on_event;
+    }
+
+    client_event(client, DICEY_CLIENT_EVENT_INIT);
+
+    return DICEY_OK;
 }
 
 enum dicey_error dicey_client_inspect_path(
@@ -1552,12 +1575,12 @@ enum dicey_error dicey_client_new(struct dicey_client **const dest, const struct
         return TRACE(DICEY_ENOMEM);
     }
 
-    if (args) {
-        client->inspect_func = args->inspect_func;
-        client->on_event = args->on_event;
-    }
+    const enum dicey_error err = dicey_client_init(client, args);
+    if (err) {
+        free(client);
 
-    client_event(client, DICEY_CLIENT_EVENT_INIT);
+        return err;
+    }
 
     *dest = client;
 
@@ -1570,15 +1593,7 @@ enum dicey_error dicey_client_open_fd(struct dicey_client *const client, const u
     struct sync_conn_data data = { .err = DICEY_OK };
     uv_sem_init(&data.sem, 0);
 
-    const enum dicey_error open_err = client_issue_setup(
-        client,
-        (struct dicey_client_setup_info) {
-            .type = CLIENT_OPEN_FD,
-            .data = { .fd = fd },
-        },
-        &unlock_when_done,
-        &data
-    );
+    const enum dicey_error open_err = client_open_async(client, fd, &unlock_when_done, &data);
 
     if (open_err) {
         uv_sem_destroy(&data.sem);

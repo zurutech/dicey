@@ -137,7 +137,7 @@ static enum dicey_error populate_element_struct(
             &ro_builder,
             (struct dicey_arg) {
                 .type = DICEY_TYPE_BOOL,
-                .boolean = element->readonly,
+                .boolean = element->flags & DICEY_ELEMENT_READONLY,
             }
         );
 
@@ -207,6 +207,10 @@ static enum dicey_error populate_trait_element_list(
     const char *elem_name = NULL;
     struct dicey_element elem = { 0 };
     while (dicey_trait_iter_next(&iter, &elem_name, &elem)) {
+        if (elem.flags & DICEY_ELEMENT_INTERNAL) {
+            continue; // skip internal elements
+        }
+
         struct dicey_value_builder trait_elem_builder = { 0 };
         err = dicey_value_builder_next(value, &trait_elem_builder);
 

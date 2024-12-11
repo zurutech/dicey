@@ -56,7 +56,7 @@ struct dicey_default_element {
     const char *name;
     enum dicey_element_type type;
     const char *signature;
-    bool readonly;
+    int flags;
     uint8_t opcode;
 };
 

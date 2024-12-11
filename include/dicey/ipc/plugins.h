@@ -25,7 +25,9 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include "../core/builders.h"
 #include "../core/errors.h"
+#include "../core/value.h"
 
 #include "client.h"
 #include "server.h"
@@ -63,24 +65,89 @@ struct dicey_plugin_event {
 };
 
 /**
+ * @brief Function type describing the callback to call when the server asks the plugin to quit
+ */
+typedef void dicey_plugin_quit_fn(void);
+
+/**
+ * @brief Anonymous context of a pending work request
+ */
+struct dicey_plugin_work_ctx;
+
+/**
+ * @brief Callback called when the server issues work to the plugin using the generic work API.
+ * @param ctx   The context of the work request, valid until dicey_plugin_work_done() is called
+ * @param value The value to work on. Can be anything
+ */
+typedef void dicey_plugin_do_work_fn(struct dicey_plugin_work_ctx *ctx, struct dicey_value *value);
+
+/**
+ * @brief Represents the arguments to pass to a plugin
+ */
+struct dicey_plugin_args {
+    struct dicey_client_args cargs; //< standard client arguments
+    const char *name;               //< the name of the plugin
+    dicey_plugin_quit_fn
+        *on_quit; //< the function to call when the server asks the plugin to quit, will call exit(FAILURE) if not set
+    dicey_plugin_do_work_fn *on_work_received; //< the function to call when the server asks the plugin to do work
+};
+
+/**
+ * @brief `dicey_plugin_work_response_start` initialises an internal builder and starts building a response to a work
+ * job request. `builder` will be initialised with a value builder that the user can fill to build the response.
+ * @note  `dicey_plugin_work_response_done` must be called after the response is built to finalise the response.
+ * @param ctx     The context of the work request.
+ * @param builder The builder to initialise.
+ */
+DICEY_EXPORT enum dicey_error dicey_plugin_work_response_start(
+    struct dicey_plugin_work_ctx *ctx,
+    struct dicey_value_builder *builder
+);
+
+/**
+ * @brief `dicey_plugin_work_response_done` finalises the response to a work job request and sends it back to the
+ * server.
+ * @note  This function must be called after the response is built using `dicey_plugin_work_response_start`.
+ * @param ctx The context of the work request.
+ */
+DICEY_EXPORT enum dicey_error dicey_plugin_work_response_done(struct dicey_plugin_work_ctx *ctx);
+
+/**
+ * @brief The structure containing the internal state of a plugin instance.
+ */
+struct dicey_plugin;
+
+/**
+ * @brief Deinitialises a previously initialised plugin instance.
+ */
+DICEY_EXPORT void dicey_plugin_delete(struct dicey_plugin *plugin);
+
+/**
+ * @brief Gets the client associated with a plugin.
+ * @param plugin The plugin to get the client from.
+ * @return       The client associated with the plugin.
+ */
+DICEY_EXPORT struct dicey_client *dicey_plugin_get_client(struct dicey_plugin *plugin);
+
+/**
  * @brief Initialises a plugin. This function is supposed to be called by the plugin itself as soon as it starts,
  * ideally in its `main()` function.
  * @param argc The number of arguments in `argv`.
  * @param argv The arguments passed to the plugin.
  * @param dest The destination pointer to the new client. Can be freed using `dicey_client_delete()`.
- * @param args The arguments to use for the client instance. Can be NULL - in that case, the client will ignore all
- * events.
+ * @param args The arguments to use for the plugin. Can be NULL - in that case, the client will ignore all
+ * events and quit immediately if asked to.
  * @return     Error code. Possible values are:
  *             - OK: the client was successfully created
  *             - ENOMEM: memory allocation failed (out of memory)
  *             - EINVAL: the process is not a plugin (i.e. it was not spawned by a server). Note that this may not be
  *                       possible to check for on platforms such as Win32.
  */
-DICEY_EXPORT enum dicey_error dicey_plugin_init(
+DICEY_EXPORT enum dicey_error dicey_plugin_new(
     int argc,
     const char *const argv[],
-    struct dicey_client **dest,
-    const struct dicey_client_args *args
+    struct dicey_plugin **dest,
+    const struct dicey_plugin_args *args
 );
 
 /**
@@ -100,11 +167,29 @@ DICEY_EXPORT enum dicey_error dicey_plugin_init(
  *               - ENOMEM: memory allocation failed (out of memory)
  *               - EOVERFLOW: the buffer is too small
  */
-enum dicey_error dicey_server_list_plugins(
+DICEY_EXPORT enum dicey_error dicey_server_list_plugins(
     struct dicey_server *server,
     struct dicey_plugin_info **buf,
     uint16_t *count
 );
+
+/**
+ * @brief Asks a plugin to quit. This function is asynchronous. If the plugin does not quit in `timeout` milliseconds,
+ *        it will be killed (with SIGKILL or equivalent)
+ *
+ */
+DICEY_EXPORT enum dicey_error dicey_server_plugin_quit(struct dicey_server *server, uint64_t timeout);
+
+/**
+ * @brief Shuts down a plugin without waiting for it to finish. This function is asynchronous.
+ * @note  Alias of `dicey_server_kick
+ * @param server The server to kick the client from.
+ * @param id     The unique identifier of the client to kick.
+ * @return       Error code. The possible values are several and include:
+ *               - OK: the kick request was successfully initiated
+ *               - ENOMEM: memory allocation failed
+ */
+#define dicey_server_plugin_kill(server, id) dicey_server_kick(server, id)
 
 /**
  * @brief Spawns the plugin at the given path. The binary is expected to be an executable file or a file the OS can

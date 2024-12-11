@@ -92,7 +92,7 @@ static enum dicey_error elems_dump_xml(const struct dicey_hashtable *const elems
             return TRACE(DICEY_ENOMEM);
         }
 
-        if (elem->type == DICEY_ELEMENT_TYPE_PROPERTY && elem->readonly) {
+        if (elem->type == DICEY_ELEMENT_TYPE_PROPERTY && elem->flags & DICEY_ELEMENT_READONLY) {
             if (!xmlNewProp(enode, READ_ONLY_ATT, BAD_CAST "true")) {
                 return TRACE(DICEY_ENOMEM);
             }

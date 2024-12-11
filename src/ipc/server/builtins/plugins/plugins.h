@@ -19,6 +19,23 @@
 
 #include "../builtins.h"
 
+/*
+ *     // internal operation used by the plugin API. Never call directly!
+ *     HandshakeInternal: s -> @ // takes the name and returns the plugin object path
+ */
+#define PLUGINMANAGER_HANDSHAKEINTERNAL_OP_NAME "HandshakeInternal"
+#define PLUGINMANAGER_HANDSHAKEINTERNAL_OP_SIG "s -> @"
+
+/*
+ *     // internal plugin communication. Don't call directly
+ *     signal Command: {tc} // job number + an enumeration of plugin commands (private)
+ *     Reply: {tv} -> $    // reply to a command (private)
+ */
+#define PLUGIN_COMMAND_SIGNAL_NAME "Command"
+#define PLUGIN_COMMAND_SIGNAL_SIG "{tc}"
+#define PLUGIN_REPLY_OP_NAME "Reply"
+#define PLUGIN_REPLY_OP_SIG "{tv} -> $"
+
 extern const struct dicey_registry_builtin_set dicey_registry_plugins_builtins;
 
 #endif // KXYIXJEFNE_PLUGINS_H

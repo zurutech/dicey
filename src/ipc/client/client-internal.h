@@ -71,6 +71,8 @@ struct dicey_client {
     void *ctx;
 };
 
+void dicey_client_deinit(struct dicey_client *client);
+enum dicey_error dicey_client_init(struct dicey_client *client, const struct dicey_client_args *args);
 enum dicey_error dicey_client_open_fd(struct dicey_client *client, uv_file addr);
 
 #endif // HWMIYVYDED_CLIENT_INTERNAL_H

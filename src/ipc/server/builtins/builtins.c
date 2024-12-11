@@ -101,7 +101,7 @@ static enum dicey_error populate_traits(
                 (struct dicey_element) {
                     .type = elem_def->type,
                     .signature = elem_def->signature,
-                    .readonly = elem_def->readonly,
+                    .flags = elem_def->flags,
                     // use tag to identify that this is a builtin operation with a specific opcode
                     ._tag = TAGGED(tag, elem_def->opcode),
                 }

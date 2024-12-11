@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+#include "dicey/ipc/traits.h"
 #define _CRT_NONSTDC_NO_DEPRECATE 1
 #define _XOPEN_SOURCE 700
 
@@ -572,8 +573,11 @@ static enum dicey_error registry_fill(struct dicey_registry *const registry) {
             const enum dicey_error err = dicey_trait_add_element(
                 trait,
                 element->name,
-                (struct dicey_element
-                ) { .type = element->type, .signature = element->signature, .readonly = element->readonly }
+                (struct dicey_element) {
+                    .type = element->type,
+                    .signature = element->signature,
+                    .flags = element->readonly ? DICEY_ELEMENT_READONLY : 0,
+                }
             );
 
             if (err) {

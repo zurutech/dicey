@@ -436,11 +436,14 @@ static size_t count_plugins(const struct dicey_client_list *const list) {
 }
 
 static enum dicey_error info_dup_to(struct dicey_plugin_info *const dst, struct dicey_plugin_info src) {
-    assert(dst);
+    assert(dst && src.path); // name may be null for now
 
-    char *const name = strdup(src.name);
-    if (!name) {
-        return TRACE(DICEY_ENOMEM);
+    char *name = NULL;
+    if (src.name) {
+        name = strdup(src.name);
+        if (!name) {
+            return TRACE(DICEY_ENOMEM);
+        }
     }
 
     char *const path = strdup(src.path);
