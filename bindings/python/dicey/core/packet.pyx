@@ -102,13 +102,13 @@ class Operation(_Enum):
     GET = dicey_op.DICEY_OP_GET
     SET = dicey_op.DICEY_OP_SET
     EXEC = dicey_op.DICEY_OP_EXEC
-    EVENT = dicey_op.DICEY_OP_EVENT
+    SIGNAL = dicey_op.DICEY_OP_SIGNAL
     RESPONSE = dicey_op.DICEY_OP_RESPONSE
 
 GET = Operation.GET
 SET = Operation.SET
 EXEC = Operation.EXEC
-EVENT = Operation.EVENT
+SIGNAL = Operation.SIGNAL
 RESPONSE = Operation.RESPONSE
 
 @_dataclass

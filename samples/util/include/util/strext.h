@@ -39,6 +39,6 @@ static inline char *strndup(const char *const str, const size_t maxlen) {
     return ret;
 }
 
-#endif // _MSC_VER && __STDC_VERSION__ < 202311L
+#endif // DICEY_CC_IS_MSVC && __STDC_VERSION__ < 202311L
 
 #endif // XVAUPCELRC_STREXT_H

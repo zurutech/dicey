@@ -398,7 +398,7 @@ static enum dicey_error craft_timer_event(struct dicey_packet *const dest, const
         goto fail;
     }
 
-    err = dicey_message_builder_begin(&builder, DICEY_OP_EVENT);
+    err = dicey_message_builder_begin(&builder, DICEY_OP_SIGNAL);
     if (err) {
         goto fail;
     }

@@ -76,9 +76,9 @@ enum dicey_op {
     DICEY_OP_EXEC = '?',
 
     /**<
-     * Event: raised when an event has happened on a given (path, selector) with a given value. Always server-initiated
+     * Signal: raised when an event has happened on a given (path, selector) with a given value. Always server-initiated
      */
-    DICEY_OP_EVENT = '!',
+    DICEY_OP_SIGNAL = '!',
 
     /**<
      * Response: response to a previous {GET, SET, EXEC} operation. Always server-initiated

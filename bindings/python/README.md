@@ -69,8 +69,8 @@ you are done with it.
     Sends a message to the server, and waits for a response. The set, get and exec methods are all implemented using this
     underneath. Use this method if you need more control on the message being sent.
 
-- `Client.on_event: EventCallback`:
-    A `Callable[[Operation, Path, Selector, Optional[Any]], None]` which will be called whenever an event is received from
+- `Client.on_signal: SignalCallback`:
+    A `Callable[[Operation, Path, Selector, Optional[Any]], None]` which will be called whenever a signal is received from
     the server. This is a property, so you can assign a new callback to it to change the behaviour.
     Careful: this callback will be called from the Dicey client thread, so you should not do any blocking operations in it.
 

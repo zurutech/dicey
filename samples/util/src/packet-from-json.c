@@ -130,7 +130,7 @@ static enum dicey_op json_to_op(const cJSON *const item) {
     const char *const value = cJSON_GetStringValue(item);
     if (value) {
         const enum dicey_op values[] = {
-            DICEY_OP_GET, DICEY_OP_SET, DICEY_OP_EXEC, DICEY_OP_EVENT, DICEY_OP_RESPONSE,
+            DICEY_OP_GET, DICEY_OP_SET, DICEY_OP_EXEC, DICEY_OP_SIGNAL, DICEY_OP_RESPONSE,
         };
 
         const enum dicey_op *const end = values + sizeof values / sizeof *values;

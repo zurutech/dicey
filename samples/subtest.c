@@ -16,6 +16,7 @@
 
 // thank you MS, but just no
 #define _CRT_SECURE_NO_WARNINGS 1
+#define _XOPEN_SOURCE 700
 
 #include <assert.h>
 #include <inttypes.h>
@@ -117,7 +118,7 @@ static int do_op(const char *const addr, const int32_t value) {
         &client,
         &(struct dicey_client_args) {
             .inspect_func = &inspector,
-            .on_event = &on_client_event,
+            .on_signal = &on_client_event,
         }
     );
 

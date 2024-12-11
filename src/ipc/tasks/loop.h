@@ -23,7 +23,7 @@
 
 #include "sup/util.h"
 
-#if defined(_MSC_VER)
+#if defined(DICEY_CC_IS_MSVC)
 #pragma warning(disable : 4200)
 #endif
 

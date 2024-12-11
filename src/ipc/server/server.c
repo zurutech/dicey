@@ -76,7 +76,7 @@ static struct dicey_packet outbound_packet_borrow(const struct outbound_packet p
     case DICEY_OP_RESPONSE:
         return packet.single;
 
-    case DICEY_OP_EVENT:
+    case DICEY_OP_SIGNAL:
         return dicey_shared_packet_borrow(packet.shared);
 
     default:
@@ -96,7 +96,7 @@ static void outbound_packet_cleanup(struct outbound_packet *const packet) {
 
         break;
 
-    case DICEY_OP_EVENT:
+    case DICEY_OP_SIGNAL:
         dicey_shared_packet_unref(packet->shared);
 
         break;
@@ -116,7 +116,7 @@ static bool outbound_packet_is_valid(const struct outbound_packet packet) {
     case DICEY_OP_RESPONSE:
         return dicey_packet_is_valid(packet.single);
 
-    case DICEY_OP_EVENT:
+    case DICEY_OP_SIGNAL:
         return dicey_shared_packet_is_valid(packet.shared);
 
     default:
@@ -132,7 +132,7 @@ static void *outbound_packet_payload(const struct outbound_packet packet) {
     case DICEY_OP_RESPONSE:
         return packet.single.payload;
 
-    case DICEY_OP_EVENT:
+    case DICEY_OP_SIGNAL:
         return dicey_shared_packet_borrow(packet.shared).payload;
 
     default:
@@ -147,7 +147,7 @@ static size_t outbound_packet_size(const struct outbound_packet packet) {
     case DICEY_OP_RESPONSE:
         return packet.single.nbytes;
 
-    case DICEY_OP_EVENT:
+    case DICEY_OP_SIGNAL:
         return dicey_shared_packet_size(packet.shared);
 
     default:
@@ -194,7 +194,7 @@ static bool is_event_msg(const struct dicey_packet pkt) {
         return false;
     }
 
-    return msg.type == DICEY_OP_EVENT;
+    return msg.type == DICEY_OP_SIGNAL;
 }
 
 static bool can_send_as_event(const struct dicey_packet packet) {
@@ -239,7 +239,7 @@ static enum dicey_error is_message_acceptable_for(
 
         break;
 
-    case DICEY_OP_EVENT:
+    case DICEY_OP_SIGNAL:
         if (elem.type != DICEY_ELEMENT_TYPE_SIGNAL) {
             return DICEY_EINVAL;
         }
@@ -261,7 +261,7 @@ static enum dicey_error is_message_acceptable_for(
 static bool is_server_op(const enum dicey_op op) {
     switch (op) {
     case DICEY_OP_RESPONSE:
-    case DICEY_OP_EVENT:
+    case DICEY_OP_SIGNAL:
         return true;
 
     default:
@@ -592,7 +592,7 @@ static enum dicey_error raise_event(
         // + 1 (because this function is holding it too for now)
         dicey_shared_packet_ref(shared_pkt);
 
-        struct outbound_packet event = { .kind = DICEY_OP_EVENT, .shared = shared_pkt };
+        struct outbound_packet event = { .kind = DICEY_OP_SIGNAL, .shared = shared_pkt };
 
         err = server_sendpkt(server, *client, event);
         if (err) {
@@ -688,7 +688,7 @@ static ptrdiff_t client_got_bye(struct dicey_client_data *client, const struct d
 
     dicey_server_remove_client(client->parent, client->info.id);
 
-    return CLIENT_STATE_DEAD;
+    return CLIENT_DATA_STATE_DEAD;
 }
 
 static ptrdiff_t client_got_hello(
@@ -701,7 +701,7 @@ static ptrdiff_t client_got_hello(
     struct dicey_server *const server = client->parent;
     assert(server);
 
-    if (client->state != CLIENT_STATE_CONNECTED) {
+    if (client->state != CLIENT_DATA_STATE_CONNECTED) {
         return TRACE(DICEY_EINVAL);
     }
 
@@ -732,7 +732,7 @@ static ptrdiff_t client_got_hello(
         return err;
     }
 
-    return CLIENT_STATE_RUNNING;
+    return CLIENT_DATA_STATE_RUNNING;
 }
 
 static ptrdiff_t client_got_message(struct dicey_client_data *const client, struct dicey_packet packet) {
@@ -751,7 +751,7 @@ static ptrdiff_t client_got_message(struct dicey_client_data *const client, stru
         return TRACE(DICEY_EINVAL);
     }
 
-    if (client->state != CLIENT_STATE_RUNNING) {
+    if (client->state != CLIENT_DATA_STATE_RUNNING) {
         return TRACE(DICEY_EINVAL);
     }
 
@@ -772,7 +772,7 @@ static ptrdiff_t client_got_message(struct dicey_client_data *const client, stru
         dicey_packet_deinit(&packet);
 
         // shortcircuit: the object was not found, so we've already sent an error response
-        return repl_err ? repl_err : CLIENT_STATE_RUNNING;
+        return repl_err ? repl_err : CLIENT_DATA_STATE_RUNNING;
     }
 
     struct dicey_element_entry elem_entry = { 0 };
@@ -792,7 +792,7 @@ static ptrdiff_t client_got_message(struct dicey_client_data *const client, stru
         dicey_packet_deinit(&packet);
 
         // shortcircuit: the element was not found, so we've already sent an error response
-        return repl_err ? repl_err : CLIENT_STATE_RUNNING;
+        return repl_err ? repl_err : CLIENT_DATA_STATE_RUNNING;
     }
 
     const enum dicey_error op_err = is_message_acceptable_for(*elem_entry.element, &message);
@@ -811,7 +811,7 @@ static ptrdiff_t client_got_message(struct dicey_client_data *const client, stru
         dicey_packet_deinit(&packet);
 
         // shortcircuit: the message has been rejected and we've already sent an error response
-        return repl_err ? repl_err : CLIENT_STATE_RUNNING;
+        return repl_err ? repl_err : CLIENT_DATA_STATE_RUNNING;
     }
 
     struct dicey_registry_builtin_info binfo = { 0 };
@@ -843,7 +843,7 @@ static ptrdiff_t client_got_message(struct dicey_client_data *const client, stru
             dicey_packet_deinit(&packet);
 
             // shortcircuit: the introspection failed and we've already sent an error response
-            return repl_err ? repl_err : CLIENT_STATE_RUNNING;
+            return repl_err ? repl_err : CLIENT_DATA_STATE_RUNNING;
         }
 
         // get rid of the request, we don't need it anymore
@@ -863,7 +863,7 @@ static ptrdiff_t client_got_message(struct dicey_client_data *const client, stru
             outbound_packet_cleanup(&response);
         }
 
-        return send_err ? send_err : CLIENT_STATE_RUNNING;
+        return send_err ? send_err : CLIENT_DATA_STATE_RUNNING;
     }
 
     if (server->on_request) {
@@ -891,7 +891,7 @@ static ptrdiff_t client_got_message(struct dicey_client_data *const client, stru
         dicey_packet_deinit(&packet);
     }
 
-    return CLIENT_STATE_RUNNING;
+    return CLIENT_DATA_STATE_RUNNING;
 }
 
 static enum dicey_error client_raised_error(struct dicey_client_data *client, const enum dicey_error err) {
@@ -900,7 +900,7 @@ static enum dicey_error client_raised_error(struct dicey_client_data *client, co
     struct dicey_server *const server = client->parent;
     assert(server);
 
-    client->state = CLIENT_STATE_DEAD;
+    client->state = CLIENT_DATA_STATE_DEAD;
 
     server->on_error(server, err, &client->info, "client error: %s", dicey_error_name(err));
 
@@ -956,7 +956,7 @@ static enum dicey_error client_got_packet(struct dicey_client_data *client, stru
     if (err < 0) {
         return client_raised_error(client, err);
     } else {
-        client->state = (enum dicey_client_state) err;
+        client->state = (enum dicey_client_data_state) err;
         return DICEY_OK;
     }
 }
@@ -1169,7 +1169,7 @@ static enum dicey_error loop_request_kick_client(
     return server_kick_client(server, client, reason);
 }
 
-static enum dicey_error loop_request_raise_event(
+static enum dicey_error loop_request_raise_signal(
     struct dicey_server *const server,
     struct dicey_client_data *const client,
     void *const payload
@@ -1726,7 +1726,7 @@ enum dicey_error dicey_server_raise(struct dicey_server *const server, const str
     }
 
     *req = (struct dicey_server_loop_request) {
-        .cb = &loop_request_raise_event,
+        .cb = &loop_request_raise_signal,
         .target = DICEY_SERVER_LOOP_REQ_NO_TARGET,
     };
 
@@ -1748,7 +1748,7 @@ enum dicey_error dicey_server_raise_and_wait(struct dicey_server *const server, 
     }
 
     *req = (struct dicey_server_loop_request) {
-        .cb = &loop_request_raise_event,
+        .cb = &loop_request_raise_signal,
         .target = DICEY_SERVER_LOOP_REQ_NO_TARGET,
     };
 

@@ -108,7 +108,7 @@ static int do_op(const char *const addr, const char *const value, const enum req
         &client,
         &(struct dicey_client_args) {
             .inspect_func = &inspector,
-            .on_event = &on_client_event,
+            .on_signal = &on_client_event,
         }
     );
 

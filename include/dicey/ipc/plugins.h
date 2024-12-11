@@ -87,8 +87,10 @@ typedef void dicey_plugin_do_work_fn(struct dicey_plugin_work_ctx *ctx, struct d
 struct dicey_plugin_args {
     struct dicey_client_args cargs; //< standard client arguments
     const char *name;               //< the name of the plugin
-    dicey_plugin_quit_fn
-        *on_quit; //< the function to call when the server asks the plugin to quit, will call exit(FAILURE) if not set
+
+    // the function to call when the server asks the plugin to quit, will call exit(FAILURE) if not set
+    dicey_plugin_quit_fn *on_quit;
+
     dicey_plugin_do_work_fn *on_work_received; //< the function to call when the server asks the plugin to do work
 };
 

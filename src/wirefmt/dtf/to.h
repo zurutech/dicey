@@ -23,7 +23,7 @@
 
 #include <dicey/core/value.h>
 
-#if defined(_MSC_VER)
+#if defined(DICEY_CC_IS_MSVC)
 #pragma warning(disable : 4200)
 #endif
 
@@ -152,7 +152,7 @@ struct dtf_bye {
 
 #pragma pack(pop)
 
-#if defined(_MSC_VER)
+#if defined(DICEY_CC_IS_MSVC)
 #pragma warning(default : 4200)
 #endif
 

@@ -24,7 +24,7 @@
 
 // Note: MSVC supports C11 now, but they clearly forgot to unflag flexible array members as an extension
 // This pragma is here to teach MSVC to know its place
-#if defined(_MSC_VER)
+#if defined(DICEY_CC_IS_MSVC)
 #pragma warning(disable : 4200)
 #endif
 

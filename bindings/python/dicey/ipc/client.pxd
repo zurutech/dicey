@@ -68,12 +68,12 @@ cdef extern from "dicey/dicey.h":
         dicey_error status
     )
 
-    ctypedef void dicey_client_event_fn(dicey_client *client, void *ctx, dicey_packet *packet)
+    ctypedef void dicey_client_signal_fn(dicey_client *client, void *ctx, dicey_packet *packet)
     ctypedef void dicey_client_inspect_fn(dicey_client *client, void *ctx, dicey_client_event event)
 
     cdef struct dicey_client_args:
         dicey_client_inspect_fn *inspect_func
-        dicey_client_event_fn *on_event
+        dicey_client_signal_fn *on_signal
 
     dicey_error dicey_client_new(dicey_client **dest, const dicey_client_args *args)
     void dicey_client_delete(dicey_client *client)

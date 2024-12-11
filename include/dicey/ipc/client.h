@@ -127,7 +127,7 @@ typedef void dicey_client_on_sub_unsub_done_fn(struct dicey_client *client, void
  *               The event handler can take ownership of the packet by zeroing it out. This will prevent the client
  *               from freeing it.
  */
-typedef void dicey_client_event_fn(struct dicey_client *client, void *ctx, struct dicey_packet *packet);
+typedef void dicey_client_signal_fn(struct dicey_client *client, void *ctx, struct dicey_packet *packet);
 
 /**
  * @brief Represents a callback function that is called whenever anything happens in the client.
@@ -143,10 +143,11 @@ typedef void dicey_client_inspect_fn(struct dicey_client *client, void *ctx, str
  * @brief Represents the initialisation arguments that can be passed to `dicey_client_new()`.
  */
 struct dicey_client_args {
-    dicey_client_inspect_fn
-        *inspect_func; /**< The function that will be called whenever an event happens in the client. */
-    dicey_client_event_fn
-        *on_event; /**< The function that will be called whenever the client receives an event message. */
+    /** The function that will be called whenever an event happens in the client. */
+    dicey_client_inspect_fn *inspect_func;
+
+    /** The function that will be called whenever the client receives a signal. */
+    dicey_client_signal_fn *on_signal;
 };
 
 /**

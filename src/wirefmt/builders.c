@@ -106,7 +106,7 @@ static ptrdiff_t msgkind_to_dtf(const enum dicey_op kind) {
     case DICEY_OP_EXEC:
         return DTF_PAYLOAD_EXEC;
 
-    case DICEY_OP_EVENT:
+    case DICEY_OP_SIGNAL:
         return DTF_PAYLOAD_EVENT;
 
     case DICEY_OP_RESPONSE:

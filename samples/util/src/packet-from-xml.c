@@ -40,7 +40,7 @@
 #include <util/packet-xml.h>
 #include <util/strext.h>
 
-#if defined(_MSC_VER)
+#if defined(DICEY_CC_IS_MSVC)
 #pragma warning(disable : 4996)
 #endif
 
@@ -632,7 +632,7 @@ static struct util_xml_error *xml_get_op(const xmlNode *const item, enum dicey_o
     }
 
     const enum dicey_op values[] = {
-        DICEY_OP_GET, DICEY_OP_SET, DICEY_OP_EXEC, DICEY_OP_EVENT, DICEY_OP_RESPONSE,
+        DICEY_OP_GET, DICEY_OP_SET, DICEY_OP_EXEC, DICEY_OP_SIGNAL, DICEY_OP_RESPONSE,
     };
 
     enum dicey_op found = DICEY_OP_INVALID;

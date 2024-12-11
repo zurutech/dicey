@@ -23,9 +23,11 @@
 
 #include <uv.h>
 
+#include "dicey_config.h"
+
 #define WAIT_FOREVER ((int32_t) -1)
 
-#if defined(_MSC_VER)
+#if defined(DICEY_CC_IS_MSVC)
 #pragma warning(disable : 4200)
 #endif
 

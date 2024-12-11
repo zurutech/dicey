@@ -49,7 +49,6 @@
 #include "client-internal.h"
 #include "waiting-list.h"
 
-#define DEFAULT_TIMEOUT ((int32_t) 1000U)
 #define READ_MINBUF 256U // 256B
 
 enum client_subunsub {
@@ -77,7 +76,7 @@ struct sync_req_data {
 static bool is_server_msg(const enum dicey_op op) {
     switch (op) {
     case DICEY_OP_RESPONSE:
-    case DICEY_OP_EVENT:
+    case DICEY_OP_SIGNAL:
         return true;
 
     default:
@@ -292,7 +291,7 @@ static enum dicey_error client_issue_disconnect(
     *disconnect_req = client->state == CLIENT_STATE_RUNNING ? full_disconnect_sequence : quick_disconnect_sequence;
 
     disconnect_req->ctx = ctx;
-    disconnect_req->timeout_ms = DEFAULT_TIMEOUT;
+    disconnect_req->timeout_ms = CLIENT_DEFAULT_TIMEOUT;
 
     enum dicey_error err = dicey_task_loop_submit(client->tloop, disconnect_req);
     if (err) {
@@ -357,7 +356,7 @@ static void client_got_packet(struct dicey_client *const client, struct dicey_pa
 
             client_event(client, DICEY_CLIENT_EVENT_MESSAGE_RECEIVING, packet);
 
-            is_event = msg.type == DICEY_OP_EVENT;
+            is_event = msg.type == DICEY_OP_SIGNAL;
         }
 
     default:
@@ -365,9 +364,9 @@ static void client_got_packet(struct dicey_client *const client, struct dicey_pa
     }
 
     if (is_event) {
-        assert(client->on_event);
+        assert(client->on_signal);
 
-        client->on_event(client, dicey_client_get_context(client), &packet);
+        client->on_signal(client, dicey_client_get_context(client), &packet);
     } else {
         // the packet is a response or hello, so it must match with something in our waiting list. If it doesn't, it may
         // have timed out
@@ -650,7 +649,7 @@ enum dicey_error client_issue_setup(
     *connect_req = connect_sequence;
 
     connect_req->ctx = ctx;
-    connect_req->timeout_ms = DEFAULT_TIMEOUT;
+    connect_req->timeout_ms = CLIENT_DEFAULT_TIMEOUT;
 
     enum dicey_error err = dicey_task_loop_submit(client->tloop, connect_req);
     if (err) {
@@ -1421,7 +1420,7 @@ enum dicey_error dicey_client_init(struct dicey_client *const client, const stru
 
     if (args) {
         client->inspect_func = args->inspect_func;
-        client->on_event = args->on_event;
+        client->on_signal = args->on_signal;
     }
 
     client_event(client, DICEY_CLIENT_EVENT_INIT);

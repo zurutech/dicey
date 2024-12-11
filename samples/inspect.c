@@ -18,11 +18,6 @@
 #define _CRT_SECURE_NO_WARNINGS 1
 #define _XOPEN_SOURCE 700
 
-#if defined(_MSC_VER)
-#pragma warning(disable : 4200) // borked C11 flex array
-#pragma warning(disable : 4996) // strdup
-#endif
-
 #include <assert.h>
 #include <inttypes.h>
 #include <stdarg.h>
@@ -45,6 +40,13 @@
 #include <util/dumper.h>
 #include <util/getopt.h>
 #include <util/packet-dump.h>
+
+#include "dicey_config.h"
+
+#if defined(DICEY_CC_IS_MSVC)
+#pragma warning(disable : 4200) // borked C11 flex array
+#pragma warning(disable : 4996) // strdup
+#endif
 
 #define DEFAULT_TIMEOUT 3000U // 3 seconds
 
@@ -398,7 +400,7 @@ static int do_op(const struct inspect_args *const args) {
         &client,
         &(struct dicey_client_args) {
             .inspect_func = &inspector,
-            .on_event = &on_client_event,
+            .on_signal = &on_client_event,
         }
     );
 

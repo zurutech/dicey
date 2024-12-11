@@ -20,6 +20,8 @@
 // note: ARRAY_TYPE_NAME will be defined as a struct, so in the end expect the definition of `struct ARRAY_TYPE_NAME`
 // ARRAY_EXPORT will not put static in front of the functions, allowing you to re-export them if you so desire
 
+#include "dicey_config.h"
+
 #if !defined(ARRAY_TYPE_NAME)
 #error "ARRAY_TYPE_NAME must be defined"
 #endif // !defined(ARRAY_TYPE_NAME)
@@ -35,8 +37,13 @@
 #define ARRAY_VISIBILITY static
 #endif // defined(ARRAY_EXPORT)
 
-#if defined(_MSC_VER)
-#pragma warning(disable : 4200)
+#if defined(DICEY_CC_IS_MSVC)
+#pragma warning(push)
+#pragma warning(disable: 4100) // unused functions
+#pragma warning(disable: 4200) // zero-sized array
+#elif defined(DICEY_CC_IS_GCC) || defined(DICEY_CC_IS_CLANG)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-function"
 #endif
 
 #include <assert.h>
@@ -50,8 +57,11 @@
 #define ARRAY_BASE_CAP 128U
 #endif // !defined(BASE_CAP)
 
-// temporary support macro
-#define ARRAY_VALUE_TYPE_ALIAS ARRAY_TYPE_NAME ## _value_type
+// temporary support macros
+#define ARRAY_GLUE_IDENTS_IMPL(A, B) A ## _ ## B
+#define ARRAY_GLUE_IDENTS(A, B) ARRAY_GLUE_IDENTS_IMPL(A, B)
+
+#define ARRAY_VALUE_TYPE_ALIAS ARRAY_GLUE_IDENTS(ARRAY_TYPE_NAME, value_type)
 typedef ARRAY_VALUE_TYPE ARRAY_VALUE_TYPE_ALIAS;
 
 struct ARRAY_TYPE_NAME {
@@ -59,8 +69,6 @@ struct ARRAY_TYPE_NAME {
     ARRAY_VALUE_TYPE_ALIAS data[];
 };
 
-#define ARRAY_GLUE_IDENTS_IMPL(A, B) A ## _ ## B
-#define ARRAY_GLUE_IDENTS(A, B) ARRAY_GLUE_IDENTS_IMPL(A, B)
 #define ARRAY_FUNCTION(NAME) ARRAY_GLUE_IDENTS(ARRAY_TYPE_NAME, NAME)
 #define ARRAY_EXPORTED_FUNCTION(NAME) ARRAY_FUNCTION(NAME)
 #define ARRAY_EXPORTED_FUNCTION_DECL(NAME, RET, ...) ARRAY_VISIBILITY RET ARRAY_EXPORTED_FUNCTION(NAME)(__VA_ARGS__)
@@ -119,11 +127,46 @@ ARRAY_EXPORTED_FUNCTION_DECL(begin, const ARRAY_VALUE_TYPE_ALIAS *, const struct
     return list ? list->data : NULL;
 }
 
+#if defined(ARRAY_TYPE_NEEDS_CLEANUP)
+
+#define ARRAY_TYPE_FREE_FN_ALIAS ARRAY_GLUE_IDENTS(ARRAY_TYPE_NAME, free_fn)
+typedef void ARRAY_TYPE_FREE_FN_ALIAS(ARRAY_VALUE_TYPE_ALIAS*);
+
+ARRAY_EXPORTED_FUNCTION_DECL(clear, void, struct ARRAY_TYPE_NAME *const list, ARRAY_TYPE_FREE_FN_ALIAS *const free_fn) {
+    if (list) {
+        if (free_fn) {
+            for (ARRAY_VALUE_TYPE_ALIAS *it = list->data, *const end = it + list->len; it != end; ++it) {
+                free_fn(it);
+            }
+        }
+
+        list->len = 0U;
+    }
+}
+
+ARRAY_EXPORTED_FUNCTION_DECL(delete, void, struct ARRAY_TYPE_NAME *const list, ARRAY_TYPE_FREE_FN_ALIAS *const free_fn) {
+    if (list) {
+        ARRAY_EXPORTED_FUNCTION(clear)(list, free_fn);
+
+        free(list);
+    }
+}
+
+#else
+
 ARRAY_EXPORTED_FUNCTION_DECL(clear, void, struct ARRAY_TYPE_NAME *const list) {
     if (list) {
         list->len = 0U;
     }
 }
+
+ARRAY_EXPORTED_FUNCTION_DECL(delete, void, struct ARRAY_TYPE_NAME *const list) {
+    if (list) {
+        free(list);
+    }
+}
+
+#endif // defined(ARRAY_TYPE_NEEDS_CLEANUP)
 
 ARRAY_EXPORTED_FUNCTION_DECL(end, const ARRAY_VALUE_TYPE_ALIAS *, const struct ARRAY_TYPE_NAME *list) {
     return list ? list->data + list->len : NULL;
@@ -149,5 +192,14 @@ ARRAY_EXPORTED_FUNCTION_DECL(erase, void, struct ARRAY_TYPE_NAME *const list, co
 #undef ARRAY_GLUE_IDENTS
 #undef ARRAY_INTERNAL_FUNCTION
 #undef ARRAY_INTERNAL_FUNCTION_DECL
+#undef ARRAY_TYPE_FREE_FN_ALIAS
 #undef ARRAY_VALUE_TYPE_ALIAS
 #undef ARRAY_VISIBILITY
+
+// pop pragmas
+
+#if defined(DICEY_CC_IS_MSVC)
+#pragma warning(pop)
+#elif defined(DICEY_CC_IS_GCC) || defined(DICEY_CC_IS_CLANG)
+#pragma GCC diagnostic pop
+#endif

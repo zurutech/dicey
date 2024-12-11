@@ -36,14 +36,14 @@
 
 #include "dicey_config.h"
 
-#if defined(_MSC_VER)
+#if defined(DICEY_CC_IS_MSVC)
 #pragma warning(disable : 4200)
 #endif
 
-enum dicey_client_state {
-    CLIENT_STATE_CONNECTED,
-    CLIENT_STATE_RUNNING,
-    CLIENT_STATE_DEAD,
+enum dicey_client_data_state {
+    CLIENT_DATA_STATE_CONNECTED,
+    CLIENT_DATA_STATE_RUNNING,
+    CLIENT_DATA_STATE_DEAD,
 };
 
 struct dicey_client_data;
@@ -60,7 +60,7 @@ typedef enum dicey_error dicey_client_data_cleanup_fn(
 struct dicey_client_data {
     uv_pipe_t pipe;
 
-    enum dicey_client_state state;
+    enum dicey_client_data_state state;
 
     uint32_t seq_cnt;
 

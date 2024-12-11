@@ -23,7 +23,7 @@
 #include "trace.h"
 #include "util.h"
 
-#if defined(_MSC_VER)
+#if defined(DICEY_CC_IS_MSVC)
 
 #define CHECKED_SUM_IMPL(NAME, T)                                                                                      \
     bool dutl_internal_##NAME##_add(T *const res, const T a, const T b) {                                              \

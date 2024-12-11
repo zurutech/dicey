@@ -109,7 +109,8 @@ DICEY_EXPORT bool dicey_selector_is_valid(struct dicey_selector selector);
  */
 DICEY_EXPORT ptrdiff_t dicey_selector_size(struct dicey_selector sel);
 
-#if defined(DICEY_CC_IS_GCC) || defined(DICEY_CC_IS_CLANG)
+// __uint128_t is only available on GCC and Clang on 64-bit platforms
+#if (defined(DICEY_CC_IS_GCC) || defined(DICEY_CC_IS_CLANG)) && defined(DICEY_HAS_64BIT_POINTERS)
 #define DICEY_UUID_SIZE sizeof(__uint128_t)
 #else
 #define DICEY_UUID_SIZE (sizeof(uint64_t) * 2U)

@@ -27,6 +27,8 @@
 #include "ipc/client/waiting-list.h"
 #include "ipc/tasks/loop.h"
 
+#define CLIENT_DEFAULT_TIMEOUT ((int32_t) 1000U)
+
 enum dicey_client_state {
     CLIENT_STATE_UNINIT,
     CLIENT_STATE_INIT,
@@ -61,7 +63,7 @@ struct dicey_client {
     struct dicey_task_loop *tloop;
 
     dicey_client_inspect_fn *inspect_func;
-    dicey_client_event_fn *on_event;
+    dicey_client_signal_fn *on_signal;
 
     struct dicey_waiting_list *waiting_tasks;
     struct dicey_chunk *recv_chunk;

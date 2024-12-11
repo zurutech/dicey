@@ -33,7 +33,7 @@ cdef extern from "dicey/dicey.h":
         DICEY_OP_GET
         DICEY_OP_SET
         DICEY_OP_EXEC
-        DICEY_OP_EVENT
+        DICEY_OP_SIGNAL
         DICEY_OP_RESPONSE
 
     cdef enum dicey_packet_kind:

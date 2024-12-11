@@ -58,7 +58,7 @@ static enum dicey_op msgkind_from_dtf(const ptrdiff_t kind) {
         return DICEY_OP_EXEC;
 
     case DTF_PAYLOAD_EVENT:
-        return DICEY_OP_EVENT;
+        return DICEY_OP_SIGNAL;
 
     case DTF_PAYLOAD_RESPONSE:
         return DICEY_OP_RESPONSE;
@@ -249,7 +249,7 @@ bool dicey_op_is_valid(const enum dicey_op type) {
     case DICEY_OP_GET:
     case DICEY_OP_SET:
     case DICEY_OP_EXEC:
-    case DICEY_OP_EVENT:
+    case DICEY_OP_SIGNAL:
     case DICEY_OP_RESPONSE:
         return true;
     }
@@ -262,7 +262,7 @@ bool dicey_op_requires_payload(const enum dicey_op kind) {
 
     case DICEY_OP_SET:
     case DICEY_OP_EXEC:
-    case DICEY_OP_EVENT:
+    case DICEY_OP_SIGNAL:
     case DICEY_OP_RESPONSE:
         return true;
     }
@@ -283,8 +283,8 @@ const char *dicey_op_to_string(const enum dicey_op type) {
     case DICEY_OP_EXEC:
         return "EXEC";
 
-    case DICEY_OP_EVENT:
-        return "EVENT";
+    case DICEY_OP_SIGNAL:
+        return "SIGNAL";
 
     case DICEY_OP_RESPONSE:
         return "RESPONSE";

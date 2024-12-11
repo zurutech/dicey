@@ -26,7 +26,9 @@
 
 #include <dicey/core/hashtable.h>
 
-#if defined(_MSC_VER)
+#include "dicey_config.h"
+
+#if defined(DICEY_CC_IS_MSVC)
 #pragma warning(disable : 4200) // borked C11 flex array
 #pragma warning(disable : 4996) // strdup
 #endif
