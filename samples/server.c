@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 
-#include "dicey/ipc/traits.h"
 #define _CRT_NONSTDC_NO_DEPRECATE 1
 #define _XOPEN_SOURCE 700
 
