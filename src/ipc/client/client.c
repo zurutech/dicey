@@ -141,7 +141,7 @@ static struct dicey_task_error *client_task_send_and_queue(
     // register that we expect a response on this task for sequence number `seq`
     if (!dicey_waiting_list_append(
             &client->waiting_tasks,
-            (struct dicey_waiting_task) {
+            &(struct dicey_waiting_task) {
                 .packet_seq = seq,
                 .task_id = id,
             }

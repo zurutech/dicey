@@ -32,7 +32,7 @@
  *     Reply: {tv} -> $    // reply to a command (private)
  */
 #define PLUGIN_COMMAND_SIGNAL_NAME "Command"
-#define PLUGIN_COMMAND_SIGNAL_SIG "{tc}"
+#define PLUGIN_COMMAND_SIGNAL_SIG "(tcv)"
 #define PLUGIN_REPLY_OP_NAME "Reply"
 #define PLUGIN_REPLY_OP_SIG "{tv} -> $"
 

@@ -91,6 +91,12 @@ int dicey_list_type(const struct dicey_list *const list) {
     return list->_type;
 }
 
+int dicey_selector_cmp(const struct dicey_selector a, const struct dicey_selector b) {
+    const int res = strcmp(a.trait, b.trait);
+
+    return res ? res : strcmp(a.elem, b.elem);
+}
+
 bool dicey_selector_is_valid(const struct dicey_selector selector) {
     return selector.trait && selector.elem;
 }

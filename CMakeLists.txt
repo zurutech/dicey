@@ -313,7 +313,7 @@ set(CORE_SOURCES
 )
 
 set(PLUGIN_SOURCES
-    src/ipc/plugin-macros.h
+    src/ipc/plugin-common.h
 
     src/ipc/client/plugins.c
 

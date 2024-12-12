@@ -11,11 +11,6 @@
 
 #include "client-data.h"
 
-enum dicey_plugin_command {
-    PLUGIN_COMMAND_DO_WORK, //
-    PLUGIN_COMMAND_HALT,
-};
-
 enum dicey_plugin_state {
     PLUGIN_STATE_INVALID,
 

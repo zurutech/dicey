@@ -93,6 +93,14 @@ struct dicey_selector {
 };
 
 /**
+ * @brief Compares two selectors.
+ * @param a The first selector.
+ * @param b The second selector.
+ * @return < 0 if a < b, 0 if a == b, > 0 if a > b.
+ */
+DICEY_EXPORT int dicey_selector_cmp(struct dicey_selector a, struct dicey_selector b);
+
+/**
  * @brief Checks if a selector is valid.
  * @param selector The selector to check.
  * @return true if the selector is valid, false otherwise.

@@ -17,9 +17,12 @@
 #define _XOPEN_SOURCE 700
 
 #include <assert.h>
+#include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <stdlib.h>
+
+#include <uv.h>
 
 #include <dicey/core/builders.h>
 #include <dicey/core/errors.h>
@@ -32,8 +35,9 @@
 
 #include "sup/trace.h"
 #include "sup/util.h"
+#include "sup/uvtools.h"
 
-#include "ipc/plugin-macros.h"
+#include "ipc/plugin-common.h"
 #include "ipc/server/builtins/plugins/plugins.h"
 
 #include "client-internal.h"
@@ -42,19 +46,22 @@
 #pragma warning(disable : 4996) // strdup
 #endif
 
-struct plugin_work_ctx {
+struct dicey_plugin_work_ctx {
+    uint64_t task_id;
     struct dicey_packet request;
+    struct dicey_value payload;
     struct dicey_message_builder builder;
 };
 
 #define ARRAY_TYPE_NAME plugin_work_list
-#define ARRAY_VALUE_TYPE struct plugin_work_ctx
+#define ARRAY_VALUE_TYPE struct dicey_plugin_work_ctx
 #define ARRAY_TYPE_NEEDS_CLEANUP 1
 #include "sup/array.inc"
 
 struct dicey_plugin {
     struct dicey_client client;
 
+    uv_mutex_t list_lock;
     struct plugin_work_list *todo_list;
 
     char *dicey_path;
@@ -68,7 +75,23 @@ struct dicey_plugin {
     dicey_plugin_do_work_fn *on_work_received;
 };
 
-static void clear_pending_job(struct plugin_work_ctx *const ctx) {
+struct command_request {
+    uint64_t task_id;
+    enum dicey_plugin_command command;
+    struct dicey_value value;
+};
+
+static const struct dicey_selector command_sig = {
+    .trait = DICEY_PLUGIN_TRAIT_NAME,
+    .elem = PLUGIN_COMMAND_SIGNAL_NAME,
+};
+
+static const struct dicey_selector command_reply = {
+    .trait = DICEY_PLUGIN_TRAIT_NAME,
+    .elem = PLUGIN_REPLY_OP_NAME,
+};
+
+static void clear_pending_job(struct dicey_plugin_work_ctx *const ctx) {
     if (ctx) {
         dicey_packet_deinit(&ctx->request);
         dicey_message_builder_discard(&ctx->builder);
@@ -98,6 +121,182 @@ static enum dicey_error extract_path(struct dicey_packet response, char **dest) 
     return err;
 }
 
+static bool start_work(
+    struct dicey_plugin *const plugin,
+    struct dicey_packet packet,
+    const uint64_t task_id,
+    struct dicey_value value
+) {
+    assert(plugin && dicey_packet_is_valid(packet) && plugin->on_work_received);
+
+    struct dicey_plugin_work_ctx ctx = {
+        .task_id = task_id,
+        .request = packet,
+        .payload = value,
+    };
+
+    enum dicey_error err = dicey_message_builder_init(&ctx.builder);
+    if (err) {
+        goto fail;
+    }
+
+    err = dicey_message_builder_begin(&ctx.builder, DICEY_OP_EXEC);
+    if (err) {
+        goto fail;
+    }
+
+    err = dicey_message_builder_set_path(&ctx.builder, plugin->dicey_path);
+    if (err) {
+        goto fail;
+    }
+
+    err = dicey_message_builder_set_selector(&ctx.builder, command_reply);
+    if (err) {
+        goto fail;
+    }
+
+    uv_mutex_lock(&plugin->list_lock);
+    struct dicey_plugin_work_ctx *const stored_ctx = plugin_work_list_append(&plugin->todo_list, &ctx);
+    uv_mutex_unlock(&plugin->list_lock);
+
+    if (!stored_ctx) {
+        goto fail;
+    }
+
+    plugin->on_work_received(stored_ctx, &stored_ctx->payload);
+
+    return true;
+
+fail:
+    clear_pending_job(&ctx);
+
+    return false;
+}
+
+static bool handle_command(
+    struct dicey_plugin *const plugin,
+    struct dicey_packet *const packet,
+    struct command_request *const creq
+) {
+    assert(plugin && packet && dicey_packet_is_valid(*packet) && creq);
+
+    switch (creq->command) {
+    case PLUGIN_COMMAND_DO_WORK:
+        if (plugin->on_work_received) {
+            struct dicey_packet stolen_packet = *packet;
+            *packet = (struct dicey_packet) { 0 }; // steal the packet fron the callback
+
+            return start_work(plugin, stolen_packet, creq->task_id, creq->value);
+        }
+
+        return true; // no work to do
+
+    case PLUGIN_COMMAND_HALT:
+        if (plugin->on_quit) {
+            plugin->on_quit();
+        }
+
+        return true;
+
+    default:
+        DICEY_UNREACHABLE(); // we check for this in try_get_command, so this should never happen
+
+        return false;
+    }
+}
+
+static bool is_cmd_valid(const uint8_t cmd) {
+    switch (cmd) {
+    case PLUGIN_COMMAND_DO_WORK:
+    case PLUGIN_COMMAND_HALT:
+        return true;
+
+    default:
+        return false;
+    }
+}
+
+// returns >1 if the command was successfully extracted, 0 if the message was not a command, <0 if an error occurred
+static ptrdiff_t try_get_command(
+    const char *const path,
+    struct dicey_packet packet,
+    struct command_request *const creq
+) {
+    assert(creq && path && dicey_packet_is_valid(packet));
+
+    struct dicey_message msg = { 0 };
+    enum dicey_error err = dicey_packet_as_message(packet, &msg);
+    if (err) {
+        return err;
+    }
+
+    if (strcmp(msg.path, path)) {
+        return 0; // can't be a command, not directed to us
+    }
+
+    if (dicey_selector_cmp(msg.selector, command_sig)) {
+        return 0; // not a command
+    }
+
+    if (msg.type != DICEY_OP_SIGNAL) {
+        return 0;
+    }
+
+    struct dicey_list tuple = { 0 };
+    err = dicey_value_get_tuple(&msg.value, &tuple);
+    if (err) {
+        return err;
+    }
+
+    struct dicey_iterator iter = dicey_list_iter(&tuple);
+
+    struct dicey_value tuple_elem = { 0 };
+    err = dicey_iterator_next(&iter, &tuple_elem);
+    if (err) {
+        return err;
+    }
+
+    uint64_t task_id = 0U;
+    err = dicey_value_get_u64(&tuple_elem, &task_id);
+    if (err) {
+        return err;
+    }
+
+    err = dicey_iterator_next(&iter, &tuple_elem);
+    if (err) {
+        return err;
+    }
+
+    uint8_t cmd = 0U;
+    err = dicey_value_get_byte(&tuple_elem, &cmd);
+    if (err) {
+        return err;
+    }
+
+    if (!is_cmd_valid(cmd)) {
+        return TRACE(DICEY_EBADMSG);
+    }
+
+    // extract the third, variant element we'll pass on to the user callback
+    err = dicey_iterator_next(&iter, &tuple_elem);
+    if (err) {
+        return err;
+    }
+
+    // tuple must be exhausted
+    if (dicey_iterator_has_next(iter)) {
+        return TRACE(DICEY_EBADMSG);
+    }
+
+    *creq = (struct command_request) {
+        .task_id = task_id,
+        .command = (enum dicey_plugin_command) cmd,
+        .value = tuple_elem, // borrowed from packet. Keep packet alive until we're done with the value
+    };
+
+    return 1; // success
+}
+
 static void plugin_on_signal(struct dicey_client *const client, void *const ctx, struct dicey_packet *const packet) {
     assert(client && ctx && packet);
 
@@ -105,28 +304,32 @@ static void plugin_on_signal(struct dicey_client *const client, void *const ctx,
 
     assert(dicey_packet_is_valid(*packet));
 
-    struct dicey_message msg = { 0 };
-    DICEY_ASSUME(dicey_packet_as_message(*packet, &msg));
+    struct command_request creq = { 0 };
+    const ptrdiff_t result = try_get_command(plugin->dicey_path, *packet, &creq);
+    switch (result) {
+    case 0:
+        // if it's not a command, we pass it to the user's event handler
+        if (plugin->user_on_signal) {
+            plugin->user_on_signal(client, ctx, packet);
+        }
 
-    assert(msg.type == DICEY_OP_SIGNAL);
+        break;
 
-    if (plugin->user_on_signal) {
-        plugin->user_on_signal(client, ctx, packet);
+    case 1:
+        // if it's a command, intercept it
+        handle_command(plugin, packet, &creq);
+
+        break;
+
+    default:
+        break; // if we add logging, this would be a great place to put a warning
     }
 }
 
 static enum dicey_error subscribe_to_commands(struct dicey_plugin *const plugin, const char *const path) {
     assert(plugin && path);
 
-    return dicey_client_subscribe_to(
-        (struct dicey_client *) plugin,
-        path,
-        (struct dicey_selector) {
-            .trait = DICEY_PLUGIN_TRAIT_NAME,
-            .elem = PLUGIN_COMMAND_SIGNAL_NAME,
-        },
-        CLIENT_DEFAULT_TIMEOUT
-    );
+    return dicey_client_subscribe_to((struct dicey_client *) plugin, path, command_sig, CLIENT_DEFAULT_TIMEOUT);
 }
 
 static enum dicey_error plugin_client_handshake(struct dicey_plugin *const plugin, const char *const name) {
@@ -188,6 +391,8 @@ void dicey_plugin_delete(struct dicey_plugin *const plugin) {
 
         plugin_work_list_delete(plugin->todo_list, &clear_pending_job);
 
+        uv_mutex_destroy(&plugin->list_lock);
+
         free(plugin);
     }
 }
@@ -226,6 +431,13 @@ enum dicey_error dicey_plugin_new(
         return err;
     }
 
+    err = dicey_error_from_uv(uv_mutex_init(&plugin->list_lock));
+    if (err) {
+        dicey_plugin_delete(plugin);
+
+        return err;
+    }
+
     plugin->todo_list = NULL; // autoallocating
     plugin->on_quit = args->on_quit ? args->on_quit : &quit_immediately;
     plugin->on_work_received = args->on_work_received;
@@ -233,11 +445,15 @@ enum dicey_error dicey_plugin_new(
     err = dicey_client_open_fd(&plugin->client, DICEY_PLUGIN_FD);
     if (err) {
         dicey_plugin_delete(plugin);
+
+        return err;
     }
 
     err = plugin_client_handshake(plugin, name);
     if (err) {
         dicey_plugin_delete(plugin);
+
+        return err;
     }
 
     *dest = plugin;

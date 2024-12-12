@@ -41,7 +41,7 @@
 #include "sup/uvtools.h"
 #include "sup/view-ops.h"
 
-#include "ipc/plugin-macros.h"
+#include "ipc/plugin-common.h"
 
 #include "client-data.h"
 #include "plugins-internal.h"

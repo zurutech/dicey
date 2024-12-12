@@ -109,18 +109,20 @@ ARRAY_INTERNAL_FUNCTION_DECL(grow_if_needed, bool, struct ARRAY_TYPE_NAME **cons
     return true;
 }
 
-ARRAY_EXPORTED_FUNCTION_DECL(append, bool,  struct ARRAY_TYPE_NAME **const list_ptr, ARRAY_VALUE_TYPE_ALIAS value) {
-    assert(list_ptr);
+ARRAY_EXPORTED_FUNCTION_DECL(append, ARRAY_VALUE_TYPE_ALIAS*,  struct ARRAY_TYPE_NAME **const list_ptr, ARRAY_VALUE_TYPE_ALIAS *const value) {
+    assert(list_ptr && value);
 
     if (!ARRAY_INTERNAL_FUNCTION(grow_if_needed)(list_ptr)) {
-        return false;
+        return NULL;
     }
 
     struct ARRAY_TYPE_NAME *const list = *list_ptr;
 
-    list->data[list->len++] = value;
+    ARRAY_VALUE_TYPE_ALIAS *const location = &list->data[list->len++];
+    
+    *location = *value;
 
-    return true;
+    return location;
 }
 
 ARRAY_EXPORTED_FUNCTION_DECL(begin, const ARRAY_VALUE_TYPE_ALIAS *, const struct ARRAY_TYPE_NAME *const list) {

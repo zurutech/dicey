@@ -27,7 +27,10 @@ struct dicey_waiting_task {
 
 struct dicey_waiting_list;
 
-bool dicey_waiting_list_append(struct dicey_waiting_list **list_ptr, struct dicey_waiting_task task);
+struct dicey_waiting_task *dicey_waiting_list_append(
+    struct dicey_waiting_list **list_ptr,
+    struct dicey_waiting_task *task
+);
 const struct dicey_waiting_task *dicey_waiting_list_begin(const struct dicey_waiting_list *list);
 
 void dicey_waiting_list_clear(struct dicey_waiting_list *list);
