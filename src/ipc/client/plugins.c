@@ -47,6 +47,7 @@
 #endif
 
 struct dicey_plugin_work_ctx {
+    struct dicey_plugin *plugin;
     uint64_t task_id;
     struct dicey_packet request;
     struct dicey_value payload;
@@ -61,6 +62,7 @@ struct dicey_plugin_work_ctx {
 struct dicey_plugin {
     struct dicey_client client;
 
+    bool quitting; // stupid hack: if true, the plugin is dead and we should reject all work
     uv_mutex_t list_lock;
     struct plugin_work_list *todo_list;
 
@@ -121,6 +123,17 @@ static enum dicey_error extract_path(struct dicey_packet response, char **dest) 
     return err;
 }
 
+static bool is_cmd_valid(const uint8_t cmd) {
+    switch (cmd) {
+    case PLUGIN_COMMAND_DO_WORK:
+    case PLUGIN_COMMAND_HALT:
+        return true;
+
+    default:
+        return false;
+    }
+}
+
 static bool start_work(
     struct dicey_plugin *const plugin,
     struct dicey_packet packet,
@@ -130,32 +143,23 @@ static bool start_work(
     assert(plugin && dicey_packet_is_valid(packet) && plugin->on_work_received);
 
     struct dicey_plugin_work_ctx ctx = {
+        .plugin = plugin,
         .task_id = task_id,
         .request = packet,
         .payload = value,
     };
 
-    enum dicey_error err = dicey_message_builder_init(&ctx.builder);
-    if (err) {
-        goto fail;
-    }
-
-    err = dicey_message_builder_begin(&ctx.builder, DICEY_OP_EXEC);
-    if (err) {
-        goto fail;
-    }
-
-    err = dicey_message_builder_set_path(&ctx.builder, plugin->dicey_path);
-    if (err) {
-        goto fail;
-    }
-
-    err = dicey_message_builder_set_selector(&ctx.builder, command_reply);
-    if (err) {
-        goto fail;
-    }
-
     uv_mutex_lock(&plugin->list_lock);
+
+    // if another thread stops the client while it's handing work, we may end up in a situation where `delete` or
+    // similar get the mutex before we do, causing the client loop to stall forever. Checking the quitting flag here is
+    // a simple way to avoid problems
+
+    if (plugin->quitting) {
+        uv_mutex_unlock(&plugin->list_lock);
+        goto fail;
+    }
+
     struct dicey_plugin_work_ctx *const stored_ctx = plugin_work_list_append(&plugin->todo_list, &ctx);
     uv_mutex_unlock(&plugin->list_lock);
 
@@ -201,17 +205,6 @@ static bool handle_command(
     default:
         DICEY_UNREACHABLE(); // we check for this in try_get_command, so this should never happen
 
-        return false;
-    }
-}
-
-static bool is_cmd_valid(const uint8_t cmd) {
-    switch (cmd) {
-    case PLUGIN_COMMAND_DO_WORK:
-    case PLUGIN_COMMAND_HALT:
-        return true;
-
-    default:
         return false;
     }
 }
@@ -386,7 +379,16 @@ static void quit_immediately(void) {
 
 void dicey_plugin_delete(struct dicey_plugin *const plugin) {
     if (plugin) {
+        uv_mutex_lock(&plugin->list_lock);
+
+        plugin->quitting = true;
+
+        // this way, when deinit attempts to stop the client, the loop will not be stuck waiting for the lock
+        uv_mutex_unlock(&plugin->list_lock);
+
+        // first, deinit the client. After this we know we will not get any more requests
         dicey_client_deinit(&plugin->client);
+
         free(plugin->dicey_path);
 
         plugin_work_list_delete(plugin->todo_list, &clear_pending_job);
@@ -457,6 +459,99 @@ enum dicey_error dicey_plugin_new(
     }
 
     *dest = plugin;
+
+    return err;
+}
+
+enum dicey_error dicey_plugin_work_response_done(struct dicey_plugin_work_ctx *const ctx) {
+    assert(ctx);
+
+    struct dicey_plugin *const plugin = ctx->plugin;
+    assert(plugin);
+
+    struct dicey_packet output = { 0 };
+
+    enum dicey_error err = DICEY_OK;
+
+    uv_mutex_lock(&plugin->list_lock); // probably unnecessary
+
+    err = dicey_message_builder_build(&ctx->builder, &output);
+
+    if (!err) {
+        // destroy the context now that we're done with it
+        clear_pending_job(ctx);
+
+        DICEY_UNUSED(plugin_work_list_erase(plugin->todo_list, ctx->task_id));
+    }
+
+    uv_mutex_unlock(&plugin->list_lock);
+
+    if (err) {
+        return err;
+    }
+
+    struct dicey_packet srv_response = { 0 };
+
+    err = dicey_client_request((struct dicey_client *) plugin, output, &srv_response, CLIENT_DEFAULT_TIMEOUT);
+
+#if !defined(NDEBUG)
+    if (!err) {
+        // if we're building in debug mode, check the validity of the server response
+        struct dicey_message srv_msg = { 0 };
+        DICEY_ASSUME(dicey_packet_as_message(srv_response, &srv_msg));
+        assert(dicey_value_is_unit(&srv_msg.value));
+    }
+#endif
+
+    return err;
+}
+
+enum dicey_error dicey_plugin_work_response_start(
+    struct dicey_plugin_work_ctx *const ctx,
+    struct dicey_value_builder *const value
+) {
+    assert(ctx && value);
+
+    struct dicey_plugin *const plugin = ctx->plugin;
+    assert(plugin);
+
+    enum dicey_error err = DICEY_OK;
+
+    uv_mutex_lock(&plugin->list_lock); // may be unnecessary
+    if (dicey_message_builder_is_pending(&ctx->builder)) {
+        err = TRACE(DICEY_EALREADY);
+
+        goto fail;
+    }
+
+    err = dicey_message_builder_init(&ctx->builder);
+    if (err) {
+        goto fail;
+    }
+
+    err = dicey_message_builder_begin(&ctx->builder, DICEY_OP_EXEC);
+    if (err) {
+        goto fail;
+    }
+
+    err = dicey_message_builder_set_path(&ctx->builder, plugin->dicey_path);
+    if (err) {
+        goto fail;
+    }
+
+    err = dicey_message_builder_set_selector(&ctx->builder, command_reply);
+    if (err) {
+        goto fail;
+    }
+
+    err = dicey_message_builder_value_start(&ctx->builder, value);
+
+fail:
+    if (err) {
+        dicey_message_builder_discard(&ctx->builder);
+    }
+
+    uv_mutex_unlock(&plugin->list_lock);
 
     return err;
 }

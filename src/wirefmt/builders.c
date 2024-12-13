@@ -146,14 +146,6 @@ static enum dicey_error valbuilder_list_start(
     return DICEY_OK;
 }
 
-enum dicey_error dicey_message_builder_init(struct dicey_message_builder *const builder) {
-    assert(builder);
-
-    *builder = (struct dicey_message_builder) { 0 };
-
-    return DICEY_OK;
-}
-
 enum dicey_error dicey_message_builder_begin(struct dicey_message_builder *const builder, const enum dicey_op op) {
     assert(builder);
 
@@ -224,6 +216,20 @@ void dicey_message_builder_discard(struct dicey_message_builder *const builder) 
     dicey_arg_free(builder->_root);
 
     *builder = (struct dicey_message_builder) { 0 };
+}
+
+enum dicey_error dicey_message_builder_init(struct dicey_message_builder *const builder) {
+    assert(builder);
+
+    *builder = (struct dicey_message_builder) { 0 };
+
+    return DICEY_OK;
+}
+
+bool dicey_message_builder_is_pending(const struct dicey_message_builder *const builder) {
+    assert(builder);
+
+    return builder_state_get(builder) != BUILDER_STATE_IDLE;
 }
 
 enum dicey_error dicey_message_builder_set_path(struct dicey_message_builder *const builder, const char *const path) {
@@ -433,6 +439,12 @@ bool dicey_value_builder_is_list(const struct dicey_value_builder *const builder
     const enum builder_state state = builder_state_get(builder);
 
     return state == BUILDER_STATE_ARRAY || state == BUILDER_STATE_PAIR || state == BUILDER_STATE_TUPLE;
+}
+
+bool dicey_value_builder_is_pending(const struct dicey_value_builder *const builder) {
+    assert(builder);
+
+    return builder_state_get(builder) != BUILDER_STATE_IDLE;
 }
 
 enum dicey_error dicey_value_builder_next(

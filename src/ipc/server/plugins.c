@@ -92,8 +92,9 @@
 
 // the fixed, non variable-sized bits of the request
 struct plugin_spawn_metadata {
-    uv_sem_t *spawn_wait_sem;       // optional, only for blocking requests
-    enum dicey_error *spawn_result; // optional, used to report the result of the spawn if it's a blocking request
+    struct dicey_plugin_info *out_info; // output, will be filled after handshake
+    uv_sem_t *spawn_wait_sem;           // optional, only for blocking requests
+    enum dicey_error *spawn_result;     // optional, used to report the result of the spawn if it's a blocking request
 };
 
 struct dicey_plugin_data {
@@ -794,6 +795,11 @@ enum dicey_error dicey_server_plugin_handshake(
 
 quit:
     {
+        struct dicey_plugin_info *const out_info = plugin->spawn_md.out_info;
+        if (out_info) {
+            *out_info = plugin->info;
+        }
+
         uv_sem_t *const spawn_wait_sem = plugin->spawn_md.spawn_wait_sem;
         if (spawn_wait_sem) {
             *plugin->spawn_md.spawn_result = err;
@@ -819,7 +825,11 @@ enum dicey_error dicey_server_spawn_plugin(struct dicey_server *const server, co
 // we don't use the "generic" blocking request system here because we need to wait for the plugin to spawn and fully
 // handshake, while dicey_server_blocking_request only waits for the request to be processed. We still use a semaphore
 // though;
-enum dicey_error dicey_server_spawn_plugin_and_wait(struct dicey_server *const server, const char *const path) {
+enum dicey_error dicey_server_spawn_plugin_and_wait(
+    struct dicey_server *const server,
+    const char *const path,
+    struct dicey_plugin_info *const out_info
+) {
     assert(server && path);
 
     if (server->state != SERVER_STATE_RUNNING) {
@@ -834,7 +844,9 @@ enum dicey_error dicey_server_spawn_plugin_and_wait(struct dicey_server *const s
 
     enum dicey_error sync_result = DICEY_OK;
 
+    struct dicey_plugin_info info = { 0 };
     struct plugin_spawn_metadata md = {
+        .out_info = &info,
         .spawn_wait_sem = &sync_sem,
         .spawn_result = &sync_result,
     };
@@ -848,6 +860,10 @@ enum dicey_error dicey_server_spawn_plugin_and_wait(struct dicey_server *const s
 
     uv_sem_wait(&sync_sem);
     uv_sem_destroy(&sync_sem);
+
+    if (!sync_result && out_info) {
+        *out_info = info;
+    }
 
     return sync_result;
 }

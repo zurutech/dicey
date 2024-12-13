@@ -95,32 +95,13 @@ struct dicey_plugin_args {
 };
 
 /**
- * @brief `dicey_plugin_work_response_start` initialises an internal builder and starts building a response to a work
- * job request. `builder` will be initialised with a value builder that the user can fill to build the response.
- * @note  `dicey_plugin_work_response_done` must be called after the response is built to finalise the response.
- * @param ctx     The context of the work request.
- * @param builder The builder to initialise.
- */
-DICEY_EXPORT enum dicey_error dicey_plugin_work_response_start(
-    struct dicey_plugin_work_ctx *ctx,
-    struct dicey_value_builder *builder
-);
-
-/**
- * @brief `dicey_plugin_work_response_done` finalises the response to a work job request and sends it back to the
- * server.
- * @note  This function must be called after the response is built using `dicey_plugin_work_response_start`.
- * @param ctx The context of the work request.
- */
-DICEY_EXPORT enum dicey_error dicey_plugin_work_response_done(struct dicey_plugin_work_ctx *ctx);
-
-/**
  * @brief The structure containing the internal state of a plugin instance.
  */
 struct dicey_plugin;
 
 /**
  * @brief Deinitialises a previously initialised plugin instance.
+ * @note  This invalidates the plugin instance and all pointer borrowed from it, including work contexts.
  */
 DICEY_EXPORT void dicey_plugin_delete(struct dicey_plugin *plugin);
 
@@ -151,6 +132,26 @@ DICEY_EXPORT enum dicey_error dicey_plugin_new(
     struct dicey_plugin **dest,
     const struct dicey_plugin_args *args
 );
+
+/**
+ * @brief `dicey_plugin_work_response_start` initialises an internal builder and starts building a response to a work
+ * job request. `builder` will be initialised with a value builder that the user can fill to build the response.
+ * @note  `dicey_plugin_work_response_done` must be called after the response is built to finalise the response.
+ * @param ctx   The context of the work request.
+ * @param value The value builder to initialise.
+ */
+DICEY_EXPORT enum dicey_error dicey_plugin_work_response_start(
+    struct dicey_plugin_work_ctx *ctx,
+    struct dicey_value_builder *value
+);
+
+/**
+ * @brief `dicey_plugin_work_response_done` finalises the response to a work job request and sends it back to the
+ * server.
+ * @note  This function must be called after the response is built using `dicey_plugin_work_response_start`.
+ * @param ctx The context of the work request.
+ */
+DICEY_EXPORT enum dicey_error dicey_plugin_work_response_done(struct dicey_plugin_work_ctx *ctx);
 
 /**
  * @brief Lists all the plugins currently running.
@@ -211,10 +212,15 @@ DICEY_EXPORT enum dicey_error dicey_server_spawn_plugin(struct dicey_server *ser
  * @note  This function is synchronous and will block until the plugin has been spawned correctly.
  * @param server The server to spawn the plugin for.
  * @param path   The path to the plugin binary.
+ * @param info   Output value that will be populated with the info of the newly spawned plugin. Can be NULL.
  * @return       Error code. A (non-exhaustive) list of possible values are:
  *               - OK: the plugin was successfully spawned
  */
-DICEY_EXPORT enum dicey_error dicey_server_spawn_plugin_and_wait(struct dicey_server *server, const char *path);
+DICEY_EXPORT enum dicey_error dicey_server_spawn_plugin_and_wait(
+    struct dicey_server *server,
+    const char *path,
+    struct dicey_plugin_info *info
+);
 
 /**
  * @brief Callback type for when a plugin event occurs.

@@ -174,8 +174,10 @@ ARRAY_EXPORTED_FUNCTION_DECL(end, const ARRAY_VALUE_TYPE_ALIAS *, const struct A
     return list ? list->data + list->len : NULL;
 }
 
-ARRAY_EXPORTED_FUNCTION_DECL(erase, void, struct ARRAY_TYPE_NAME *const list, const size_t entry) {
+ARRAY_EXPORTED_FUNCTION_DECL(erase, ARRAY_VALUE_TYPE, struct ARRAY_TYPE_NAME *const list, const size_t entry) {
     assert(list && entry < list->len && list->len);
+
+    const ARRAY_VALUE_TYPE value = list->data[entry];
 
     if (entry + 1 < list->len) {
         const ptrdiff_t len_after = list->len - entry - 1;
@@ -184,6 +186,8 @@ ARRAY_EXPORTED_FUNCTION_DECL(erase, void, struct ARRAY_TYPE_NAME *const list, co
     }
 
     --list->len;
+
+    return value;
 }
 
 // undef this for future usage
