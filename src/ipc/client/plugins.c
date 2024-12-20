@@ -42,7 +42,9 @@
 
 #include "client-internal.h"
 
-#if defined(DICEY_CC_IS_MSVC)
+#include "dicey_config.h"
+
+#if defined(DICEY_CC_IS_MSVC_LIKE)
 #pragma warning(disable : 4996) // strdup
 #endif
 
@@ -56,7 +58,7 @@ struct dicey_plugin_work_ctx {
 
 #define ARRAY_TYPE_NAME plugin_work_list
 #define ARRAY_VALUE_TYPE struct dicey_plugin_work_ctx
-#define ARRAY_TYPE_NEEDS_CLEANUP 1
+#define ARRAY_VALUE_TYPE_NEEDS_CLEANUP 1
 #include "sup/array.inc"
 
 struct dicey_plugin {
@@ -481,7 +483,7 @@ enum dicey_error dicey_plugin_work_response_done(struct dicey_plugin_work_ctx *c
         // destroy the context now that we're done with it
         clear_pending_job(ctx);
 
-        DICEY_UNUSED(plugin_work_list_erase(plugin->todo_list, ctx->task_id));
+        DICEY_UNUSED(plugin_work_list_erase(plugin->todo_list, ctx));
     }
 
     uv_mutex_unlock(&plugin->list_lock);

@@ -61,6 +61,7 @@ static const struct dicey_error_def error_info[] = {
     ERROR_INFO_FOR(DICEY_ESEQNUM_MISMATCH, "SequenceNumberMismatch", "sequence number mismatch"),
     ERROR_INFO_FOR(DICEY_EUUID_NOT_VALID, "UUIDNotValid", "UUID not valid"),
     ERROR_INFO_FOR(DICEY_EUV_UNKNOWN, "UnknownUVError", "unknown libuv error"),
+    ERROR_INFO_FOR(DICEY_EPLUGIN_INVALID_NAME, "InvalidPluginName", "invalid plugin name"),
 };
 
 const struct dicey_error_def *dicey_error_info(const enum dicey_error errnum) {
@@ -112,6 +113,7 @@ bool dicey_error_is_valid(enum dicey_error errnum) {
     case DICEY_ESEQNUM_MISMATCH:
     case DICEY_EUUID_NOT_VALID:
     case DICEY_EUV_UNKNOWN:
+    case DICEY_EPLUGIN_INVALID_NAME:
         return true;
 
     default:

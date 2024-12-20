@@ -28,7 +28,7 @@
 
 #include "client-data.h"
 #include "server-clients.h"
-#include "server.h"
+#include "server-internal.h"
 
 static void on_client_end(uv_handle_t *const handle) {
     struct dicey_client_data *const client = (struct dicey_client_data *) handle;

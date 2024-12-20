@@ -72,7 +72,10 @@ enum dicey_error {
     DICEY_ESEQNUM_MISMATCH = -0x0422,     /**< Sequence number mismatch. */
     DICEY_EUUID_NOT_VALID = -0x0423,      /**< UUID is not valid. */
 
-    DICEY_EUV_UNKNOWN = -0x0524 /**< Unknown libuv error. */
+    DICEY_EUV_UNKNOWN = -0x0524, /**< Unknown libuv error. */
+
+    // Plugin errors are only valid if plugins are enabled
+    DICEY_EPLUGIN_INVALID_NAME = -0xFE25, /**< Invalid plugin name. */
 };
 
 /**

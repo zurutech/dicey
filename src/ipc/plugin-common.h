@@ -9,4 +9,6 @@ enum dicey_plugin_command {
     PLUGIN_COMMAND_HALT,
 };
 
+const char *dicey_plugin_name_from_path(const char *path);
+
 #endif // GINEOLWEYX_PLUGIN_MACROS_H

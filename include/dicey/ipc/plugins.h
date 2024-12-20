@@ -65,6 +65,13 @@ struct dicey_plugin_event {
 };
 
 /**
+ * @brief Callback type for when a plugin event occurs.
+ * @param server The server instance where the event occurred.
+ * @param event  The event that occurred.
+ */
+typedef void dicey_server_on_plugin_event_fn(struct dicey_server *server, const struct dicey_plugin_event event);
+
+/**
  * @brief Function type describing the callback to call when the server asks the plugin to quit
  */
 typedef void dicey_plugin_quit_fn(void);
@@ -98,6 +105,32 @@ struct dicey_plugin_args {
  * @brief The structure containing the internal state of a plugin instance.
  */
 struct dicey_plugin;
+
+/**
+ * @brief Callback type for functions executed at the end of a work request.
+ * @param jid      The job ID of the work request. NULL if the job was never accepted.
+ * @param error    The error code of the work request. If OK, the request was processed successfully.
+ * @param response The response to the work request. If error is not OK, this value is NULL.
+ * @param ctx      The context passed to the work request.
+ */
+typedef void dicey_server_plugin_on_work_done_fn(
+    const uint64_t *jid,
+    enum dicey_error error,
+    const struct dicey_value *response,
+    void *ctx
+);
+
+/**
+ * @brief A specialised builder for a plugin work request.
+ * @note  This builder is used to build a work request to a plugin. It is initialised by the server and passed to the
+ *        user, which can fill it with a value and submit it back to the server. Do not access its internals directly.
+ */
+struct dicey_server_plugin_work_builder {
+    struct dicey_server *_owner;
+    char *_name, *_path; // this is probably a bit inefficient, but it's probably pointless to optimise anyway
+    struct dicey_message_builder _builder;
+    struct dicey_value_builder _val_builder;
+};
 
 /**
  * @brief Deinitialises a previously initialised plugin instance.
@@ -223,11 +256,64 @@ DICEY_EXPORT enum dicey_error dicey_server_spawn_plugin_and_wait(
 );
 
 /**
- * @brief Callback type for when a plugin event occurs.
- * @param server The server instance where the event occurred.
- * @param event  The event that occurred.
+ * @brief Submits work to a plugin. Every plugin has a generic server-initiated channel that can be used to send work
+ *        to a plugin, and receive a response back. The server and client can quickly exchange arbitrary data using this
+ *        channel.
+ * @note  This function is asynchronous and will return immediately. The caller should listen for the plugin events on
+ *        the `dicey_server_on_plugin_event_fn` callback.
+ * @param server  The server to submit the work to.
+ * @param plugin  The name of plugin to submit the work to, as returned by `dicey_server_list_plugins` or
+ * `dicey_spawn_plugin_and_wait`.
+ * @param payload The payload to send to the plugin.
+ * @param on_done The callback to call when the work is done. Will be executed on the server's event loop, so it should
+ *                not block.
+ * @param ctx     The context to pass to the callback.
  */
-typedef void dicey_server_on_plugin_event_fn(struct dicey_server *server, const struct dicey_plugin_event event);
+DICEY_EXPORT enum dicey_error dicey_server_plugin_send_work(
+    struct dicey_server *server,
+    const char *plugin,
+    struct dicey_arg payload,
+    dicey_server_plugin_on_work_done_fn *on_done,
+    void *ctx
+);
+
+/**
+ * @brief Discards the partial state of a work builder. This function should be called if the work request is no longer
+ *        needed. `dicey_server_plugin_work_request_submit` will also free the builder after the work is done.
+ ^ @note  If the builder is already empty, this function will do nothing.
+ * @param builder The builder to discard.
+ */
+DICEY_EXPORT void dicey_server_plugin_work_builder_discard(struct dicey_server_plugin_work_builder *builder);
+
+/**
+ * @brief Starts a work request to a plugin. The builder will be initialised with internal server data, which the user
+ *        should pass to `dicey_server_plugin_work_request_submit` after filling the value builder.
+ * @note  This function does not check in any way if `plugin` is a valid plugin name. This will only be
+ * @param server The server to submit the work to.
+ * @param plugin The name of plugin to submit the work to, as returned by `dicey_server_list_plugins` or
+ * `dicey_spawn_plugin_and_wait`.
+ * @param builder The builder to initialise. Do not access its internals directly.
+ * @param value The value to send to the plugin.
+ */
+DICEY_EXPORT enum dicey_error dicey_server_plugin_work_request_start(
+    struct dicey_server *server,
+    const char *plugin,
+    struct dicey_server_plugin_work_builder *builder,
+    struct dicey_value_builder *value
+);
+
+/**
+ * @brief Submits a work request to a plugin. The builder must be filled with a value using `dicey_value_builder_set`
+ *        before calling this function.  The builder will be finalised and sent to the plugin. The server will call the
+ *        `on_done` callback when the work is done.
+ * @note  This function is asynchronous and will return immediately. The caller should listen for the plugin events on
+ */
+DICEY_EXPORT enum dicey_error dicey_server_plugin_work_request_submit(
+    struct dicey_server *server,
+    struct dicey_server_plugin_work_builder *builder,
+    dicey_server_plugin_on_work_done_fn *on_done,
+    void *ctx
+);
 
 #endif // DICEY_HAS_PLUGINS
 

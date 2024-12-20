@@ -17,9 +17,11 @@
 #define _XOPEN_SOURCE 700
 
 #include <assert.h>
+#include <ctype.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include <dicey/core/builders.h>
 #include <dicey/core/value.h>
@@ -29,6 +31,8 @@
 #include "sup/trace.h"
 #include "sup/util.h"
 
+#include "ipc/plugin-common.h"
+
 #include "ipc/server/plugins-internal.h"
 
 #include "../builtins.h"
@@ -36,9 +40,16 @@
 #include "plugins.h"
 
 enum plugin_op {
-    PLUGIN_OP_HANDSHAKEINTERNAL = 0,
     PLUGIN_OP_LIST,
+    PLUGIN_OP_HANDSHAKEINTERNAL,
+    PLUGIN_GET_NAME,
+    PLUGIN_GET_PATH,
     PLUGIN_CMD_RESPONSE,
+};
+
+struct work_response {
+    uint64_t jid;             // the job id
+    struct dicey_value value; // the response value
 };
 
 static const struct dicey_default_element pm_elements[] = {
@@ -53,6 +64,7 @@ static const struct dicey_default_element pm_elements[] = {
      .type = DICEY_ELEMENT_TYPE_OPERATION,
      .signature = PLUGINMANAGER_HANDSHAKEINTERNAL_OP_SIG,
      .flags = DICEY_ELEMENT_INTERNAL,
+     .opcode = PLUGIN_OP_HANDSHAKEINTERNAL,
      },
 };
 
@@ -62,12 +74,14 @@ static const struct dicey_default_element plugin_elements[] = {
      .type = DICEY_ELEMENT_TYPE_PROPERTY,
      .signature = DICEY_PLUGIN_NAME_PROP_SIG,
      .flags = DICEY_ELEMENT_READONLY,
+     .opcode = PLUGIN_GET_NAME,
      },
     {
      .name = DICEY_PLUGIN_PATH_PROP_NAME,
      .type = DICEY_ELEMENT_TYPE_PROPERTY,
      .signature = DICEY_PLUGIN_PATH_PROP_SIG,
      .flags = DICEY_ELEMENT_READONLY,
+     .opcode = PLUGIN_GET_PATH,
      },
 
  // internal stuff
@@ -82,6 +96,7 @@ static const struct dicey_default_element plugin_elements[] = {
      .type = DICEY_ELEMENT_TYPE_OPERATION,
      .signature = PLUGIN_REPLY_OP_SIG,
      .flags = DICEY_ELEMENT_INTERNAL,
+     .opcode = PLUGIN_CMD_RESPONSE,
      },
 };
 
@@ -136,11 +151,11 @@ static enum dicey_error craft_handshake_reply(
 
 static enum dicey_error handle_handshake(
     struct dicey_server *server,
-    struct dicey_client_data *client,
+    struct dicey_plugin_data *const plugin,
     const struct dicey_value *const value,
     struct dicey_packet *const response
 ) {
-    assert(server && client && value && response);
+    assert(server && plugin && value && response);
 
     const char *name = NULL;
     enum dicey_error err = dicey_value_get_str(value, &name);
@@ -149,7 +164,7 @@ static enum dicey_error handle_handshake(
     }
 
     const char *obj_path = NULL;
-    err = dicey_server_plugin_handshake(server, client, name, &obj_path);
+    err = dicey_server_plugin_handshake(server, plugin, name, &obj_path);
     if (err) {
         return err;
     }
@@ -166,6 +181,80 @@ static enum dicey_error handle_handshake(
     if (err) {
         dicey_message_builder_discard(&builder);
     }
+
+    return err;
+}
+
+static enum dicey_error handle_get_plugin_property(
+    const struct dicey_server *const server,
+    const char *const obj_path,
+    const uint8_t opcode,
+    struct dicey_packet *const response
+) {
+    assert(server && obj_path && response);
+
+    // TODO: optimise this by putting a pointer in the registry
+    const char *name = dicey_plugin_name_from_path(obj_path);
+    assert(name); // if a path exists then is should be valid
+
+    struct dicey_message_builder builder = { 0 };
+    enum dicey_error err = dicey_message_builder_init(&builder);
+    if (err) {
+        return err;
+    }
+
+    err = dicey_message_builder_begin(&builder, DICEY_OP_RESPONSE);
+    if (err) {
+        goto quit;
+    }
+
+    err = dicey_message_builder_set_path(&builder, obj_path);
+    if (err) {
+        goto quit;
+    }
+
+    err = dicey_message_builder_set_selector(
+        &builder,
+        (struct dicey_selector) {
+            .trait = DICEY_PLUGIN_TRAIT_NAME,
+            .elem = opcode == PLUGIN_GET_NAME ? DICEY_PLUGIN_NAME_PROP_NAME : DICEY_PLUGIN_PATH_PROP_NAME,
+        }
+    );
+
+    if (err) {
+        goto quit;
+    }
+
+    if (opcode == PLUGIN_GET_NAME) {
+        err = dicey_message_builder_set_value(
+            &builder,
+            (struct dicey_arg) {
+                .type = DICEY_TYPE_STR,
+                .str = name,
+            }
+        );
+    } else {
+        const struct dicey_plugin_data *const plugin = dicey_server_plugin_find_by_name(server, name);
+        assert(plugin); // if the path exists then the plugin should exist and have a valid name
+        DICEY_UNUSED(plugin);
+
+        err = dicey_message_builder_set_value(
+            &builder,
+            (struct dicey_arg) {
+                .type = DICEY_TYPE_PATH,
+                .path = obj_path,
+            }
+        );
+    }
+
+    if (err) {
+        goto quit;
+    }
+
+    err = dicey_message_builder_build(&builder, response);
+
+quit:
+    dicey_message_builder_discard(&builder);
 
     return err;
 }
@@ -269,6 +358,44 @@ quit:
     return err;
 }
 
+static enum dicey_error read_work_response(const struct dicey_value *const value, struct work_response *const out) {
+    assert(value && out);
+
+    struct dicey_pair pair = { 0 };
+    enum dicey_error err = dicey_value_get_pair(value, &pair);
+    if (err) {
+        return err;
+    }
+
+    uint64_t jid = 0U;
+    err = dicey_value_get_u64(&pair.first, &jid);
+    if (err) {
+        return err;
+    }
+
+    *out = (struct work_response) {
+        .jid = jid,
+        .value = pair.second,
+    };
+
+    return DICEY_OK;
+}
+static enum dicey_error handle_work_response(
+    struct dicey_server *server,
+    struct dicey_plugin_data *plugin,
+    const struct dicey_value *value
+) {
+    assert(server && plugin && value);
+
+    struct work_response response = { 0 };
+    enum dicey_error err = read_work_response(value, &response);
+    if (err) {
+        return err;
+    }
+
+    return dicey_server_plugin_report_work_done(server, plugin, response.jid, &response.value);
+}
+
 static enum dicey_error handle_plugin_operation(
     struct dicey_builtin_context *const context,
     const uint8_t opcode,
@@ -279,23 +406,42 @@ static enum dicey_error handle_plugin_operation(
     struct dicey_packet *const response
 ) {
     DICEY_UNUSED(context);
-    DICEY_UNUSED(src_path);
     DICEY_UNUSED(src_entry);
 
-    assert(context && client && value && response);
+    assert(context && context->registry && client && value && response);
 
     switch (opcode) {
-    case PLUGIN_OP_HANDSHAKEINTERNAL:
-        return handle_handshake(client->parent, client, value, response);
-
     case PLUGIN_OP_LIST:
         if (!dicey_value_is_unit(value)) {
             return TRACE(DICEY_EINVAL);
         }
 
         return handle_list_plugins(client->parent, response);
+
+    case PLUGIN_GET_NAME:
+    case PLUGIN_GET_PATH:
+        return handle_get_plugin_property(client->parent, src_path, opcode, response);
     }
 
+    // internal plugin functions
+    const char *const name = dicey_plugin_name_from_path(src_path);
+    assert(name); // if a plugin path exists then is should be valid
+
+    struct dicey_plugin_data *const plugin = dicey_client_data_as_plugin(client);
+
+    if (!plugin || strcmp(dicey_plugin_data_get_info(plugin).name, name)) {
+        return TRACE(DICEY_EACCES); // only the current plugin can respond to its own commands
+    }
+
+    switch (opcode) {
+    case PLUGIN_OP_HANDSHAKEINTERNAL:
+        return handle_handshake(client->parent, plugin, value, response);
+
+    case PLUGIN_CMD_RESPONSE:
+        return handle_work_response(client->parent, plugin, value);
+    }
+
+    DICEY_UNREACHABLE();
     return TRACE(DICEY_EINVAL);
 }
 

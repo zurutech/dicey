@@ -77,10 +77,12 @@ if (MSVC)
             message(FATAL_ERROR "MSVC is too old - no C11 atomics support")
         endif()
     endif()
-elseif(NOT (CMAKE_C_SIMULATE_ID STREQUAL "MSVC" AND CMAKE_C_COMPILER_FRONTEND_VARIANT STREQUAL "GNU"))
+elseif(CMAKE_C_SIMULATE_ID STREQUAL "MSVC" AND CMAKE_C_COMPILER_FRONTEND_VARIANT STREQUAL "GNU")
     # note: clang with the GNU frontend on Windows doesn't enable all those pesky C/C++ extensions that Windows uses
     # in its headers. This is an ugly whack-a-mole game, so we just don't enable anything with Clang GNU style on 
     # MSVC. Clang on MinGW, Clang-cl will use -Werror instead.
+    set(DICEY_CC_IS_GNU_STYLE_CLANG_ON_MSVC ON)
+else()
     list(APPEND IGNORED_WARNINGS
         -Wno-gnu-statement-expression # these are useful for container_of and the like
     )
@@ -277,9 +279,9 @@ set(CORE_SOURCES
     src/ipc/server/registry.c
     src/ipc/server/registry-internal.h
     src/ipc/server/server.c
-    src/ipc/server/server.h
     src/ipc/server/server-clients.c
     src/ipc/server/server-clients.h
+    src/ipc/server/server-internal.h
     src/ipc/server/server-loopreq.c
     src/ipc/server/server-loopreq.h
     src/ipc/server/shared-packet.c
@@ -313,6 +315,7 @@ set(CORE_SOURCES
 )
 
 set(PLUGIN_SOURCES
+    src/ipc/plugin-common.c
     src/ipc/plugin-common.h
 
     src/ipc/client/plugins.c

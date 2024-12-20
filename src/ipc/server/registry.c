@@ -221,6 +221,71 @@ static enum dicey_error registry_add_trait(
     return dicey_registry_add_object_with(registry, metapath, DICEY_TRAIT_TRAIT_NAME, NULL);
 }
 
+char *dicey_metaname_format(const char *const fmt, ...) {
+    assert(fmt);
+
+    va_list ap;
+    va_start(ap, fmt);
+
+    char *const result = dicey_metaname_vformat_to(NULL, fmt, ap);
+
+    va_end(ap);
+
+    return result;
+}
+
+char *dicey_metaname_format_to(struct dicey_view_mut *const buffer, const char *const fmt, ...) {
+    assert(buffer && fmt);
+
+    va_list ap;
+    va_start(ap, fmt);
+
+    char *const result = dicey_metaname_vformat_to(buffer, fmt, ap);
+
+    va_end(ap);
+
+    return result;
+}
+
+char *dicey_metaname_vformat_to(struct dicey_view_mut *const buffer_view, const char *const fmt, va_list ap) {
+    assert(buffer_view && fmt);
+
+    va_list ap_copy;
+    va_copy(ap_copy, ap);
+
+    char *buffer = buffer_view ? buffer_view->data : NULL;
+
+    const int will_write = vsnprintf(NULL, 0, fmt, ap_copy);
+    if (will_write < 0) {
+        buffer = NULL;
+
+        goto quit;
+    }
+
+    const size_t needed = (size_t) will_write + 1U;
+
+    if (!buffer_view || buffer_view->len < needed) {
+        buffer = realloc(buffer, needed);
+        if (!buffer) {
+            return NULL;
+        }
+
+        if (buffer_view) {
+            *buffer_view = dicey_view_mut_from(buffer, needed);
+        }
+    }
+
+    if (vsnprintf(buffer, needed, fmt, ap) < will_write) {
+        buffer = NULL;
+    }
+
+quit:
+    va_end(ap_copy);
+    va_end(ap);
+
+    return buffer;
+}
+
 bool dicey_object_implements(const struct dicey_object *const object, const char *const trait) {
     assert(object && object->traits && trait);
 
@@ -534,39 +599,14 @@ enum dicey_error dicey_registry_delete_object(struct dicey_registry *const regis
 const char *dicey_registry_format_metaname(struct dicey_registry *registry, const char *const fmt, ...) {
     assert(registry && fmt);
 
-    va_list ap, ap_copy;
+    va_list ap;
     va_start(ap, fmt);
-    va_copy(ap_copy, ap);
 
-    char *buffer = registry->_buffer.data;
+    const char *const result = dicey_metaname_vformat_to(&registry->_buffer, fmt, ap);
 
-    const int will_write = vsnprintf(NULL, 0, fmt, ap_copy);
-    if (will_write < 0) {
-        buffer = NULL; // probably very bad
-
-        goto quit;
-    }
-
-    const size_t needed = (size_t) will_write + 1U;
-
-    if (registry->_buffer.len < needed) {
-        buffer = realloc(buffer, needed);
-        if (!buffer) {
-            return NULL;
-        }
-
-        registry->_buffer = dicey_view_mut_from(buffer, needed);
-    }
-
-    if (vsnprintf(buffer, needed, fmt, ap) < will_write) {
-        buffer = NULL; // probably very bad
-    }
-
-quit:
-    va_end(ap_copy);
     va_end(ap);
 
-    return buffer;
+    return result;
 }
 
 const struct dicey_element *dicey_registry_get_element(

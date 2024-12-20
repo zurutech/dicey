@@ -40,7 +40,7 @@
 #include <util/packet-xml.h>
 #include <util/strext.h>
 
-#if defined(DICEY_CC_IS_MSVC)
+#if defined(DICEY_CC_IS_MSVC_LIKE)
 #pragma warning(disable : 4996)
 #endif
 

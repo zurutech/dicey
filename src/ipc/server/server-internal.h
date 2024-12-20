@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#if !defined(JUYPLEPMAY_SERVER_H)
-#define JUYPLEPMAY_SERVER_H
+#if !defined(JUYPLEPMAY_SERVER_INTERNAL_H)
+#define JUYPLEPMAY_SERVER_INTERNAL_H
 
 #include <stdint.h>
 
@@ -76,4 +76,7 @@ struct dicey_server {
     void *ctx;
 };
 
-#endif // JUYPLEPMAY_SERVER_H
+// raises a signal directly. Must be called in the server's thread
+enum dicey_error dicey_server_raise_internal(struct dicey_server *server, struct dicey_packet packet);
+
+#endif // JUYPLEPMAY_SERVER_INTERNAL_H

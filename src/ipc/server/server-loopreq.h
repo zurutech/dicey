@@ -68,7 +68,6 @@ struct dicey_server_loop_request {
 #define DICEY_SERVER_LOOP_REQ_NEW_WITH_BYTES(N) calloc(1, sizeof(struct dicey_server_loop_request) + (N))
 #define DICEY_SERVER_LOOP_REQ_NEW(TYPE) DICEY_SERVER_LOOP_REQ_NEW_WITH_BYTES(sizeof(TYPE))
 #define DICEY_SERVER_LOOP_REQ_NEW_EMPTY() DICEY_SERVER_LOOP_REQ_NEW_WITH_BYTES(0)
-#define DICEY_SERVER_LOOP_REQ_GET_PAYLOAD(DEST, REQ, TYPE) ((void) memcpy((DEST), (REQ).payload, sizeof(TYPE)))
 #define DICEY_SERVER_LOOP_REQ_GET_PAYLOAD_AS_VIEW_MUT(REQ, SIZE) dicey_view_mut_from((REQ).payload, (SIZE))
 
 #define DICEY_SERVER_LOOP_SET_PAYLOAD_BYTES(DEST, PAYLOADPTR, N) ((void) memcpy((DEST)->payload, (PAYLOADPTR), (N)))

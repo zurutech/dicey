@@ -31,11 +31,11 @@ struct dicey_waiting_task *dicey_waiting_list_append(
     struct dicey_waiting_list **list_ptr,
     struct dicey_waiting_task *task
 );
-const struct dicey_waiting_task *dicey_waiting_list_begin(const struct dicey_waiting_list *list);
+
+const struct dicey_waiting_task *dicey_waiting_list_cbegin(const struct dicey_waiting_list *list);
+const struct dicey_waiting_task *dicey_waiting_list_cend(const struct dicey_waiting_list *list);
 
 void dicey_waiting_list_clear(struct dicey_waiting_list *list);
-
-const struct dicey_waiting_task *dicey_waiting_list_end(const struct dicey_waiting_list *list);
 
 bool dicey_waiting_list_remove_seq(struct dicey_waiting_list *list, uint32_t seq, uint64_t *task_id);
 

@@ -17,9 +17,17 @@
 #if !defined(FNMCVSLICR_REGISTRY_INTERNAL_H)
 #define FNMCVSLICR_REGISTRY_INTERNAL_H
 
+#include <stdarg.h>
+
+#include <dicey/core/views.h>
 #include <dicey/ipc/registry.h>
 
 #include "sup/util.h"
+
+// formats a string (ideally a path) using the given buffer. The buffer is reallocated and updated if necessary
+char *dicey_metaname_format(const char *fmt, ...) DICEY_FORMAT(1, 2);
+char *dicey_metaname_format_to(struct dicey_view_mut *buffer, const char *fmt, ...) DICEY_FORMAT(2, 3);
+char *dicey_metaname_vformat_to(struct dicey_view_mut *buffer, const char *fmt, va_list args);
 
 // formats a string (ideally a path) using an internal buffer. The buffer is reallocated if necessary
 const char *dicey_registry_format_metaname(struct dicey_registry *registry, const char *fmt, ...) DICEY_FORMAT(2, 3);

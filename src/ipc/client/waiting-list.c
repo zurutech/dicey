@@ -35,17 +35,16 @@
 bool dicey_waiting_list_remove_seq(struct dicey_waiting_list *const list, const uint32_t seq, uint64_t *const task_id) {
     assert(list);
 
-    size_t i = 0;
-    for (const struct dicey_waiting_task *it = dicey_waiting_list_begin(list),
-                                         *const end = dicey_waiting_list_end(list);
+    for (const struct dicey_waiting_task *it = dicey_waiting_list_cbegin(list),
+                                         *const end = dicey_waiting_list_cend(list);
          it < end;
-         ++it, ++i) {
+         ++it) {
         if (it->packet_seq == seq) {
             if (task_id) {
                 *task_id = it->task_id;
             }
 
-            dicey_waiting_list_erase(list, i);
+            dicey_waiting_list_erase(list, it);
 
             return true;
         }
@@ -63,13 +62,16 @@ bool dicey_waiting_list_remove_task(
         return false;
     }
 
-    for (size_t i = 0; i < list->len; ++i) {
-        if (list->data[i].task_id == task_id) {
+    for (const struct dicey_waiting_task *it = dicey_waiting_list_begin(list),
+                                         *const end = dicey_waiting_list_end(list);
+         it < end;
+         ++it) {
+        if (it->task_id == task_id) {
             if (seq) {
-                *seq = list->data[i].packet_seq;
+                *seq = it->packet_seq;
             }
 
-            dicey_waiting_list_erase(list, i);
+            dicey_waiting_list_erase(list, it);
 
             return true;
         }

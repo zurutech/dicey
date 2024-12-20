@@ -53,8 +53,8 @@
 #include "client-data.h"
 #include "pending-reqs.h"
 #include "server-clients.h"
+#include "server-internal.h"
 #include "server-loopreq.h"
-#include "server.h"
 #include "shared-packet.h"
 
 #include "dicey_config.h"
@@ -547,65 +547,6 @@ struct prune_ctx {
     struct dicey_client_data *client;
     const char *path_to_prune;
 };
-
-static enum dicey_error raise_event(
-    struct dicey_server *const server,
-    struct dicey_packet packet,
-    const struct dicey_message *const msg
-) {
-    assert(server && msg);
-
-    // start with 1, because if the first send fails, we risk prematurely freeing the packet
-    struct dicey_shared_packet *shared_pkt = dicey_shared_packet_from(packet, 1);
-    if (!shared_pkt) {
-        dicey_packet_deinit(&packet);
-
-        return TRACE(DICEY_ENOMEM);
-    }
-
-    const char *const elemdescr = dicey_element_descriptor_format_to(&server->scratchpad, msg->path, msg->selector);
-    if (!elemdescr) {
-        dicey_shared_packet_unref(shared_pkt);
-
-        return TRACE(DICEY_ENOMEM);
-    }
-
-    enum dicey_error err = dicey_packet_set_seq(dicey_shared_packet_borrow(shared_pkt), server_next_seq(server));
-    if (err) {
-        dicey_shared_packet_unref(shared_pkt);
-
-        return err;
-    }
-
-    // iterate all clients and check if they should receive the event
-    struct dicey_client_data *const *const end = dicey_client_list_end(server->clients);
-    for (struct dicey_client_data *const *client = dicey_client_list_begin(server->clients); client < end; ++client) {
-        if (!*client) {
-            continue;
-        }
-
-        if (!dicey_client_data_is_subscribed(*client, elemdescr)) {
-            continue;
-        }
-
-        // hold the packet. We know the refcount will be equal to the number of events sent (because we hold the thread)
-        // + 1 (because this function is holding it too for now)
-        dicey_shared_packet_ref(shared_pkt);
-
-        struct outbound_packet event = { .kind = DICEY_OP_SIGNAL, .shared = shared_pkt };
-
-        err = server_sendpkt(server, *client, event);
-        if (err) {
-            // deref, we failed this send
-            dicey_shared_packet_unref(shared_pkt);
-        }
-    }
-
-    // deref, we are done with the packet and its refcount has increased by the number of interested clients
-    dicey_shared_packet_unref(shared_pkt);
-
-    return DICEY_OK;
-}
 
 static bool request_targets_path(const struct dicey_pending_request *const req, void *const ctx) {
     assert(req && ctx);
@@ -1187,13 +1128,7 @@ static enum dicey_error loop_request_raise_signal(
         return DICEY_ECANCELLED;
     }
 
-    struct dicey_message msg = { 0 };
-    const enum dicey_error err = dicey_packet_as_message(packet, &msg);
-    if (err) {
-        return err;
-    }
-
-    return raise_event(server, packet, &msg);
+    return dicey_server_raise_internal(server, packet);
 }
 
 static enum dicey_error loop_request_send_response(
@@ -1755,6 +1690,67 @@ enum dicey_error dicey_server_raise_and_wait(struct dicey_server *const server, 
     DICEY_SERVER_LOOP_SET_PAYLOAD(req, struct dicey_packet, &packet);
 
     return dicey_server_blocking_request(server, req);
+}
+
+enum dicey_error dicey_server_raise_internal(struct dicey_server *const server, struct dicey_packet packet) {
+    assert(server);
+
+    struct dicey_message msg = { 0 };
+    enum dicey_error err = dicey_packet_as_message(packet, &msg);
+    if (err) {
+        return err;
+    }
+
+    // start with 1, because if the first send fails, we risk prematurely freeing the packet
+    struct dicey_shared_packet *shared_pkt = dicey_shared_packet_from(packet, 1);
+    if (!shared_pkt) {
+        dicey_packet_deinit(&packet);
+
+        return TRACE(DICEY_ENOMEM);
+    }
+
+    const char *const elemdescr = dicey_element_descriptor_format_to(&server->scratchpad, msg.path, msg.selector);
+    if (!elemdescr) {
+        dicey_shared_packet_unref(shared_pkt);
+
+        return TRACE(DICEY_ENOMEM);
+    }
+
+    err = dicey_packet_set_seq(dicey_shared_packet_borrow(shared_pkt), server_next_seq(server));
+    if (err) {
+        dicey_shared_packet_unref(shared_pkt);
+
+        return err;
+    }
+
+    // iterate all clients and check if they should receive the event
+    struct dicey_client_data *const *const end = dicey_client_list_end(server->clients);
+    for (struct dicey_client_data *const *client = dicey_client_list_begin(server->clients); client < end; ++client) {
+        if (!*client) {
+            continue;
+        }
+
+        if (!dicey_client_data_is_subscribed(*client, elemdescr)) {
+            continue;
+        }
+
+        // hold the packet. We know the refcount will be equal to the number of events sent (because we hold the thread)
+        // + 1 (because this function is holding it too for now)
+        dicey_shared_packet_ref(shared_pkt);
+
+        struct outbound_packet event = { .kind = DICEY_OP_SIGNAL, .shared = shared_pkt };
+
+        err = server_sendpkt(server, *client, event);
+        if (err) {
+            // deref, we failed this send
+            dicey_shared_packet_unref(shared_pkt);
+        }
+    }
+
+    // deref, we are done with the packet and its refcount has increased by the number of interested clients
+    dicey_shared_packet_unref(shared_pkt);
+
+    return DICEY_OK;
 }
 
 enum dicey_error dicey_server_send_response(

@@ -29,8 +29,8 @@
 
 #include "ipc/queue.h"
 
+#include "server-internal.h"
 #include "server-loopreq.h"
-#include "server.h"
 
 enum dicey_error dicey_server_submit_request(
     struct dicey_server *const server,

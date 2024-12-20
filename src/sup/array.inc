@@ -125,11 +125,19 @@ ARRAY_EXPORTED_FUNCTION_DECL(append, ARRAY_VALUE_TYPE_ALIAS*,  struct ARRAY_TYPE
     return location;
 }
 
-ARRAY_EXPORTED_FUNCTION_DECL(begin, const ARRAY_VALUE_TYPE_ALIAS *, const struct ARRAY_TYPE_NAME *const list) {
+ARRAY_EXPORTED_FUNCTION_DECL(begin, ARRAY_VALUE_TYPE_ALIAS *, struct ARRAY_TYPE_NAME *const list) {
     return list ? list->data : NULL;
 }
 
-#if defined(ARRAY_TYPE_NEEDS_CLEANUP)
+ARRAY_EXPORTED_FUNCTION_DECL(cbegin, const ARRAY_VALUE_TYPE_ALIAS *, const struct ARRAY_TYPE_NAME *const list) {
+    return list ? list->data : NULL;
+}
+
+ARRAY_EXPORTED_FUNCTION_DECL(cend, const ARRAY_VALUE_TYPE_ALIAS *, const struct ARRAY_TYPE_NAME *list) {
+    return list ? list->data + list->len : NULL;
+}
+
+#if defined(ARRAY_VALUE_TYPE_NEEDS_CLEANUP)
 
 #define ARRAY_TYPE_FREE_FN_ALIAS ARRAY_GLUE_IDENTS(ARRAY_TYPE_NAME, free_fn)
 typedef void ARRAY_TYPE_FREE_FN_ALIAS(ARRAY_VALUE_TYPE_ALIAS*);
@@ -168,13 +176,13 @@ ARRAY_EXPORTED_FUNCTION_DECL(delete, void, struct ARRAY_TYPE_NAME *const list) {
     }
 }
 
-#endif // defined(ARRAY_TYPE_NEEDS_CLEANUP)
+#endif // defined(ARRAY_VALUE_TYPE_NEEDS_CLEANUP)
 
-ARRAY_EXPORTED_FUNCTION_DECL(end, const ARRAY_VALUE_TYPE_ALIAS *, const struct ARRAY_TYPE_NAME *list) {
+ARRAY_EXPORTED_FUNCTION_DECL(end, ARRAY_VALUE_TYPE_ALIAS *, struct ARRAY_TYPE_NAME *list) {
     return list ? list->data + list->len : NULL;
 }
 
-ARRAY_EXPORTED_FUNCTION_DECL(erase, ARRAY_VALUE_TYPE, struct ARRAY_TYPE_NAME *const list, const size_t entry) {
+ARRAY_EXPORTED_FUNCTION_DECL(erase_at, ARRAY_VALUE_TYPE, struct ARRAY_TYPE_NAME *const list, const size_t entry) {
     assert(list && entry < list->len && list->len);
 
     const ARRAY_VALUE_TYPE value = list->data[entry];
@@ -190,6 +198,14 @@ ARRAY_EXPORTED_FUNCTION_DECL(erase, ARRAY_VALUE_TYPE, struct ARRAY_TYPE_NAME *co
     return value;
 }
 
+ARRAY_EXPORTED_FUNCTION_DECL(erase, ARRAY_VALUE_TYPE, struct ARRAY_TYPE_NAME *const list, const ARRAY_VALUE_TYPE *value) {
+    // it's UB to compare a pointer outside of the array, so we assume that the user will always pass a valid pointer
+    // abusing the fact that compilers will not optimise this out in debug mode (hopefully)
+    assert(list && value && ARRAY_EXPORTED_FUNCTION(begin)(list) <= value && value < ARRAY_EXPORTED_FUNCTION(end)(list));
+
+    return ARRAY_EXPORTED_FUNCTION(erase_at)(list, (size_t) (value - ARRAY_EXPORTED_FUNCTION(begin)(list)));    
+}
+
 // undef this for future usage
 #undef ARRAY_EXPORTED_FUNCTION
 #undef ARRAY_EXPORTED_FUNCTION_DECL
@@ -201,6 +217,11 @@ ARRAY_EXPORTED_FUNCTION_DECL(erase, ARRAY_VALUE_TYPE, struct ARRAY_TYPE_NAME *co
 #undef ARRAY_TYPE_FREE_FN_ALIAS
 #undef ARRAY_VALUE_TYPE_ALIAS
 #undef ARRAY_VISIBILITY
+
+// undef parameters, allows reusability
+#undef ARRAY_TYPE_NAME
+#undef ARRAY_VALUE_TYPE
+#undef ARRAY_VALUE_TYPE_NEEDS_CLEANUP
 
 // pop pragmas
 

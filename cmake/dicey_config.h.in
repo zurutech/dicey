@@ -24,4 +24,10 @@
 #define DICEY_IS_MINGW 1
 #endif
 
+#cmakedefine DICEY_CC_IS_GNU_STYLE_CLANG_ON_MSVC
+
+#if defined(DICEY_CC_IS_MSVC) || defined(DICEY_CC_IS_CLANG) && !defined(DICEY_IS_MINGW) && !defined(DICEY_CC_IS_GNU_STYLE_CLANG_ON_MSVC)
+#define DICEY_CC_IS_MSVC_LIKE 1
+#endif
+
 #endif // APUTVMMVFJ_CONFIG_H

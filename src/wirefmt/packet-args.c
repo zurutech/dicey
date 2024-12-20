@@ -138,7 +138,7 @@ void dicey_arg_free_list(const struct dicey_arg *const arglist, const size_t nit
 
     const struct dicey_arg *const end = arglist + nitems;
     for (const struct dicey_arg *it = arglist; it != end; ++it) {
-        dicey_arg_free(it);
+        dicey_arg_free_contents(it);
     }
 
     // these are guaranteed to come from malloc - so I have no problems casting them back to mutable.

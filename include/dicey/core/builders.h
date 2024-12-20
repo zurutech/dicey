@@ -76,7 +76,8 @@ DICEY_EXPORT enum dicey_error dicey_message_builder_build(
 
 /**
  * @brief Discards the current state of a message builder.
- * @note This function completely discards the builder contents, leaving it ready to be reused.
+ * @note This function completely discards the builder contents, leaving it ready to be reused. Discarding an already
+ *       discarded builder is a no-op.
  * @param builder Message builder to wipe.
  */
 DICEY_EXPORT void dicey_message_builder_discard(struct dicey_message_builder *builder);
