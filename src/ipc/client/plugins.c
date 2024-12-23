@@ -136,6 +136,13 @@ static bool is_cmd_valid(const uint8_t cmd) {
     }
 }
 
+static bool is_fd_valid(const uv_file fd) {
+    // this will cause an assertion on Debug targets on Windows due to __get_osfhandle raising an assertion
+    // when the file descriptor is invalid. This can't be avoided because libuv is already hijacking the
+    // CRT's assert handlers.
+    return uv_guess_handle(fd) != UV_UNKNOWN_HANDLE;
+}
+
 static bool start_work(
     struct dicey_plugin *const plugin,
     struct dicey_packet packet,
@@ -413,6 +420,10 @@ enum dicey_error dicey_plugin_init(
     DICEY_UNUSED(argv);
 
     assert(argc && argv && dest && args);
+
+    if (!is_fd_valid(DICEY_PLUGIN_FD)) {
+        return TRACE(DICEY_EBADF);
+    }
 
     const char *const name = args->name;
     assert(name);
