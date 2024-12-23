@@ -401,7 +401,7 @@ void dicey_plugin_delete(struct dicey_plugin *const plugin) {
     }
 }
 
-enum dicey_error dicey_plugin_new(
+enum dicey_error dicey_plugin_init(
     const int argc,
     const char *const argv[],
     struct dicey_plugin **const dest,

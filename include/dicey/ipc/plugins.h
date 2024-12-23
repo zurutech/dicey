@@ -159,7 +159,7 @@ DICEY_EXPORT struct dicey_client *dicey_plugin_get_client(struct dicey_plugin *p
  *             - EINVAL: the process is not a plugin (i.e. it was not spawned by a server). Note that this may not be
  *                       possible to check for on platforms such as Win32.
  */
-DICEY_EXPORT enum dicey_error dicey_plugin_new(
+DICEY_EXPORT enum dicey_error dicey_plugin_init(
     int argc,
     const char *const argv[],
     struct dicey_plugin **dest,
