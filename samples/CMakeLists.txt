@@ -16,6 +16,10 @@ add_subdirectory(util)
 
 set(SAMPLE_FILES base64.c client.c dump.c inspect.c load.c server.c subtest.c sval.c)
 
+if (DICEY_HAS_PLUGINS)
+    list(APPEND SAMPLE_FILES dummy_plugin.c)
+endif()
+
 set(CMAKE_C_STANDARD 17)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 
