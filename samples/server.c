@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+#include "dicey/ipc/address.h"
 #define _CRT_NONSTDC_NO_DEPRECATE 1
 #define _XOPEN_SOURCE 700
 
@@ -149,6 +150,13 @@ static bool register_break_hook(void) {
 }
 
 #endif
+
+struct server_ctx {
+    struct dicey_hashtable *hash;
+
+    uv_sem_t startup_sem;
+    enum dicey_error startup_err;
+};
 
 struct test_element {
     enum dicey_element_type type;
@@ -1062,6 +1070,19 @@ static void on_request_received(
     dicey_packet_deinit(&packet);
 }
 
+void on_startup_done(struct dicey_server *const server, enum dicey_error err) {
+    assert(server);
+
+    out("info: server %s\n", err ? "failed to start" : "started");
+
+    struct server_ctx *const ctx = dicey_server_get_context(server);
+    assert(ctx);
+
+    ctx->startup_err = err;
+
+    uv_sem_post(&ctx->startup_sem);
+}
+
 #if PIPE_NEEDS_CLEANUP
 static enum dicey_error remove_socket_if_present(void) {
     const int err = uv_fs_unlink(NULL, &(uv_fs_t) { 0 }, PIPE_NAME, NULL);
@@ -1084,6 +1105,50 @@ static enum dicey_error remove_socket_if_present(void) {
 
 static void print_help(const char *const progname, FILE *const out) {
     fprintf(out, HELP_MSG, progname);
+}
+
+struct thread_args {
+    struct dicey_server *server;
+    struct dicey_addr addr;
+};
+
+static void server_thread(void *arg) {
+    struct thread_args *const args = arg;
+
+    struct server_ctx *const ctx = dicey_server_get_context(args->server);
+    assert(ctx);
+
+    // ignore the error here - we'll get it from the callback
+    (void) dicey_server_start(global_server, args->addr);
+}
+
+static enum dicey_error spawn_server_thread(uv_thread_t *const tid, struct thread_args *const args) {
+    assert(tid && args && args->server && args->addr.addr);
+
+    struct server_ctx *const ctx = dicey_server_get_context(args->server);
+    assert(ctx);
+
+    int err = uv_sem_init(&ctx->startup_sem, 0);
+    if (err) {
+        return DICEY_EUV_UNKNOWN;
+    }
+
+    err = uv_thread_create(tid, &server_thread, args);
+    if (err) {
+        uv_sem_destroy(&ctx->startup_sem);
+
+        return DICEY_EUV_UNKNOWN;
+    }
+
+    uv_sem_wait(&ctx->startup_sem);
+    uv_sem_destroy(&ctx->startup_sem);
+
+    err = uv_thread_join(tid);
+    if (err) {
+        return DICEY_EUV_UNKNOWN;
+    }
+
+    return ctx->startup_err;
 }
 
 int main(const int argc, char *const argv[]) {
@@ -1125,7 +1190,7 @@ int main(const int argc, char *const argv[]) {
         return EXIT_FAILURE;
     }
 
-    struct dicey_hashtable **ctx = NULL;
+    struct server_ctx ctx = { 0 };
 
     struct timer_state tstate = { 0 };
 
@@ -1136,6 +1201,7 @@ int main(const int argc, char *const argv[]) {
             .on_disconnect = &on_client_disconnect,
             .on_error = &on_client_error,
             .on_request = &on_request_received,
+            .on_startup = &on_startup_done,
         }
     );
 
@@ -1175,24 +1241,17 @@ int main(const int argc, char *const argv[]) {
 
     out("starting Dicey sample server on " PIPE_NAME "...\n");
 
-    ctx = malloc(sizeof *ctx);
-    if (!ctx) {
-        fprintf(stderr, "error: malloc failed\n");
-
-        goto quit;
-    }
-
     // start and register the timer thread
     timer_state_init(&tstate, global_server);
 
-    *ctx = dicey_hashtable_new();
-    if (!*ctx) {
+    ctx.hash = dicey_hashtable_new();
+    if (!ctx.hash) {
         fprintf(stderr, "error: hashtable_new failed\n");
 
         goto quit;
     }
 
-    if (dicey_hashtable_set(ctx, TIMER_STATE_KEY, &tstate, NULL) == DICEY_HASH_SET_FAILED) {
+    if (dicey_hashtable_set(&ctx.hash, TIMER_STATE_KEY, &tstate, NULL) == DICEY_HASH_SET_FAILED) {
         err = DICEY_ENOMEM;
 
         fprintf(stderr, "error: hashtable_set failed\n");
@@ -1200,11 +1259,16 @@ int main(const int argc, char *const argv[]) {
         goto quit;
     }
 
-    dicey_server_set_context(global_server, ctx);
+    dicey_server_set_context(global_server, &ctx);
 
-    err = dicey_server_start(global_server, addr);
-    if (err) {
-        fprintf(stderr, "dicey_server_start: %s\n", dicey_error_msg(err));
+    uv_thread_t tid = { 0 };
+    struct thread_args targs = { .server = global_server, .addr = addr };
+
+    const int uverr = spawn_server_thread(&tid, &targs);
+    if (uverr) {
+        err = DICEY_EUV_UNKNOWN;
+
+        fprintf(stderr, "uv_thread_create: %s\n", uv_err_name(uverr));
 
         goto quit;
     }
@@ -1212,14 +1276,13 @@ int main(const int argc, char *const argv[]) {
     uv_fs_unlink(NULL, &(uv_fs_t) { 0 }, PIPE_NAME, NULL);
 
 quit:
-    if (ctx) {
+    if (ctx.hash) {
         timer_state_deinit(&tstate);
 
-        (void) dicey_hashtable_remove(*ctx, "$timer.state");
+        // remove the only statically allocated key in the hash
+        (void) dicey_hashtable_remove(ctx.hash, TIMER_STATE_KEY);
 
-        dicey_hashtable_delete(*ctx, &free);
-
-        free(ctx);
+        dicey_hashtable_delete(ctx.hash, &free);
     }
 
     dicey_server_delete(global_server);
