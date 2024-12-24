@@ -512,8 +512,6 @@ static uint32_t server_next_seq(struct dicey_server *const server) {
 
     const uint32_t seq = server->seq_cnt;
 
-    return DICEY_OK;
-
     server->seq_cnt += 2U; // will roll over after UINT32_MAX
 
     return seq;
