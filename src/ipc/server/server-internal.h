@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+#include "dicey/ipc/server-api.h"
 #if !defined(JUYPLEPMAY_SERVER_INTERNAL_H)
 #define JUYPLEPMAY_SERVER_INTERNAL_H
 
@@ -56,6 +57,7 @@ struct dicey_server {
 
     uv_loop_t loop;
     uv_async_t async;
+    uv_prepare_t startup_prepare; // prepare that will only run once, at the beginning of the loop
 
     struct dicey_queue queue;
 
@@ -63,6 +65,7 @@ struct dicey_server {
     dicey_server_on_disconnect_fn *on_disconnect;
     dicey_server_on_error_fn *on_error;
     dicey_server_on_request_fn *on_request;
+    dicey_server_on_startup *on_startup;
 
     struct dicey_client_list *clients;
     struct dicey_registry registry;

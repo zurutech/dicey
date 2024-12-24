@@ -190,7 +190,7 @@ void trigger_breakpoint(void) {
 }
 
 static void print_trace(const enum dicey_error errnum) {
-    void *buffer[32];
+    void *buffer[32] = { 0 };
     const int nptrs = backtrace(buffer, sizeof buffer / sizeof *buffer);
 
     fprintf(stderr, ">>DICEY_TRACE<< error: %s\n", dicey_error_msg(errnum));

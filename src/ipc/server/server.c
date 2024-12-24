@@ -443,7 +443,10 @@ static ptrdiff_t server_new_peer(struct dicey_server *const server, struct dicey
 }
 
 static void server_shutdown_at_end(uv_handle_t *const handle) {
-    struct dicey_server *const server = (struct dicey_server *) handle;
+    assert(handle);
+
+    struct dicey_server *const server = handle->data;
+    assert(server);
 
     uv_stop(&server->loop);
 
@@ -457,10 +460,19 @@ static void server_shutdown_at_end(uv_handle_t *const handle) {
     }
 }
 
+static void server_close_prepare(uv_handle_t *const handle) {
+    assert(handle);
+
+    struct dicey_server *const server = handle->data; // the async handle, which has the server as data
+    assert(server);
+
+    uv_close((uv_handle_t *) &server->startup_prepare, &server_shutdown_at_end);
+}
+
 static void server_close_pipe(uv_handle_t *const handle) {
     struct dicey_server *const server = handle->data; // the async handle, which has the server as data
 
-    uv_close((uv_handle_t *) &server->pipe, &server_shutdown_at_end);
+    uv_close((uv_handle_t *) &server->pipe, &server_close_prepare);
 }
 
 static enum dicey_error server_finalize_shutdown(struct dicey_server *const server) {
@@ -473,10 +485,34 @@ static enum dicey_error server_finalize_shutdown(struct dicey_server *const serv
     return DICEY_OK;
 }
 
+#define server_report_startup(SERVERPTR, ERRC)                                                                         \
+    do {                                                                                                               \
+        struct dicey_server *const _srvptr = (SERVERPTR);                                                              \
+        assert(_srvptr);                                                                                               \
+                                                                                                                       \
+        if (_srvptr->on_startup) {                                                                                     \
+            _srvptr->on_startup(_srvptr, (ERRC));                                                                      \
+        }                                                                                                              \
+    } while (0)
+
+static void server_init_notify_startup(uv_prepare_t *const startup_prepare) {
+    assert(startup_prepare);
+
+    struct dicey_server *const server = startup_prepare->data;
+    assert(server);
+
+    server_report_startup(server, DICEY_OK); // successful startup
+
+    // it always returns 0 anyway
+    (void) uv_prepare_stop(startup_prepare);
+}
+
 static uint32_t server_next_seq(struct dicey_server *const server) {
     assert(server);
 
     const uint32_t seq = server->seq_cnt;
+
+    return DICEY_OK;
 
     server->seq_cnt += 2U; // will roll over after UINT32_MAX
 
@@ -1377,6 +1413,7 @@ enum dicey_error dicey_server_new(struct dicey_server **const dest, const struct
         server->on_connect = args->on_connect;
         server->on_disconnect = args->on_disconnect;
         server->on_request = args->on_request;
+        server->on_startup = args->on_startup;
 
         if (args->on_error) {
             server->on_error = args->on_error;
@@ -1413,9 +1450,23 @@ enum dicey_error dicey_server_new(struct dicey_server **const dest, const struct
         goto free_async;
     }
 
+    server->pipe.data = server;
+
+    uv_prepare_t *const prepare = &server->startup_prepare;
+
+    uverr = uv_prepare_init(&server->loop, prepare);
+    if (uverr) {
+        goto free_pipe;
+    }
+
+    server->startup_prepare.data = server;
+
     *dest = server;
 
     return DICEY_OK;
+
+free_pipe:
+    uv_close((uv_handle_t *) &server->pipe, NULL);
 
 free_async:
     uv_close((uv_handle_t *) &server->async, NULL);
@@ -1825,31 +1876,46 @@ void *dicey_server_set_context(struct dicey_server *const server, void *const ne
 enum dicey_error dicey_server_start(struct dicey_server *const server, struct dicey_addr addr) {
     assert(server && addr.addr && addr.len);
 
-    int err = uv_pipe_bind2(&server->pipe, addr.addr, addr.len, 0U);
+    int uverr = uv_pipe_bind2(&server->pipe, addr.addr, addr.len, 0U);
 
     dicey_addr_deinit(&addr);
 
-    if (err < 0) {
-        goto quit;
+    if (uverr < 0) {
+        goto fail;
     }
 
-    err = uv_listen((uv_stream_t *) &server->pipe, 128, &on_connect);
+    uverr = uv_prepare_start(&server->startup_prepare, &server_init_notify_startup);
+    if (uverr) {
+        goto fail;
+    }
 
-    if (err < 0) {
-        goto quit;
+    uverr = uv_listen((uv_stream_t *) &server->pipe, 128, &on_connect);
+
+    if (uverr < 0) {
+        goto after_prepare;
     }
 
     server->state = SERVER_STATE_RUNNING;
 
-    err = uv_run(&server->loop, UV_RUN_DEFAULT);
-    if (err < 0) {
-        goto quit;
+    uverr = uv_run(&server->loop, UV_RUN_DEFAULT);
+    if (uverr < 0) {
+        goto after_prepare;
     }
 
     server->state = SERVER_STATE_INIT;
 
-quit:
-    return dicey_error_from_uv(err);
+    return DICEY_OK;
+
+after_prepare:
+    uv_prepare_stop(&server->startup_prepare);
+
+fail:
+    { // declaration after label is only allowed in C23 and later
+        const enum dicey_error err = dicey_error_from_uv(uverr);
+        server_report_startup(server, err);
+
+        return dicey_error_from_uv(err);
+    }
 }
 
 enum dicey_error dicey_server_stop(struct dicey_server *const server) {

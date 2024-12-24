@@ -96,6 +96,13 @@ typedef void dicey_server_on_request_fn(
 );
 
 /**
+ * @brief Callback type that is called when the server either starts up successfully or fails to start up.
+ * @note  This function is useful to probe the server's status after starting it up in another thread.
+ & @param server The server instance that started up.
+ */
+typedef void dicey_server_on_startup(struct dicey_server *server, enum dicey_error error);
+
+/**
  * @brief Describes the arguments that can be passed to a new Dicey server.
  */
 struct dicey_server_args {
@@ -103,6 +110,7 @@ struct dicey_server_args {
     dicey_server_on_disconnect_fn *on_disconnect; /**< The callback to be called when a client disconnects. */
     dicey_server_on_error_fn *on_error;           /**< The callback to be called when an error occurs. */
 
+    dicey_server_on_startup *on_startup;    /**< The callback to be called when the server starts up. */
     dicey_server_on_request_fn *on_request; /**< The callback to be called when a request is received. */
 
 #if DICEY_HAS_PLUGINS
