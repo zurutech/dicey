@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 
-#include "dicey/ipc/address.h"
 #define _CRT_NONSTDC_NO_DEPRECATE 1
 #define _XOPEN_SOURCE 700
 
@@ -34,6 +33,7 @@
 #include <util/dumper.h>
 #include <util/getopt.h>
 #include <util/packet-dump.h>
+#include <util/strext.h>
 
 #include "sval.h"
 #include "timer.h"
@@ -1014,6 +1014,90 @@ static enum dicey_error on_timer_start(
     return send_reply(server, cln, seq, req->path, req->selector, (struct dicey_arg) { .type = DICEY_TYPE_UNIT });
 }
 
+#if defined(DICEY_HAS_PLUGINS)
+
+#if defined(DICEY_IS_WINDOWS)
+#define DUMMY_PLUGIN "dummy_plugin.exe"
+#define SEPARATOR '\\'
+#else
+#define DUMMY_PLUGIN "dummy_plugin"
+#define SEPARATOR '/'
+#endif
+
+// big enough for all paths, probably
+#define PATHBUF 4096U
+
+static void on_plugin_event(struct dicey_server *const server, struct dicey_plugin_event event) {
+    (void) server;
+    out("info: plugin event %d: {name = %s, path = %s}\n", event.kind, event.info.name, event.info.path);
+}
+
+static char *exedir(char *const dest, size_t *const size) {
+    assert(dest && size && *size);
+
+    char exepath[PATHBUF] = { 0 };
+    size_t psize = PATHBUF;
+
+    if (uv_exepath(exepath, &psize) < 0) {
+        return NULL;
+    }
+
+    char *last_sep = strrchr(exepath, SEPARATOR);
+    if (!last_sep) {
+        return NULL;
+    }
+
+    *last_sep = '\0';
+
+    const size_t dsize = strlen(exepath);
+
+    if (dsize + 1 >= *size) {
+        return NULL;
+    }
+
+    *size = dsize;
+
+    return memcpy(dest, exepath, dsize + 1); // copy null pointer
+}
+
+char *plugin_path(char *const dest, size_t *const size) {
+    assert(dest && size && *size);
+
+    char dirbuf[PATHBUF] = { 0 };
+    size_t dsize = PATHBUF;
+
+    char *const dir = exedir(dirbuf, &dsize);
+    if (!dir) {
+        return NULL;
+    }
+
+    const size_t req_size = dsize + 1 + sizeof DUMMY_PLUGIN; // dirpath + separator + plugin name + null terminator
+    if (req_size >= *size) {
+        return NULL;
+    }
+
+    *size = req_size;
+    (void) snprintf(dest, req_size, "%s%c" DUMMY_PLUGIN, dir, SEPARATOR);
+
+    return dest;
+}
+
+enum dicey_error spawn_dummy_plugin(struct dicey_server *const server) {
+    assert(server);
+
+    char pathbuf[PATHBUF] = { 0 };
+    size_t pathsize = PATHBUF;
+
+    char *const path = plugin_path(pathbuf, &pathsize);
+    if (!path) {
+        return DICEY_EINVAL;
+    }
+
+    return dicey_server_spawn_plugin_and_wait(server, path, NULL);
+}
+
+#endif // DICEY_HAS_PLUGINS
+
 static void on_request_received(
     struct dicey_server *const server,
     const struct dicey_client_info *const cln,
@@ -1115,9 +1199,6 @@ struct thread_args {
 static void server_thread(void *arg) {
     struct thread_args *const args = arg;
 
-    struct server_ctx *const ctx = dicey_server_get_context(args->server);
-    assert(ctx);
-
     // ignore the error here - we'll get it from the callback
     (void) dicey_server_start(global_server, args->addr);
 }
@@ -1125,16 +1206,18 @@ static void server_thread(void *arg) {
 static enum dicey_error spawn_server_thread(uv_thread_t *const tid, struct thread_args *const args) {
     assert(tid && args && args->server && args->addr.addr);
 
-    struct server_ctx *const ctx = dicey_server_get_context(args->server);
+    struct dicey_server *const server = args->server;
+
+    struct server_ctx *const ctx = dicey_server_get_context(server);
     assert(ctx);
 
-    int err = uv_sem_init(&ctx->startup_sem, 0);
-    if (err) {
+    int uverr = uv_sem_init(&ctx->startup_sem, 0);
+    if (uverr) {
         return DICEY_EUV_UNKNOWN;
     }
 
-    err = uv_thread_create(tid, &server_thread, args);
-    if (err) {
+    uverr = uv_thread_create(tid, &server_thread, args);
+    if (uverr) {
         uv_sem_destroy(&ctx->startup_sem);
 
         return DICEY_EUV_UNKNOWN;
@@ -1143,16 +1226,23 @@ static enum dicey_error spawn_server_thread(uv_thread_t *const tid, struct threa
     uv_sem_wait(&ctx->startup_sem);
     uv_sem_destroy(&ctx->startup_sem);
 
-    err = uv_thread_join(tid);
+#if DICEY_HAS_PLUGINS
+    const enum dicey_error err = spawn_dummy_plugin(server);
     if (err) {
+        return err;
+    }
+#endif
+
+    uverr = uv_thread_join(tid);
+    if (uverr) {
         return DICEY_EUV_UNKNOWN;
     }
 
     return ctx->startup_err;
 }
 
-int main(const int argc, char *const argv[]) {
-    (void) argc;
+int main(const int argc, char *argv[]) {
+    uv_setup_args(argc, argv);
 
     const char *const progname = argv[0];
 
@@ -1197,11 +1287,12 @@ int main(const int argc, char *const argv[]) {
     enum dicey_error err = dicey_server_new(
         &global_server,
         &(struct dicey_server_args) {
-            .on_connect = &on_client_connect,
-            .on_disconnect = &on_client_disconnect,
-            .on_error = &on_client_error,
-            .on_request = &on_request_received,
-            .on_startup = &on_startup_done,
+            .on_connect = &on_client_connect, .on_disconnect = &on_client_disconnect, .on_error = &on_client_error,
+            .on_request = &on_request_received, .on_startup = &on_startup_done,
+
+#if DICEY_HAS_PLUGINS // this is so ugly
+            .on_plugin_event = &on_plugin_event,
+#endif
         }
     );
 
