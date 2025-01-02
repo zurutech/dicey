@@ -14,6 +14,14 @@
  * limitations under the License.
  */
 
+#include "dicey_config.h"
+
+#if defined(DICEY_IS_DARWIN)
+// Apple headers are a mess. By including this before defining _XOPEN_SOURCE or _POSIX_SOURCE, the headers correctly
+// define the necessary FreeBSD types.
+#include <sys/types.h>
+#endif
+
 #define _CRT_SECURE_NO_WARNINGS 1
 #define _XOPEN_SOURCE 700
 
@@ -24,8 +32,6 @@
 #include <dicey/core/errors.h>
 
 #include "trace.h"
-
-#include "dicey_config.h"
 
 #if !defined(NDEBUG)
 
