@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2024 Zuru Tech HK Limited, All rights reserved.
+ * Copyright (c) 2024-2025 Zuru Tech HK Limited, All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -75,9 +75,6 @@
  * plugin_deinit(client) -> client_data_deinit(client)
  */
 
-// note: the double cast is necessary to avoid a warning with MSVC
-#define CLIENT_DATA_IS_PLUGIN(CLIENTPTR) ((CLIENTPTR)->is_plugin)
-
 #define METAPLUGIN_FORMAT DICEY_SERVER_PLUGINS_PATH "/%s"
 
 // this is the time the plugin has to start up and handshake with the server before we consider it dead (one second)
@@ -137,6 +134,11 @@ struct dicey_plugin_data {
 
     // spawn metadata
     struct plugin_spawn_metadata spawn_md;
+
+    // store the after cleanup function somewhere during cleanup
+    // this is necessary because the cleanup has to be done in multiple steps to let the various close
+    // variables time to fire before freeing the memory
+    dicey_client_data_after_cleanup_fn *after_cleanup;
 };
 
 struct plugin_spawn_request {
@@ -176,15 +178,45 @@ static void plugin_work_request_cancel(struct plugin_work_request *const elem) {
     plugin_work_request_fail(elem, DICEY_ECANCELLED);
 }
 
-static enum dicey_error plugin_deinit(struct dicey_plugin_data *const data) {
-    enum dicey_error err = DICEY_OK;
+static void plugin_close_timer(uv_handle_t *const timer) {
+    assert(timer);
 
+    struct dicey_plugin_data *const plugin =
+        DICEY_CONTAINEROF((uv_timer_t *) timer, struct dicey_plugin_data, process_timer);
+    assert(plugin); // unnecessary, for correctness
+
+    // continue by calling the after cleanup callback
+    if (plugin->after_cleanup) {
+        (void) plugin->after_cleanup((struct dicey_client_data *) plugin);
+    }
+}
+
+static void plugin_close_process(uv_handle_t *const proc_handle) {
+    assert(proc_handle);
+
+    struct dicey_plugin_data *const plugin =
+        DICEY_CONTAINEROF((uv_process_t *) proc_handle, struct dicey_plugin_data, process);
+    assert(plugin); // unnecessary, for correctness
+
+    // continue by closing the timer
+    uv_close((uv_handle_t *) &plugin->process_timer, &plugin_close_timer);
+}
+
+static enum dicey_error plugin_deinit(
+    struct dicey_plugin_data *const data,
+    dicey_client_data_after_cleanup_fn *const after_cleanup
+) {
     if (data) {
+        enum dicey_error err = DICEY_OK;
+
         // fail all pending jobs
         plugin_work_list_delete(data->work_list, &plugin_work_request_cancel);
 
         // deregister the plugin from the registry. Set the error for later
-        err = plugin_object_delete(&data->client.parent->registry, data->info.name);
+        // if the plugin never handshaked (i.e. the process crashed immediately) this can be skipped
+        if (data->info.name) {
+            err = plugin_object_delete(&data->client.parent->registry, data->info.name);
+        }
 
         // the strings were either NULL or strdup'd in dicey_plugin_data_set, so we can cast away the const safely
 
@@ -192,13 +224,19 @@ static enum dicey_error plugin_deinit(struct dicey_plugin_data *const data) {
         free((char *) data->info.path);
 
         // if the plugin was ever spawned, we need to close the process and the timer
-        if (data->state != PLUGIN_STATE_INVALID) {
-            uv_close((uv_handle_t *) &data->process, NULL);
-            uv_close((uv_handle_t *) &data->process_timer, NULL);
+        if (data->state == PLUGIN_STATE_INVALID) {
+            return after_cleanup ? after_cleanup((struct dicey_client_data *) data) : DICEY_OK;
         }
-    }
 
-    return err;
+        // set the after cleanup callback for later
+        data->after_cleanup = after_cleanup;
+
+        uv_close((uv_handle_t *) &data->process, &plugin_close_process);
+
+        return err;
+    } else {
+        return after_cleanup ? after_cleanup((struct dicey_client_data *) data) : DICEY_OK;
+    }
 }
 
 static void kill_child(struct dicey_plugin_data *const plugin, const int signal) {
@@ -305,17 +343,7 @@ static enum dicey_error plugin_cleanup_disconnect_data(struct dicey_plugin_data 
     // 3. the child died after we sent the SIGTERM/KILL
     // 4. the exit_cb callback was fired and called this function
     // this finishes up the cleanup
-    enum dicey_error err = plugin_deinit(data);
-
-    if (after_cleanup) {
-        const enum dicey_error after_err = after_cleanup((struct dicey_client_data *) data);
-
-        if (after_err) {
-            err = after_err;
-        }
-    }
-
-    return err;
+    return plugin_deinit(data, after_cleanup);
 }
 
 static enum dicey_error plugin_kill_disconnected(
@@ -374,26 +402,12 @@ static enum dicey_error plugin_data_cleanup(
 
         case PLUGIN_STATE_FAILED:
         case PLUGIN_STATE_COMPLETE:
-            {
-                // the server process is dead already. Just cleanup the plugin data.
-                enum dicey_error err = plugin_deinit(data);
-
-                // continue the cleanup if there's an after_cleanup
-                if (after_cleanup) {
-                    const enum dicey_error after_err = after_cleanup(client);
-                    if (after_err) {
-                        // if there was an error in the after_cleanup, we return that instead of the previous error
-                        // if after_err is DICEY_OK, we return the previous error if any
-                        err = after_err;
-                    }
-                }
-
-                return err;
-            }
+            // the server process is dead already. Just cleanup the plugin data.
+            return plugin_deinit(data, after_cleanup);
 
         default:
-            DICEY_UNREACHABLE(
-            ); // we should never reach this state. We should halt only from failed, complete or running
+            // we should never reach this state. We should halt only from failed, complete or running
+            DICEY_UNREACHABLE();
 
             return DICEY_EAGAIN; // literally a random error
         }
@@ -401,6 +415,9 @@ static enum dicey_error plugin_data_cleanup(
 
     return DICEY_OK;
 }
+
+// note: the double cast is necessary to avoid a warning with MSVC
+#define CLIENT_DATA_IS_PLUGIN(CLIENTPTR) ((CLIENTPTR)->cleanup_cb == &plugin_data_cleanup)
 
 static enum dicey_error client_data_new_plugin(
     struct dicey_server *const server,
@@ -428,6 +445,17 @@ static enum dicey_error client_data_new_plugin(
         free(new_plugin);
 
         return TRACE(DICEY_ENOMEM);
+    }
+
+    // this is a plugin, so the pipe won't be initialised pipe by accept
+    const int uverr = uv_pipe_init(&server->loop, &new_plugin->client.pipe, 0);
+    if (uverr < 0) {
+        // note: cleanup before the cleanup callback is set. This is safe because there's nothing initialised but the
+        // client data itself
+        dicey_client_data_cleanup(&new_plugin->client);
+        free(new_plugin);
+
+        return dicey_error_from_uv(uverr);
     }
 
     // set the cleanup callback

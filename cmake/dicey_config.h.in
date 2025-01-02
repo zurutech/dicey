@@ -26,7 +26,7 @@
 
 #cmakedefine DICEY_CC_IS_GNU_STYLE_CLANG_ON_MSVC
 
-#if defined(DICEY_IS_WINDOWS) && defined(DICEY_CC_IS_CLANG) && !defined(DICEY_CC_IS_GNU_STYLE_CLANG_ON_MSVC)
+#if defined(DICEY_IS_WINDOWS) && defined(DICEY_CC_IS_CLANG) && !defined(DICEY_CC_IS_GNU_STYLE_CLANG_ON_MSVC) && !defined(DICEY_IS_MINGW)
 #define DICEY_CC_IS_CLANG_CL 1
 #endif
 

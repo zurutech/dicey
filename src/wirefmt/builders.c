@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2024 Zuru Tech HK Limited, All rights reserved.
+ * Copyright (c) 2024-2025 Zuru Tech HK Limited, All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -271,6 +271,13 @@ enum dicey_error dicey_message_builder_set_seq(struct dicey_message_builder *con
     return DICEY_OK;
 }
 
+#if defined(DICEY_IS_MINGW) && defined(DICEY_CC_IS_GCC)
+#pragma GCC diagnostic push
+// for some arcane reason GCC on MinGW thinks we're leaking stack memory here - we're not, starts sets and stop unsets
+// _borrowed_to, with no ifs in between
+#pragma GCC diagnostic ignored "-Wdangling-pointer"
+#endif
+
 enum dicey_error dicey_message_builder_set_value(
     struct dicey_message_builder *const builder,
     const struct dicey_arg value
@@ -295,6 +302,10 @@ enum dicey_error dicey_message_builder_set_value(
 
     return err ? err : end_err;
 }
+
+#if defined(DICEY_IS_MINGW) && defined(DICEY_CC_IS_GCC)
+#pragma GCC diagnostic pop
+#endif
 
 enum dicey_error dicey_message_builder_value_start(
     struct dicey_message_builder *const builder,

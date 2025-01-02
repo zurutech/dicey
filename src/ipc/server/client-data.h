@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2024 Zuru Tech HK Limited, All rights reserved.
+ * Copyright (c) 2024-2025 Zuru Tech HK Limited, All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -75,10 +75,6 @@ struct dicey_client_data {
     struct dicey_hashset *subscriptions;
 
     dicey_client_data_cleanup_fn *cleanup_cb;
-
-#if DICEY_HAS_PLUGINS
-    bool is_plugin;
-#endif
 };
 
 enum dicey_error dicey_client_data_cleanup(struct dicey_client_data *client);
