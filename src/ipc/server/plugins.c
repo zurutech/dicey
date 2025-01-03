@@ -77,8 +77,12 @@
 
 #define METAPLUGIN_FORMAT DICEY_SERVER_PLUGINS_PATH "/%s"
 
-// this is the time the plugin has to start up and handshake with the server before we consider it dead (one second)
-#define PLUGIN_TIMEOUT_MS 1000U
+// default time the plugin has to start up and handshake with the server before we consider it dead (one second)
+#define PLUGIN_DEFAULT_TIMEOUT_MS ((uint64_t) 1000)
+
+// if the server has a custom timeout, use that instead of the default
+#define PLUGIN_TIMEOUT_FOR(SERVER)                                                                                     \
+    ((SERVER)->plugin_startup_timeout ? (SERVER)->plugin_startup_timeout : PLUGIN_DEFAULT_TIMEOUT_MS)
 
 #if defined(DICEY_IS_UNIX)
 // on Unix, we have SIGKILL available in signal.h, which immediately terminates the process
@@ -378,10 +382,15 @@ static enum dicey_error plugin_kill_disconnected(
 #if TERM_IS_KILL
     return DICEY_OK; // exit_cb will follow later for cleanup
 #else
+    const struct dicey_server *const server = data->client.parent;
+    assert(server);
+
     // use the timer to wait a while and then wipe everything
     // again, if this fails there's very little that can be done
     // this is a race between the process quitting and the timer: exit_cb will stop the timer if needed
-    return dicey_error_from_uv(uv_timer_start(&data->process_timer, &plugin_terminate_timedout, PLUGIN_TIMEOUT_MS, 0));
+    return dicey_error_from_uv(
+        uv_timer_start(&data->process_timer, &plugin_terminate_timedout, PLUGIN_TIMEOUT_FOR(server), 0)
+    );
 #endif // TERM_IS_KILL
 }
 
@@ -562,6 +571,13 @@ static void plugin_exit_cb(uv_process_t *const proc, const int64_t exit_status, 
     if (err && server->on_error) {
         server->on_error(server, err, info, "failed to cleanup plugin: %s\n", dicey_error_name(err));
     }
+
+    // if there's a spawn wait semaphore, we post the result to it
+    uv_sem_t *const spawn_wait_sem = plugin->spawn_md.spawn_wait_sem;
+    if (spawn_wait_sem) {
+        *plugin->spawn_md.spawn_result = err;
+        uv_sem_post(spawn_wait_sem);
+    }
 }
 
 static void plugin_send_work_data_fail(struct plugin_send_work_data *const work, const enum dicey_error err) {
@@ -636,6 +652,8 @@ static void plugin_no_handshake_timeout(uv_timer_t *const timer) {
 
     // if the plugin is still in the handshake state, we kill it
     if (plugin->state == PLUGIN_STATE_SPAWNED) {
+        plugin_raise_event(plugin, DICEY_PLUGIN_EVENT_UNRESPONSIVE);
+
         // the plugin has not yet completed the handshake, so we kill it (not very nicely)
         kill_child(plugin, KILL_SIGNAL);
 
@@ -687,7 +705,7 @@ static enum dicey_error spawn_child(struct dicey_server *const server, struct di
 
     // start the timer immediately, so that it's already running when we spawn the child.
     // This avoids a race condition where the child starts up before the timer is started.
-    err = dicey_error_from_uv(uv_timer_start(timer, &plugin_no_handshake_timeout, PLUGIN_TIMEOUT_MS, 0));
+    err = dicey_error_from_uv(uv_timer_start(timer, &plugin_no_handshake_timeout, PLUGIN_TIMEOUT_FOR(server), 0));
     if (err) {
         uv_close((uv_handle_t *) timer, NULL);
 
@@ -759,6 +777,9 @@ static enum dicey_error plugin_spawn(
     if (err) {
         goto quit;
     }
+
+    // set the metadata for the handshake
+    new_plugin->spawn_md = md;
 
     err = spawn_child(server, new_plugin);
 
@@ -861,6 +882,31 @@ enum dicey_plugin_state dicey_plugin_data_get_state(const struct dicey_plugin_da
     assert(data);
 
     return data->state;
+}
+
+const char *dicey_plugin_event_kind_to_string(const enum dicey_plugin_event_kind kind) {
+    switch (kind) {
+    case DICEY_PLUGIN_EVENT_SPAWNED:
+        return "spawned";
+
+    case DICEY_PLUGIN_EVENT_READY:
+        return "ready";
+
+    case DICEY_PLUGIN_EVENT_QUITTING:
+        return "quitting";
+
+    case DICEY_PLUGIN_EVENT_QUIT:
+        return "quit";
+
+    case DICEY_PLUGIN_EVENT_FAILED:
+        return "failed";
+
+    case DICEY_PLUGIN_EVENT_UNRESPONSIVE:
+        return "unresponsive";
+
+    default:
+        return "unknown";
+    }
 }
 
 enum dicey_error dicey_server_list_plugins(
@@ -992,6 +1038,10 @@ quit:
             *plugin->spawn_md.spawn_result = err;
             uv_sem_post(spawn_wait_sem);
         }
+
+        // delete the spawn metadata now - it's not needed anymore and it may cause problems later
+        // during the exit_cb if it's not deleted
+        plugin->spawn_md = (struct plugin_spawn_metadata) { 0 };
     }
 
     *out_path = metaplugin_name;

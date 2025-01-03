@@ -1027,9 +1027,13 @@ static enum dicey_error on_timer_start(
 // big enough for all paths, probably
 #define PATHBUF 4096U
 
-static void on_plugin_event(struct dicey_server *const server, struct dicey_plugin_event event) {
+static void on_plugin_event(struct dicey_server *const server, const struct dicey_plugin_event event) {
     (void) server;
-    out("info: plugin event %d: {name = %s, path = %s}\n", event.kind, event.info.name, event.info.path);
+
+    out("info: plugin event \"%s\": {name = \"%s\", path = \"%s\"}\n",
+        dicey_plugin_event_kind_to_string(event.kind),
+        event.info.name ? event.info.name : "N/A (not handshaked yet)",
+        event.info.path);
 }
 
 static char *exedir(char *const dest, size_t *const size) {

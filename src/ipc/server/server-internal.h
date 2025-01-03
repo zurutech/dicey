@@ -74,6 +74,8 @@ struct dicey_server {
 
 #if DICEY_HAS_PLUGINS
     dicey_server_on_plugin_event_fn *on_plugin_event;
+
+    uint64_t plugin_startup_timeout;
 #endif
 
     void *ctx;

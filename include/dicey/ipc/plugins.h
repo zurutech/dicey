@@ -56,6 +56,8 @@ enum dicey_plugin_event_kind {
                                         event */
 };
 
+DICEY_EXPORT const char *dicey_plugin_event_kind_to_string(enum dicey_plugin_event_kind kind);
+
 /**
  * @brief A struct that represents an event that occurred with a plugin.
  */

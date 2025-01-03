@@ -1413,6 +1413,12 @@ enum dicey_error dicey_server_new(struct dicey_server **const dest, const struct
         server->on_request = args->on_request;
         server->on_startup = args->on_startup;
 
+#if defined(DICEY_HAS_PLUGINS)
+        server->on_plugin_event = args->on_plugin_event;
+
+        server->plugin_startup_timeout = args->plugin_startup_timeout;
+#endif
+
         if (args->on_error) {
             server->on_error = args->on_error;
         }

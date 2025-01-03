@@ -114,7 +114,9 @@ struct dicey_server_args {
     dicey_server_on_request_fn *on_request; /**< The callback to be called when a request is received. */
 
 #if DICEY_HAS_PLUGINS
-    dicey_server_on_plugin_event_fn *on_plugin_event;
+    dicey_server_on_plugin_event_fn *on_plugin_event; /**< The callback to be called when a plugin event occurs. */
+
+    uint64_t plugin_startup_timeout; /**< The timeout in ms for a plugin to start up. If not set, it's one second*/
 #endif
 };
 
