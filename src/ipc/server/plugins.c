@@ -738,9 +738,17 @@ static enum dicey_error spawn_child(struct dicey_server *const server, struct di
         return err;
     }
 
-    plugin_change_state(plugin, PLUGIN_STATE_SPAWNED);
+    const size_t id = plugin->client.info.id;
 
-    return DICEY_OK;
+    err = dicey_server_start_reading_from_client_internal(server, id);
+    if (err) {
+        // this should kill the process too
+        (void) dicey_server_remove_client(server, id);
+    } else {
+        plugin_change_state(plugin, PLUGIN_STATE_SPAWNED);
+    }
+
+    return err;
 }
 
 static enum dicey_error plugin_spawn(

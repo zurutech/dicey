@@ -84,4 +84,6 @@ struct dicey_server {
 // raises a signal directly. Must be called in the server's thread
 enum dicey_error dicey_server_raise_internal(struct dicey_server *server, struct dicey_packet packet);
 
+enum dicey_error dicey_server_start_reading_from_client_internal(struct dicey_server *server, size_t id);
+
 #endif // JUYPLEPMAY_SERVER_INTERNAL_H

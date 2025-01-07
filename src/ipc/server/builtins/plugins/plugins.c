@@ -424,13 +424,10 @@ static enum dicey_error handle_plugin_operation(
     }
 
     // internal plugin functions
-    const char *const name = dicey_plugin_name_from_path(src_path);
-    assert(name); // if a plugin path exists then is should be valid
-
     struct dicey_plugin_data *const plugin = dicey_client_data_as_plugin(client);
 
-    if (!plugin || strcmp(dicey_plugin_data_get_info(plugin).name, name)) {
-        return TRACE(DICEY_EACCES); // only the current plugin can respond to its own commands
+    if (!plugin) {
+        return TRACE(DICEY_EACCES); // only plugins can handshake internally for obvious reasons
     }
 
     switch (opcode) {

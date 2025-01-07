@@ -1302,23 +1302,25 @@ static void on_connect(uv_stream_t *const stream, const int status) {
 
     struct dicey_client_data *client = NULL;
 
-    const ptrdiff_t id = server_new_peer(server, &client);
-    if (id < 0) {
-        server->on_error(server, id, NULL, "server_add_client: %s", dicey_error_name(id));
+    const ptrdiff_t result = server_new_peer(server, &client);
+    if (result < 0) {
+        server->on_error(server, result, NULL, "server_add_client: %s", dicey_error_name(result));
 
         return;
     }
 
     assert(client);
 
+    const size_t id = (size_t) result;
+
     const int accept_err = uv_accept(stream, (uv_stream_t *) client);
     if (accept_err) {
         server->on_error(server, dicey_error_from_uv(accept_err), NULL, "uv_accept: %s", uv_strerror(accept_err));
 
-        dicey_server_remove_client(server, (size_t) id);
+        dicey_server_remove_client(server, id);
     }
 
-    if (server->on_connect && !server->on_connect(server, (size_t) id, &client->info.user_data)) {
+    if (server->on_connect && !server->on_connect(server, id, &client->info.user_data)) {
         server->on_error(server, DICEY_ECONNREFUSED, &client->info, "connection refused by user code");
 
         dicey_server_remove_client(server, (size_t) id);
@@ -1326,12 +1328,11 @@ static void on_connect(uv_stream_t *const stream, const int status) {
         return;
     }
 
-    const int err = uv_read_start((uv_stream_t *) client, &alloc_buffer, &on_read);
+    const enum dicey_error err = dicey_server_start_reading_from_client_internal(server, id);
+    if (err) {
+        server->on_error(server, dicey_error_from_uv(err), &client->info, "read_start fail: %s", dicey_error_msg(err));
 
-    if (err < 0) {
-        server->on_error(server, dicey_error_from_uv(err), &client->info, "read_start fail: %s", uv_strerror(err));
-
-        dicey_server_remove_client(server, (size_t) id);
+        dicey_server_remove_client(server, id);
     }
 }
 
@@ -1920,6 +1921,14 @@ fail:
 
         return dicey_error_from_uv(err);
     }
+}
+
+enum dicey_error dicey_server_start_reading_from_client_internal(struct dicey_server *const server, const size_t id) {
+    struct dicey_client_data *const client = dicey_client_list_get_client(server->clients, id);
+
+    const int err = uv_read_start((uv_stream_t *) client, &alloc_buffer, &on_read);
+
+    return dicey_error_from_uv(err);
 }
 
 enum dicey_error dicey_server_stop(struct dicey_server *const server) {
