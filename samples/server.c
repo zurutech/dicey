@@ -1359,11 +1359,9 @@ int main(const int argc, char *argv[]) {
     uv_thread_t tid = { 0 };
     struct thread_args targs = { .server = global_server, .addr = addr };
 
-    const int uverr = spawn_server_thread(&tid, &targs);
-    if (uverr) {
-        err = DICEY_EUV_UNKNOWN;
-
-        fprintf(stderr, "uv_thread_create: %s\n", uv_err_name(uverr));
+    err = spawn_server_thread(&tid, &targs);
+    if (err) {
+        fprintf(stderr, "uv_thread_create: %s\n", dicey_error_msg(err));
 
         goto quit;
     }
