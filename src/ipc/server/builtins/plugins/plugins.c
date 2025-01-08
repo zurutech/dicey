@@ -27,6 +27,8 @@
 #include <dicey/core/value.h>
 #include <dicey/ipc/builtins/plugins.h>
 #include <dicey/ipc/builtins/server.h>
+#include <dicey/ipc/plugins.h>
+#include <dicey/ipc/server.h>
 
 #include "sup/trace.h"
 #include "sup/util.h"
@@ -34,6 +36,7 @@
 #include "ipc/plugin-common.h"
 
 #include "ipc/server/plugins-internal.h"
+#include "ipc/server/server-clients.h"
 
 #include "../builtins.h"
 
@@ -410,17 +413,20 @@ static enum dicey_error handle_plugin_operation(
 
     assert(context && context->registry && client && value && response);
 
+    struct dicey_server *const server = client->parent;
+    assert(server);
+
     switch (opcode) {
     case PLUGIN_OP_LIST:
         if (!dicey_value_is_unit(value)) {
             return TRACE(DICEY_EINVAL);
         }
 
-        return handle_list_plugins(client->parent, response);
+        return handle_list_plugins(server, response);
 
     case PLUGIN_GET_NAME:
     case PLUGIN_GET_PATH:
-        return handle_get_plugin_property(client->parent, src_path, opcode, response);
+        return handle_get_plugin_property(server, src_path, opcode, response);
     }
 
     // internal plugin functions
@@ -432,7 +438,15 @@ static enum dicey_error handle_plugin_operation(
 
     switch (opcode) {
     case PLUGIN_OP_HANDSHAKEINTERNAL:
-        return handle_handshake(client->parent, plugin, value, response);
+        {
+            const enum dicey_error err = handle_handshake(client->parent, plugin, value, response);
+            if (err) {
+                // uncereomoniously kill the plugin if the handshake fails
+                (void) dicey_server_cleanup_id(server, client->info.id);
+            }
+
+            return DICEY_OK; // we don't care about the response, the child will be killed anyway
+        }
 
     case PLUGIN_CMD_RESPONSE:
         return handle_work_response(client->parent, plugin, value);

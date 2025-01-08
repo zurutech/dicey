@@ -404,9 +404,10 @@ static enum dicey_error plugin_data_cleanup(
         assert(data);
 
         switch (data->state) {
-        case PLUGIN_STATE_RUNNING:
-            // The server shut down the pipe and the child must now be reaped nicely on POSIX, and not so nicely on
-            // Windows cleanup will resume later in the exit_cb
+        case PLUGIN_STATE_SPAWNED: // The child did something bad during the handshake
+        case PLUGIN_STATE_RUNNING: // The server shut down the pipe
+            // The child must will now be reaped nicely on POSIX, and not so nicely on
+            // Windows. Cleanup will resume later in the exit_cb
             return plugin_kill_disconnected(data, after_cleanup);
 
         case PLUGIN_STATE_FAILED:
@@ -415,7 +416,7 @@ static enum dicey_error plugin_data_cleanup(
             return plugin_deinit(data, after_cleanup);
 
         default:
-            // we should never reach this state. We should halt only from failed, complete or running
+            // we should never reach this state. We should halt only from spawned, failed, complete or running
             DICEY_UNREACHABLE();
 
             return DICEY_EAGAIN; // literally a random error

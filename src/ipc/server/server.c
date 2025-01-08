@@ -824,8 +824,13 @@ static ptrdiff_t client_got_message(struct dicey_client_data *const client, stru
         // get rid of the request, we don't need it anymore
         dicey_packet_deinit(&packet);
 
+        struct dicey_packet rpkt = outbound_packet_borrow(response);
+
+        if (!dicey_packet_is_valid(rpkt)) {
+            return DICEY_OK; // no response needed for this builtin
+        }
         // set the seq number of the response to match the seq number of the request
-        const enum dicey_error set_err = dicey_packet_set_seq(response.single, seq);
+        const enum dicey_error set_err = dicey_packet_set_seq(rpkt, seq);
         if (set_err) {
             outbound_packet_cleanup(&response);
 
