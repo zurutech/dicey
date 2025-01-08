@@ -1009,10 +1009,14 @@ enum dicey_error dicey_server_plugin_handshake(
     // the name must not be set yet
     assert(!plugin->info.name);
 
-    err = info_dup_to(&plugin->info, (struct dicey_plugin_info) { .name = name, .path = plugin->info.path });
-    if (err) {
+    char *const name_dup = strdup(name);
+    if (!name_dup) {
+        err = TRACE(DICEY_ENOMEM);
+
         goto quit;
     }
+
+    plugin->info.name = name_dup;
 
     // create the plugin object
     metaplugin_name = dicey_registry_format_metaname(&server->registry, METAPLUGIN_FORMAT, name);

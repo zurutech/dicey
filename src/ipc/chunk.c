@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+#define _XOPEN_SOURCE 700
+
 #include "chunk.h"
 
 #include <assert.h>

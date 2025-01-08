@@ -81,6 +81,13 @@ struct dicey_server {
     void *ctx;
 };
 
+// the client raised an error; send bye and kick
+enum dicey_error dicey_server_client_raised_error(
+    struct dicey_server *server,
+    struct dicey_client_data *client,
+    enum dicey_error err
+);
+
 // raises a signal directly. Must be called in the server's thread
 enum dicey_error dicey_server_raise_internal(struct dicey_server *server, struct dicey_packet packet);
 

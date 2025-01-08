@@ -874,19 +874,6 @@ static ptrdiff_t client_got_message(struct dicey_client_data *const client, stru
     return CLIENT_DATA_STATE_RUNNING;
 }
 
-static enum dicey_error client_raised_error(struct dicey_client_data *client, const enum dicey_error err) {
-    assert(client);
-
-    struct dicey_server *const server = client->parent;
-    assert(server);
-
-    client->state = CLIENT_DATA_STATE_DEAD;
-
-    server->on_error(server, err, &client->info, "client error: %s", dicey_error_name(err));
-
-    return server_kick_client(server, client, DICEY_BYE_REASON_ERROR);
-}
-
 static enum dicey_error client_got_packet(struct dicey_client_data *client, struct dicey_packet packet) {
     assert(client && dicey_packet_is_valid(packet));
 
@@ -934,7 +921,7 @@ static enum dicey_error client_got_packet(struct dicey_client_data *client, stru
     }
 
     if (err < 0) {
-        return client_raised_error(client, err);
+        return dicey_server_client_raised_error(client->parent, client, err);
     } else {
         client->state = (enum dicey_client_data_state) err;
         return DICEY_OK;
@@ -1050,7 +1037,7 @@ static void on_read(uv_stream_t *const stream, const ssize_t nread, const uv_buf
         break; // not enough data to parse a packet
 
     default:
-        DICEY_UNUSED(client_raised_error(client, err));
+        DICEY_UNUSED(dicey_server_client_raised_error(client->parent, client, err));
 
         break;
     }
@@ -1751,6 +1738,20 @@ enum dicey_error dicey_server_raise_and_wait(struct dicey_server *const server, 
     DICEY_SERVER_LOOP_SET_PAYLOAD(req, struct dicey_packet, &packet);
 
     return dicey_server_blocking_request(server, req);
+}
+
+enum dicey_error dicey_server_client_raised_error(
+    struct dicey_server *server,
+    struct dicey_client_data *const client,
+    const enum dicey_error err
+) {
+    assert(client && server);
+
+    client->state = CLIENT_DATA_STATE_DEAD;
+
+    server->on_error(server, err, &client->info, "client error: %s", dicey_error_name(err));
+
+    return server_kick_client(server, client, DICEY_BYE_REASON_ERROR);
 }
 
 enum dicey_error dicey_server_raise_internal(struct dicey_server *const server, struct dicey_packet packet) {

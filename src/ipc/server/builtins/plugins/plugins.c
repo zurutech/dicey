@@ -37,6 +37,7 @@
 
 #include "ipc/server/plugins-internal.h"
 #include "ipc/server/server-clients.h"
+#include "ipc/server/server-internal.h"
 
 #include "../builtins.h"
 
@@ -439,10 +440,10 @@ static enum dicey_error handle_plugin_operation(
     switch (opcode) {
     case PLUGIN_OP_HANDSHAKEINTERNAL:
         {
-            const enum dicey_error err = handle_handshake(client->parent, plugin, value, response);
+            const enum dicey_error err = handle_handshake(server, plugin, value, response);
             if (err) {
                 // uncereomoniously kill the plugin if the handshake fails
-                (void) dicey_server_cleanup_id(server, client->info.id);
+                (void) dicey_server_client_raised_error(server, client, err);
             }
 
             return DICEY_OK; // we don't care about the response, the child will be killed anyway
