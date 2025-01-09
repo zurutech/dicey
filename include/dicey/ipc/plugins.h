@@ -49,7 +49,8 @@ struct dicey_plugin_info {
 enum dicey_plugin_event_kind {
     DICEY_PLUGIN_EVENT_SPAWNED,      /**< A plugin was spawned; it hasn't handshaked yet, and still is not registered */
     DICEY_PLUGIN_EVENT_READY,        /**< A plugin was loaded. It is now registered and ready to be used */
-    DICEY_PLUGIN_EVENT_QUITTING,     /**< A plugin is quitting. Meaningless on Windows */
+    DICEY_PLUGIN_EVENT_TERMINATED,   /**< A plugin was sent SIGTERM. Meaningless on Windows */
+    DICEY_PLUGIN_EVENT_QUITTING,     /**< A plugin has communicated its intention to quit */
     DICEY_PLUGIN_EVENT_QUIT,         /**< A plugin quit cleanly */
     DICEY_PLUGIN_EVENT_FAILED,       /**< A plugin returned non-zero */
     DICEY_PLUGIN_EVENT_UNRESPONSIVE, /**< A plugin was killed because it failed to handshake in time. Expect a FAILED
@@ -135,10 +136,11 @@ struct dicey_server_plugin_work_builder {
 };
 
 /**
- * @brief Deinitialises a previously initialised plugin instance.
+ * @brief Disconnects and deinitialises a previously initialised plugin instance.
+ * @note  The server will automatically terminate the plugin after a while if it is still running.
  * @note  This invalidates the plugin instance and all pointer borrowed from it, including work contexts.
  */
-DICEY_EXPORT void dicey_plugin_delete(struct dicey_plugin *plugin);
+DICEY_EXPORT enum dicey_error dicey_plugin_finish(struct dicey_plugin *plugin);
 
 /**
  * @brief Gets the client associated with a plugin.

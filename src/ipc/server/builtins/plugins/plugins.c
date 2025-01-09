@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+#include "dicey/core/errors.h"
 #define _XOPEN_SOURCE 700
 
 #include <assert.h>
@@ -46,6 +47,7 @@
 enum plugin_op {
     PLUGIN_OP_LIST,
     PLUGIN_OP_HANDSHAKEINTERNAL,
+    PLUGIN_OP_QUITTINGINTERNAL,
     PLUGIN_GET_NAME,
     PLUGIN_GET_PATH,
     PLUGIN_CMD_RESPONSE,
@@ -93,6 +95,12 @@ static const struct dicey_default_element plugin_elements[] = {
      .name = PLUGIN_COMMAND_SIGNAL_NAME,
      .type = DICEY_ELEMENT_TYPE_SIGNAL,
      .signature = PLUGIN_COMMAND_SIGNAL_SIG,
+     .flags = DICEY_ELEMENT_INTERNAL,
+     },
+    {
+     .name = PLUGIN_QUITTING_OP_NAME,
+     .type = DICEY_ELEMENT_TYPE_OPERATION,
+     .signature = PLUGIN_QUITTING_OP_SIG,
      .flags = DICEY_ELEMENT_INTERNAL,
      },
     {
@@ -151,42 +159,6 @@ static enum dicey_error craft_handshake_reply(
     }
 
     return dicey_message_builder_build(builder, response);
-}
-
-static enum dicey_error handle_handshake(
-    struct dicey_server *server,
-    struct dicey_plugin_data *const plugin,
-    const struct dicey_value *const value,
-    struct dicey_packet *const response
-) {
-    assert(server && plugin && value && response);
-
-    const char *name = NULL;
-    enum dicey_error err = dicey_value_get_str(value, &name);
-    if (err) {
-        return err;
-    }
-
-    const char *obj_path = NULL;
-    err = dicey_server_plugin_handshake(server, plugin, name, &obj_path);
-    if (err) {
-        return err;
-    }
-
-    assert(obj_path);
-
-    struct dicey_message_builder builder = { 0 };
-    err = dicey_message_builder_init(&builder);
-    if (err) {
-        return err;
-    }
-
-    err = craft_handshake_reply(&builder, obj_path, response);
-    if (err) {
-        dicey_message_builder_discard(&builder);
-    }
-
-    return err;
 }
 
 static enum dicey_error handle_get_plugin_property(
@@ -259,6 +231,42 @@ static enum dicey_error handle_get_plugin_property(
 
 quit:
     dicey_message_builder_discard(&builder);
+
+    return err;
+}
+
+static enum dicey_error handle_handshake(
+    struct dicey_server *server,
+    struct dicey_plugin_data *const plugin,
+    const struct dicey_value *const value,
+    struct dicey_packet *const response
+) {
+    assert(server && plugin && value && response);
+
+    const char *name = NULL;
+    enum dicey_error err = dicey_value_get_str(value, &name);
+    if (err) {
+        return err;
+    }
+
+    const char *obj_path = NULL;
+    err = dicey_server_plugin_handshake(server, plugin, name, &obj_path);
+    if (err) {
+        return err;
+    }
+
+    assert(obj_path);
+
+    struct dicey_message_builder builder = { 0 };
+    err = dicey_message_builder_init(&builder);
+    if (err) {
+        return err;
+    }
+
+    err = craft_handshake_reply(&builder, obj_path, response);
+    if (err) {
+        dicey_message_builder_discard(&builder);
+    }
 
     return err;
 }
@@ -400,6 +408,38 @@ static enum dicey_error handle_work_response(
     return dicey_server_plugin_report_work_done(server, plugin, response.jid, &response.value);
 }
 
+static enum dicey_error handle_quitting(
+    struct dicey_server *const server,
+    struct dicey_plugin_data *const plugin,
+    const char *const src_path,
+    struct dicey_packet *const response
+) {
+    assert(server && plugin && src_path && response);
+
+    // the plugin indicated its intention to quit. We unregister it, we give it a reasonable timeout to exit and then we
+    // kill it if it doesn't quit in time
+
+    const enum dicey_error err = dicey_packet_message(
+        response,
+        DICEY_OP_RESPONSE,
+        0U,
+        src_path,
+        (struct dicey_selector) {
+            .trait = DICEY_PLUGIN_TRAIT_NAME,
+            .elem = PLUGIN_QUITTING_OP_NAME,
+        },
+        (struct dicey_arg) {
+            .type = DICEY_TYPE_UNIT,
+        }
+    );
+
+    if (err) {
+        return err;
+    }
+
+    return dicey_server_plugin_quitting(server, plugin);
+}
+
 static enum dicey_error handle_plugin_operation(
     struct dicey_builtin_context *const context,
     const uint8_t opcode,
@@ -434,7 +474,7 @@ static enum dicey_error handle_plugin_operation(
     struct dicey_plugin_data *const plugin = dicey_client_data_as_plugin(client);
 
     if (!plugin) {
-        return TRACE(DICEY_EACCES); // only plugins can handshake internally for obvious reasons
+        return TRACE(DICEY_EACCES); // only plugins can do internal plugin operations for obvious reasons
     }
 
     switch (opcode) {
@@ -447,6 +487,19 @@ static enum dicey_error handle_plugin_operation(
             }
 
             return DICEY_OK; // we don't care about the response, the child will be killed anyway
+        }
+
+    case PLUGIN_OP_QUITTINGINTERNAL:
+        {
+            const char *const plugin_name = dicey_plugin_name_from_path(src_path);
+            assert(plugin_name); // if this is not a plugin path there's a bug
+
+            if (strcmp(plugin_name, dicey_plugin_data_get_info(plugin).name)) {
+                // disallow doing nasty things with other plugins' stuff
+                return TRACE(DICEY_EACCES);
+            }
+
+            return handle_quitting(server, plugin, src_path, response);
         }
 
     case PLUGIN_CMD_RESPONSE:

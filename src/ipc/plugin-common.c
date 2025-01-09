@@ -17,6 +17,7 @@
 #define _XOPEN_SOURCE 700
 
 #include <assert.h>
+#include <stddef.h>
 #include <string.h>
 
 #include <dicey/ipc/builtins/plugins.h>
@@ -28,11 +29,15 @@
 const char *dicey_plugin_name_from_path(const char *const path) {
     assert(path);
 
-    if (strncmp(path, METAPLUGIN_PREFIX, sizeof METAPLUGIN_PREFIX - 1)) {
+    const size_t meta_len = sizeof METAPLUGIN_PREFIX - 1;
+
+    if (strncmp(path, METAPLUGIN_PREFIX, meta_len)) {
         return NULL; // has to start with the prefix
     }
 
-    const char *const name = path + sizeof METAPLUGIN_PREFIX - 1;
+    // we assume the input is correctly null-terminated. If path == METAPLUGIN_PREFIX, this is the null byte
+    // and it will be properly handled by the check below
+    const char *const name = path + meta_len;
 
     return dicey_string_is_valid_plugin_name(name) ? name : NULL;
 }

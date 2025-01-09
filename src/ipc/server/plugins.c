@@ -284,7 +284,11 @@ static void plugin_change_state(struct dicey_plugin_data *const plugin, const en
         plugin_raise_event(plugin, DICEY_PLUGIN_EVENT_READY);
         break;
 
-    case PLUGIN_STATE_DISCONNECTED:
+    case PLUGIN_STATE_TERMINATED:
+        plugin_raise_event(plugin, DICEY_PLUGIN_EVENT_TERMINATED);
+        break;
+
+    case PLUGIN_STATE_QUITTING:
         plugin_raise_event(plugin, DICEY_PLUGIN_EVENT_QUITTING);
         break;
 
@@ -308,22 +312,18 @@ static void plugin_change_state(struct dicey_plugin_data *const plugin, const en
 // if TERM_SIGNAL is equal to KILL_SIGNAL, we can't really ask the process to quit nicely
 #define TERM_IS_KILL (TERM_SIGNAL == KILL_SIGNAL)
 
-#if !TERM_IS_KILL
-// disconnect policy: send SIGTERM and wait for the process to exit
-
 static void plugin_terminate_timedout(uv_timer_t *const timer) {
     assert(timer);
 
     struct dicey_plugin_data *const plugin = DICEY_CONTAINEROF(timer, struct dicey_plugin_data, process_timer);
-    assert(plugin && plugin->state == PLUGIN_STATE_DISCONNECTED);
+    assert(plugin && (plugin->state == PLUGIN_STATE_TERMINATED || plugin->state == PLUGIN_STATE_QUITTING));
 
-    // the plugin did not answer to a SIGTERM, so we must kill it with SIGKILL
+    // the plugin did not answer to a SIGTERM or failed to quit after saying so
+    // we assume it crashed, so we must kill it with SIGKILL
     kill_child(plugin, KILL_SIGNAL);
 
     // exit_cb should fire now
 }
-
-#endif // TERM_SIGNAL == KILL_SIGNAL
 
 struct plugin_terminate_state {
     dicey_client_data_after_cleanup_fn *after_cleanup;
@@ -374,7 +374,7 @@ static enum dicey_error plugin_kill_disconnected(
         data->process_timer.data = state;
     }
 
-    plugin_change_state(data, PLUGIN_STATE_DISCONNECTED);
+    plugin_change_state(data, PLUGIN_STATE_TERMINATED);
 
     // send SIGTERM to the child
     kill_child(data, TERM_SIGNAL);
@@ -553,8 +553,13 @@ static void plugin_exit_cb(uv_process_t *const proc, const int64_t exit_status, 
     struct dicey_plugin_data *const plugin = DICEY_CONTAINEROF(proc, struct dicey_plugin_data, process);
     assert(plugin); // useless check, but it's here for clarity
 
+    // stop the timeout timer if it's still running
+    if (uv_is_active((uv_handle_t *) &plugin->process_timer)) {
+        uv_timer_stop(&plugin->process_timer);
+    }
+
     // true if we sent the process SIGTERM (not SIGKILL) and we were waiting for it to close
-    const bool was_disconnected = plugin->state == PLUGIN_STATE_DISCONNECTED;
+    const bool was_terminated = plugin->state == PLUGIN_STATE_TERMINATED;
 
     const bool failed = exit_status != EXIT_SUCCESS || term_signal;
 
@@ -568,7 +573,7 @@ static void plugin_exit_cb(uv_process_t *const proc, const int64_t exit_status, 
     // if the process was asked to quit with a SIGTERM, it was because the pipe was closed before it could quit
     // therefore we were already in the middle of a dicey_server_remove_client call that got suspended
     const enum dicey_error err =
-        was_disconnected ? plugin_cleanup_disconnect_data(plugin) : dicey_server_remove_client(server, info->id);
+        was_terminated ? plugin_cleanup_disconnect_data(plugin) : dicey_server_remove_client(server, info->id);
     if (err && server->on_error) {
         server->on_error(server, err, info, "failed to cleanup plugin: %s\n", dicey_error_name(err));
     }
@@ -901,6 +906,9 @@ const char *dicey_plugin_event_kind_to_string(const enum dicey_plugin_event_kind
     case DICEY_PLUGIN_EVENT_READY:
         return "ready";
 
+    case DICEY_PLUGIN_EVENT_TERMINATED:
+        return "terminated";
+
     case DICEY_PLUGIN_EVENT_QUITTING:
         return "quitting";
 
@@ -1108,6 +1116,51 @@ enum dicey_error dicey_server_plugin_report_work_done(
     return DICEY_OK;
 }
 
+enum dicey_error dicey_server_plugin_send_work(
+    struct dicey_server *const server,
+    const char *const plugin,
+    const struct dicey_arg payload,
+    dicey_server_plugin_on_work_done_fn *const on_done,
+    void *const ctx
+) {
+    assert(server && plugin && on_done && dicey_type_is_valid(payload.type));
+
+    struct dicey_server_plugin_work_builder builder = { 0 };
+    struct dicey_value_builder value = { 0 };
+
+    enum dicey_error err = dicey_server_plugin_work_request_start(server, plugin, &builder, &value);
+    if (err) {
+        return err;
+    }
+
+    err = dicey_value_builder_set(&value, payload);
+    if (err) {
+        dicey_server_plugin_work_builder_discard(&builder);
+
+        return err;
+    }
+
+    return dicey_server_plugin_work_request_submit(server, &builder, on_done, ctx);
+}
+
+enum dicey_error dicey_server_plugin_quitting(
+    struct dicey_server *const server,
+    struct dicey_plugin_data *const plugin
+) {
+    assert(server && plugin);
+
+    if (plugin->state != PLUGIN_STATE_RUNNING) {
+        return TRACE(DICEY_EINVAL);
+    }
+
+    plugin_change_state(plugin, PLUGIN_STATE_QUITTING);
+    dicey_client_data_set_state((struct dicey_client_data *) plugin, CLIENT_DATA_STATE_QUITTING);
+
+    return dicey_error_from_uv(
+        uv_timer_start(&plugin->process_timer, &plugin_terminate_timedout, PLUGIN_TIMEOUT_FOR(server), 0)
+    );
+}
+
 enum dicey_error dicey_server_spawn_plugin(struct dicey_server *const server, const char *const path) {
     assert(server && path);
 
@@ -1162,33 +1215,6 @@ enum dicey_error dicey_server_spawn_plugin_and_wait(
     }
 
     return sync_result;
-}
-
-enum dicey_error dicey_server_plugin_send_work(
-    struct dicey_server *const server,
-    const char *const plugin,
-    const struct dicey_arg payload,
-    dicey_server_plugin_on_work_done_fn *const on_done,
-    void *const ctx
-) {
-    assert(server && plugin && on_done && dicey_type_is_valid(payload.type));
-
-    struct dicey_server_plugin_work_builder builder = { 0 };
-    struct dicey_value_builder value = { 0 };
-
-    enum dicey_error err = dicey_server_plugin_work_request_start(server, plugin, &builder, &value);
-    if (err) {
-        return err;
-    }
-
-    err = dicey_value_builder_set(&value, payload);
-    if (err) {
-        dicey_server_plugin_work_builder_discard(&builder);
-
-        return err;
-    }
-
-    return dicey_server_plugin_work_request_submit(server, &builder, on_done, ctx);
 }
 
 void dicey_server_plugin_work_builder_discard(struct dicey_server_plugin_work_builder *builder) {

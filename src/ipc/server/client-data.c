@@ -105,6 +105,12 @@ struct dicey_client_data *dicey_client_data_init(
     return client;
 }
 
+enum dicey_client_data_state dicey_client_data_get_state(const struct dicey_client_data *const client) {
+    assert(client);
+
+    return client->state;
+}
+
 struct dicey_client_data *dicey_client_data_new(struct dicey_server *const parent, const size_t id) {
     // ok, we should malloc + *client = (struct dicey_client_data) { 0 } here instead, but really, where will this
     // not work?
@@ -124,6 +130,12 @@ struct dicey_client_data *dicey_client_data_new(struct dicey_server *const paren
 
 bool dicey_client_data_is_subscribed(const struct dicey_client_data *const client, const char *const elemdescr) {
     return dicey_hashset_contains(client->subscriptions, elemdescr);
+}
+
+void dicey_client_data_set_state(struct dicey_client_data *const client, const enum dicey_client_data_state state) {
+    assert(client && client->state != CLIENT_DATA_STATE_DEAD);
+
+    client->state = state;
 }
 
 enum dicey_error dicey_client_data_subscribe(struct dicey_client_data *const client, const char *const elemdescr) {

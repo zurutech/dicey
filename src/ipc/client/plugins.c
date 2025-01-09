@@ -386,7 +386,7 @@ static void quit_immediately(void) {
     exit(EXIT_FAILURE);
 }
 
-void dicey_plugin_delete(struct dicey_plugin *const plugin) {
+enum dicey_error dicey_plugin_finish(struct dicey_plugin *const plugin) {
     if (plugin) {
         uv_mutex_lock(&plugin->list_lock);
 
@@ -395,8 +395,24 @@ void dicey_plugin_delete(struct dicey_plugin *const plugin) {
         // this way, when deinit attempts to stop the client, the loop will not be stuck waiting for the lock
         uv_mutex_unlock(&plugin->list_lock);
 
-        // first, deinit the client. After this we know we will not get any more requests
-        dicey_client_deinit(&plugin->client);
+        struct dicey_client *const client = (struct dicey_client *) plugin;
+
+        // first, tell the client we're quitting (best effort). After this we know we will not get any more requests
+        enum dicey_error err = dicey_client_exec(
+            client,
+            plugin->dicey_path,
+            (struct dicey_selector) {
+                .trait = DICEY_PLUGIN_TRAIT_NAME,
+                .elem = PLUGIN_QUITTING_OP_NAME,
+            },
+            (struct dicey_arg) { .type = DICEY_TYPE_UNIT },
+            &(struct dicey_packet) { 0 }, /* we don't care about the response */
+            CLIENT_DEFAULT_TIMEOUT
+        );
+
+        err = dicey_client_disconnect(client);
+
+        dicey_client_deinit(client);
 
         free(plugin->dicey_path);
 
@@ -405,7 +421,15 @@ void dicey_plugin_delete(struct dicey_plugin *const plugin) {
         uv_mutex_destroy(&plugin->list_lock);
 
         free(plugin);
+
+        return err;
     }
+
+    return DICEY_EINVAL;
+}
+
+struct dicey_client *dicey_plugin_get_client(struct dicey_plugin *const plugin) {
+    return (struct dicey_client *) plugin;
 }
 
 enum dicey_error dicey_plugin_init(
@@ -448,7 +472,7 @@ enum dicey_error dicey_plugin_init(
 
     err = dicey_error_from_uv(uv_mutex_init(&plugin->list_lock));
     if (err) {
-        dicey_plugin_delete(plugin);
+        dicey_plugin_finish(plugin);
 
         return err;
     }
@@ -459,14 +483,14 @@ enum dicey_error dicey_plugin_init(
 
     err = dicey_client_open_fd(&plugin->client, DICEY_PLUGIN_FD);
     if (err) {
-        dicey_plugin_delete(plugin);
+        dicey_plugin_finish(plugin);
 
         return err;
     }
 
     err = plugin_client_handshake(plugin, name);
     if (err) {
-        dicey_plugin_delete(plugin);
+        dicey_plugin_finish(plugin);
 
         return err;
     }

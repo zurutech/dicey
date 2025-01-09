@@ -22,7 +22,8 @@ enum dicey_plugin_state {
     PLUGIN_STATE_RUNNING, // the child is running and has handshaked with the server
 
     // quitting states
-    PLUGIN_STATE_DISCONNECTED, // the child has no working pipe anymore, so it was sent a signal to quit
+    PLUGIN_STATE_TERMINATED, // the child has no working pipe anymore, so it was sent a SIGTERM (Unix only)
+    PLUGIN_STATE_QUITTING,   // the child has communicated its intention of quitting via IPC
 
     // final states
     PLUGIN_STATE_FAILED,   // the child is dead; either it failed to handshake or it returned a non-zero exit code
@@ -36,6 +37,8 @@ struct dicey_plugin_data *dicey_client_data_as_plugin(struct dicey_client_data *
 struct dicey_plugin_info dicey_plugin_data_get_info(const struct dicey_plugin_data *data);
 enum dicey_plugin_state dicey_plugin_data_get_state(const struct dicey_plugin_data *data);
 
+struct dicey_plugin_data *dicey_server_plugin_find_by_name(const struct dicey_server *server, const char *name);
+
 enum dicey_error dicey_server_plugin_handshake(
     struct dicey_server *server,
     struct dicey_plugin_data *plugin,
@@ -43,14 +46,14 @@ enum dicey_error dicey_server_plugin_handshake(
     const char **obj_path // careful - borrowed from the registry, do not store!
 );
 
-struct dicey_plugin_data *dicey_server_plugin_find_by_name(const struct dicey_server *server, const char *name);
-
 enum dicey_error dicey_server_plugin_report_work_done(
     struct dicey_server *server,
     struct dicey_plugin_data *plugin,
     uint64_t jid,
     const struct dicey_value *value
 );
+
+enum dicey_error dicey_server_plugin_quitting(struct dicey_server *server, struct dicey_plugin_data *plugin);
 
 bool dicey_string_is_valid_plugin_name(const char *name);
 

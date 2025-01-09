@@ -661,7 +661,11 @@ static ptrdiff_t client_got_bye(struct dicey_client_data *client, const struct d
 
     assert(client);
 
-    dicey_server_remove_client(client->parent, client->info.id);
+    // if a client is in a quitting state, we assume it still has stuff to do (i.e., it's a plugin for instance)
+    // we keep it around and hope the server will collect this when the time is right
+    if (dicey_client_data_get_state(client) != CLIENT_DATA_STATE_QUITTING) {
+        dicey_server_remove_client(client->parent, client->info.id);
+    }
 
     return CLIENT_DATA_STATE_DEAD;
 }
@@ -676,7 +680,7 @@ static ptrdiff_t client_got_hello(
     struct dicey_server *const server = client->parent;
     assert(server);
 
-    if (client->state != CLIENT_DATA_STATE_CONNECTED) {
+    if (dicey_client_data_get_state(client) != CLIENT_DATA_STATE_CONNECTED) {
         return TRACE(DICEY_EINVAL);
     }
 
@@ -726,7 +730,7 @@ static ptrdiff_t client_got_message(struct dicey_client_data *const client, stru
         return TRACE(DICEY_EINVAL);
     }
 
-    if (client->state != CLIENT_DATA_STATE_RUNNING) {
+    if (dicey_client_data_get_state(client) != CLIENT_DATA_STATE_RUNNING) {
         return TRACE(DICEY_EINVAL);
     }
 
@@ -923,7 +927,8 @@ static enum dicey_error client_got_packet(struct dicey_client_data *client, stru
     if (err < 0) {
         return dicey_server_client_raised_error(client->parent, client, err);
     } else {
-        client->state = (enum dicey_client_data_state) err;
+        dicey_client_data_set_state(client, (enum dicey_client_data_state) err);
+
         return DICEY_OK;
     }
 }
@@ -1747,7 +1752,7 @@ enum dicey_error dicey_server_client_raised_error(
 ) {
     assert(client && server);
 
-    client->state = CLIENT_DATA_STATE_DEAD;
+    dicey_client_data_set_state(client, CLIENT_DATA_STATE_DEAD);
 
     server->on_error(server, err, &client->info, "client error: %s", dicey_error_name(err));
 

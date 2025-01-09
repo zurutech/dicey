@@ -29,10 +29,13 @@
 /*
  *     // internal plugin communication. Don't call directly
  *     signal Command: {tc} // job number + an enumeration of plugin commands (private)
- *     Reply: {tv} -> $    // reply to a command (private)
+ *     Quitting: $ -> $     // the plugin communicates its intention to quit
+ *     Reply: {tv} -> $     // reply to a command (private)
  */
 #define PLUGIN_COMMAND_SIGNAL_NAME "Command"
 #define PLUGIN_COMMAND_SIGNAL_SIG "(tcv)"
+#define PLUGIN_QUITTING_OP_NAME "Quitting"
+#define PLUGIN_QUITTING_OP_SIG "$ -> $"
 #define PLUGIN_REPLY_OP_NAME "Reply"
 #define PLUGIN_REPLY_OP_SIG "{tv} -> $"
 

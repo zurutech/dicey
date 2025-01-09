@@ -43,6 +43,7 @@
 enum dicey_client_data_state {
     CLIENT_DATA_STATE_CONNECTED,
     CLIENT_DATA_STATE_RUNNING,
+    CLIENT_DATA_STATE_QUITTING, // the client hasn't yet disconnected, but it will soon
     CLIENT_DATA_STATE_DEAD,
 };
 
@@ -78,13 +79,17 @@ struct dicey_client_data {
 };
 
 enum dicey_error dicey_client_data_cleanup(struct dicey_client_data *client);
+
 struct dicey_client_data *dicey_client_data_init(
     struct dicey_client_data *client,
     struct dicey_server *parent,
     size_t id
 );
-struct dicey_client_data *dicey_client_data_new(struct dicey_server *parent, size_t id);
+
+enum dicey_client_data_state dicey_client_data_get_state(const struct dicey_client_data *client);
 bool dicey_client_data_is_subscribed(const struct dicey_client_data *client, const char *elemdescr);
+struct dicey_client_data *dicey_client_data_new(struct dicey_server *parent, size_t id);
+void dicey_client_data_set_state(struct dicey_client_data *client, enum dicey_client_data_state state);
 enum dicey_error dicey_client_data_subscribe(struct dicey_client_data *client, const char *elemdescr);
 bool dicey_client_data_unsubscribe(struct dicey_client_data *client, const char *elemdescr);
 
