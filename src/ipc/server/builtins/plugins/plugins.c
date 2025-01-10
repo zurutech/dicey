@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 
-#include "dicey/core/errors.h"
 #define _XOPEN_SOURCE 700
 
 #include <assert.h>
@@ -25,6 +24,7 @@
 #include <string.h>
 
 #include <dicey/core/builders.h>
+#include <dicey/core/errors.h>
 #include <dicey/core/value.h>
 #include <dicey/ipc/builtins/plugins.h>
 #include <dicey/ipc/builtins/server.h>
@@ -36,6 +36,7 @@
 
 #include "ipc/plugin-common.h"
 
+#include "ipc/server/client-data.h"
 #include "ipc/server/plugins-internal.h"
 #include "ipc/server/server-clients.h"
 #include "ipc/server/server-internal.h"
@@ -47,7 +48,7 @@
 enum plugin_op {
     PLUGIN_OP_LIST,
     PLUGIN_OP_HANDSHAKEINTERNAL,
-    PLUGIN_OP_QUITTINGINTERNAL,
+    PLUGIN_OP_QUITTING,
     PLUGIN_GET_NAME,
     PLUGIN_GET_PATH,
     PLUGIN_CMD_RESPONSE,
@@ -102,6 +103,7 @@ static const struct dicey_default_element plugin_elements[] = {
      .type = DICEY_ELEMENT_TYPE_OPERATION,
      .signature = PLUGIN_QUITTING_OP_SIG,
      .flags = DICEY_ELEMENT_INTERNAL,
+     .opcode = PLUGIN_OP_QUITTING,
      },
     {
      .name = PLUGIN_REPLY_OP_NAME,
@@ -421,8 +423,8 @@ static enum dicey_error handle_quitting(
 
     const enum dicey_error err = dicey_packet_message(
         response,
-        DICEY_OP_RESPONSE,
         0U,
+        DICEY_OP_RESPONSE,
         src_path,
         (struct dicey_selector) {
             .trait = DICEY_PLUGIN_TRAIT_NAME,
@@ -447,7 +449,8 @@ static enum dicey_error handle_plugin_operation(
     const char *const src_path,
     const struct dicey_element_entry *const src_entry,
     const struct dicey_value *const value,
-    struct dicey_packet *const response
+    struct dicey_packet *const response,
+    enum dicey_client_data_state *new_state
 ) {
     DICEY_UNUSED(context);
     DICEY_UNUSED(src_entry);
@@ -456,6 +459,8 @@ static enum dicey_error handle_plugin_operation(
 
     struct dicey_server *const server = client->parent;
     assert(server);
+
+    *new_state = CLIENT_DATA_STATE_RUNNING; // by default assume that we will not change the client state from running
 
     switch (opcode) {
     case PLUGIN_OP_LIST:
@@ -489,7 +494,7 @@ static enum dicey_error handle_plugin_operation(
             return DICEY_OK; // we don't care about the response, the child will be killed anyway
         }
 
-    case PLUGIN_OP_QUITTINGINTERNAL:
+    case PLUGIN_OP_QUITTING:
         {
             const char *const plugin_name = dicey_plugin_name_from_path(src_path);
             assert(plugin_name); // if this is not a plugin path there's a bug
@@ -499,7 +504,12 @@ static enum dicey_error handle_plugin_operation(
                 return TRACE(DICEY_EACCES);
             }
 
-            return handle_quitting(server, plugin, src_path, response);
+            const enum dicey_error err = handle_quitting(server, plugin, src_path, response);
+            if (!err) {
+                *new_state = CLIENT_DATA_STATE_QUITTING;
+            }
+
+            return err;
         }
 
     case PLUGIN_CMD_RESPONSE:
@@ -510,9 +520,26 @@ static enum dicey_error handle_plugin_operation(
     return TRACE(DICEY_EINVAL);
 }
 
+static ptrdiff_t builtin_handler(
+    struct dicey_builtin_context *const context,
+    const uint8_t opcode,
+    struct dicey_client_data *const client,
+    const char *const src_path,
+    const struct dicey_element_entry *const src_entry,
+    const struct dicey_value *const value,
+    struct dicey_packet *const response
+) {
+    enum dicey_client_data_state new_state = CLIENT_DATA_STATE_RUNNING;
+
+    const enum dicey_error err =
+        handle_plugin_operation(context, opcode, client, src_path, src_entry, value, response, &new_state);
+
+    return err ? (ptrdiff_t) err : (ptrdiff_t) new_state;
+}
+
 const struct dicey_registry_builtin_set dicey_registry_plugins_builtins = {
     .traits = plugin_traits,
     .ntraits = DICEY_LENOF(plugin_traits),
 
-    .handler = &handle_plugin_operation,
+    .handler = &builtin_handler,
 };

@@ -397,6 +397,8 @@ enum dicey_error dicey_plugin_finish(struct dicey_plugin *const plugin) {
 
         struct dicey_client *const client = (struct dicey_client *) plugin;
 
+        struct dicey_packet response = { 0 };
+
         // first, tell the client we're quitting (best effort). After this we know we will not get any more requests
         enum dicey_error err = dicey_client_exec(
             client,
@@ -406,9 +408,42 @@ enum dicey_error dicey_plugin_finish(struct dicey_plugin *const plugin) {
                 .elem = PLUGIN_QUITTING_OP_NAME,
             },
             (struct dicey_arg) { .type = DICEY_TYPE_UNIT },
-            &(struct dicey_packet) { 0 }, /* we don't care about the response */
+            &response, /* we don't care about the response */
             CLIENT_DEFAULT_TIMEOUT
         );
+
+        if (!err) {
+            struct dicey_message msg = { 0 };
+
+            err = dicey_packet_as_message(response, &msg);
+            if (!err && dicey_value_is(&msg.value, DICEY_TYPE_ERROR)) {
+                struct dicey_errmsg errmsg = { 0 };
+
+                err = dicey_value_get_error(&msg.value, &errmsg);
+                if (!err) {
+                    err = errmsg.code;
+                }
+            }
+        }
+
+        if (err) {
+            if (client->inspect_func) {
+                // if we can't send the quit signal, we can't guarantee the plugin will quit. We can only hope
+                // that the plugin will quit on its own
+                client->inspect_func(
+                    client,
+                    dicey_client_get_context(client),
+                    (struct dicey_client_event) {
+                        .type = DICEY_CLIENT_EVENT_ERROR,
+                        .error = {.err = err,
+                                  .msg = "failed to notify the server of plugin shutdown - expect the server to kill "
+                                          "us"},
+                }
+                );
+            }
+        }
+
+        dicey_packet_deinit(&response);
 
         err = dicey_client_disconnect(client);
 

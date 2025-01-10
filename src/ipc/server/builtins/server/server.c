@@ -219,6 +219,21 @@ static enum dicey_error handle_server_operation(
     return unit_message_for(response, path, sel);
 }
 
+static ptrdiff_t builtin_handler(
+    struct dicey_builtin_context *const context,
+    const uint8_t opcode,
+    struct dicey_client_data *const client,
+    const char *const src_path,
+    const struct dicey_element_entry *const src_entry,
+    const struct dicey_value *const value,
+    struct dicey_packet *const response
+) {
+    const enum dicey_error err = handle_server_operation(context, opcode, client, src_path, src_entry, value, response);
+
+    // server builtin operations don't alter the client state
+    return err ? err : CLIENT_DATA_STATE_RUNNING;
+}
+
 const struct dicey_registry_builtin_set dicey_registry_server_builtins = {
     .objects = server_objects,
     .nobjects = DICEY_LENOF(server_objects),
@@ -226,5 +241,5 @@ const struct dicey_registry_builtin_set dicey_registry_server_builtins = {
     .traits = server_traits,
     .ntraits = DICEY_LENOF(server_traits),
 
-    .handler = &handle_server_operation,
+    .handler = &builtin_handler,
 };

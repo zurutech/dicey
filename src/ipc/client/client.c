@@ -962,7 +962,7 @@ static bool client_event(struct dicey_client *const client, const int event, ...
     return res;
 }
 
-static enum dicey_error expect_or_fail(struct dicey_packet packet, enum dicey_type expected) {
+static enum dicey_error expect_or_fail(const struct dicey_packet packet, const enum dicey_type expected) {
     // attempt extracting an error code, or find errors in the reply
     struct dicey_message msg = { 0 };
     enum dicey_error err = dicey_packet_as_message(packet, &msg);
@@ -970,27 +970,23 @@ static enum dicey_error expect_or_fail(struct dicey_packet packet, enum dicey_ty
     if (!err) {
         struct dicey_errmsg errmsg = { 0 };
 
-        const enum dicey_error as_err_err = dicey_value_get_error(&msg.value, &errmsg);
+        if (dicey_value_is(&msg.value, DICEY_TYPE_ERROR) && expected != DICEY_TYPE_ERROR) {
+            const enum dicey_error as_err_err = dicey_value_get_error(&msg.value, &errmsg);
+            DICEY_UNUSED(as_err_err);
+            assert(!as_err_err); // this can never happen, because we know the value is of type error and well formed
 
-        switch (as_err_err) {
-        case DICEY_OK:
             err = errmsg.code;
-            break;
-
-        case DICEY_EVALUE_TYPE_MISMATCH:
-            // finally, test that the error message is of the expected type
+        } else {
+            // finally, test that the message is of the expected type
             err = dicey_value_is(&msg.value, expected) ? DICEY_OK : TRACE(DICEY_EBADMSG);
-
-            break;
-
-        default:
-            err = as_err_err;
-
-            break;
         }
     }
 
     return err;
+}
+
+static enum dicey_error parse_reply(struct dicey_packet packet) {
+    return expect_or_fail(packet, DICEY_TYPE_UNIT);
 }
 
 struct subunsub_async_ctx {
@@ -1010,7 +1006,7 @@ static void subunsub_on_reply(
 
     // attempt extracting an error code, or find errors in the reply
     if (status == DICEY_OK) {
-        status = expect_or_fail(*reply, DICEY_TYPE_UNIT);
+        status = parse_reply(*reply);
     }
 
     assert(subunsub_ctx->cb);
@@ -1079,7 +1075,7 @@ static enum dicey_error client_subunsub(
             return err;
         }
 
-        err = expect_or_fail(response, DICEY_TYPE_UNIT);
+        err = parse_reply(response);
         dicey_packet_deinit(&response);
     }
 
@@ -1673,7 +1669,7 @@ enum dicey_error dicey_client_set(
         return err;
     }
 
-    err = expect_or_fail(response, DICEY_TYPE_UNIT);
+    err = parse_reply(response);
     dicey_packet_deinit(&response);
 
     return err;

@@ -40,9 +40,10 @@ struct dicey_builtin_context {
 
 /**
  * @brief A function pointer type that describes the handler for a builtin operation.
- *
+ * @return If positive, the state of the client after executing the builtin operation (usually RUNNING)
+ *         If negative, an error code of enum dicey_error
  */
-typedef enum dicey_error dicey_registry_builtin_op(
+typedef ptrdiff_t dicey_registry_builtin_op(
     struct dicey_builtin_context *context,
     uint8_t opcode,
     struct dicey_client_data *client,

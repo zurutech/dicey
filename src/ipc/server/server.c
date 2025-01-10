@@ -661,12 +661,17 @@ static ptrdiff_t client_got_bye(struct dicey_client_data *client, const struct d
 
     assert(client);
 
+    const enum dicey_client_data_state current_state = dicey_client_data_get_state(client);
+
     // if a client is in a quitting state, we assume it still has stuff to do (i.e., it's a plugin for instance)
-    // we keep it around and hope the server will collect this when the time is right
-    if (dicey_client_data_get_state(client) != CLIENT_DATA_STATE_QUITTING) {
-        dicey_server_remove_client(client->parent, client->info.id);
+    // we keep it around and hope the server will collect this when the time is right.
+    // in this case BYE will be assumed not as the last ever communication received from the client, but as a step in
+    // a longer controlled process that will eventually lead to the client being removed from the server
+    if (current_state == CLIENT_DATA_STATE_QUITTING) {
+        return CLIENT_DATA_STATE_QUITTING;
     }
 
+    dicey_server_remove_client(client->parent, client->info.id);
     return CLIENT_DATA_STATE_DEAD;
 }
 
@@ -813,11 +818,12 @@ static ptrdiff_t client_got_message(struct dicey_client_data *const client, stru
             .scratchpad = &server->scratchpad,
         };
 
-        const enum dicey_error builtin_err =
+        const ptrdiff_t builtin_res =
             binfo.handler(&context, binfo.opcode, client, message.path, &elem_entry, &message.value, &response.single);
 
-        if (builtin_err) {
-            const enum dicey_error repl_err = server_report_error(server, client, packet, builtin_err);
+        if (builtin_res < 0) {
+            const enum dicey_error repl_err =
+                server_report_error(server, client, packet, (enum dicey_error) builtin_res);
 
             dicey_packet_deinit(&packet);
 
@@ -825,13 +831,15 @@ static ptrdiff_t client_got_message(struct dicey_client_data *const client, stru
             return repl_err ? repl_err : CLIENT_DATA_STATE_RUNNING;
         }
 
+        enum dicey_client_data_state new_state = (enum dicey_client_data_state) builtin_res;
+
         // get rid of the request, we don't need it anymore
         dicey_packet_deinit(&packet);
 
         struct dicey_packet rpkt = outbound_packet_borrow(response);
 
         if (!dicey_packet_is_valid(rpkt)) {
-            return DICEY_OK; // no response needed for this builtin
+            return new_state; // no response needed for this builtin
         }
         // set the seq number of the response to match the seq number of the request
         const enum dicey_error set_err = dicey_packet_set_seq(rpkt, seq);
@@ -847,7 +855,7 @@ static ptrdiff_t client_got_message(struct dicey_client_data *const client, stru
             outbound_packet_cleanup(&response);
         }
 
-        return send_err ? send_err : CLIENT_DATA_STATE_RUNNING;
+        return send_err ? (ptrdiff_t) send_err : (ptrdiff_t) new_state;
     }
 
     if (server->on_request) {
@@ -1004,11 +1012,15 @@ static void on_read(uv_stream_t *const stream, const ssize_t nread, const uv_buf
             server->on_error(server, dicey_error_from_uv(uverr), &client->info, "Read error %s\n", uv_strerror(uverr));
         }
 
-        const enum dicey_error remove_err = dicey_server_remove_client(client->parent, client->info.id);
-        if (remove_err) {
-            server->on_error(
-                server, remove_err, &client->info, "dicey_server_remove_client: %s\n", dicey_error_name(remove_err)
-            );
+        // if the client is known to be quitting in a non trivial way (i.e. it's a plugin), it is expected for its pipe
+        // to shut down at some point. Don't kick it out yet, let the server collect it when the time is right
+        if (client->state != CLIENT_DATA_STATE_QUITTING) {
+            const enum dicey_error remove_err = dicey_server_remove_client(client->parent, client->info.id);
+            if (remove_err) {
+                server->on_error(
+                    server, remove_err, &client->info, "dicey_server_remove_client: %s\n", dicey_error_name(remove_err)
+                );
+            }
         }
 
         return;

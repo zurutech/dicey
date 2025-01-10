@@ -43,7 +43,13 @@
 enum dicey_client_data_state {
     CLIENT_DATA_STATE_CONNECTED,
     CLIENT_DATA_STATE_RUNNING,
-    CLIENT_DATA_STATE_QUITTING, // the client hasn't yet disconnected, but it will soon
+
+    // the client hasn't yet disconnected, but it will soon.
+    // This state indicates that the client will quit in a non-trivial way (i.e. it's a plugin and has a process to shut
+    // down, etc). The server will assume that errors raised while in this state are expected and will not remove the
+    // client from the list of clients, even if the pipe is closed.
+    CLIENT_DATA_STATE_QUITTING,
+
     CLIENT_DATA_STATE_DEAD,
 };
 

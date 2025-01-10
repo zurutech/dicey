@@ -340,6 +340,21 @@ static enum dicey_error perform_introspection_op(
     }
 }
 
+static ptrdiff_t builtin_handler(
+    struct dicey_builtin_context *const context,
+    const uint8_t opcode,
+    struct dicey_client_data *const client,
+    const char *const path,
+    const struct dicey_element_entry *const entry,
+    const struct dicey_value *const value,
+    struct dicey_packet *const response
+) {
+    const enum dicey_error err = perform_introspection_op(context, opcode, client, path, entry, value, response);
+
+    // introspection operations don't alter the client state
+    return err ? err : CLIENT_DATA_STATE_RUNNING;
+}
+
 const struct dicey_registry_builtin_set dicey_registry_introspection_builtins = {
     .objects = introspection_objects,
     .nobjects = DICEY_LENOF(introspection_objects),
@@ -347,5 +362,5 @@ const struct dicey_registry_builtin_set dicey_registry_introspection_builtins = 
     .traits = introspection_traits,
     .ntraits = DICEY_LENOF(introspection_traits),
 
-    .handler = &perform_introspection_op,
+    .handler = &builtin_handler,
 };
