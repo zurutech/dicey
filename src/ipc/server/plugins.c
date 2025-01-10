@@ -720,11 +720,20 @@ static enum dicey_error spawn_child(struct dicey_server *const server, struct di
 
     // TODO: make stdin, stdout, stderr configurable
     uv_stdio_container_t child_stdio[] = {
-        [0] = { .flags = UV_INHERIT_FD },
-        [1] = { .flags = UV_INHERIT_FD },
-        [2] = { .flags = UV_INHERIT_FD },
+        [0] = {
+            .flags = UV_INHERIT_FD,
+            .data.fd = 0, // stdin
+        },
+        [1] = {
+            .flags = UV_INHERIT_FD,
+            .data.fd = 1, // stdout
+        },
+        [2] = {
+            .flags = UV_INHERIT_FD,
+            .data.fd = 2, // stderr
+        },
         [DICEY_PLUGIN_FD] = {
-            .flags = UV_CREATE_PIPE | UV_READABLE_PIPE | UV_WRITABLE_PIPE,
+            .flags = UV_CREATE_PIPE | UV_READABLE_PIPE | UV_WRITABLE_PIPE | UV_NONBLOCK_PIPE,
             .data.stream = (uv_stream_t *) plugin, // plugin starts with client, which can be cast to uv_pipe_t
         },
     };
