@@ -106,6 +106,30 @@
             }
         },
         {
+            "name": "debug-msvc-san-base",
+            "inherits": "debug-static",
+            "hidden": true,
+            "binaryDir": "build-san",
+            "cacheVariables": {
+                "CMAKE_C_COMPILER": "cl",
+                "CMAKE_AR": "lib",
+                "CMAKE_LINKER": "link"
+            },
+            "condition": {
+                "type": "equals",
+                "lhs": "${hostSystemName}",
+                "rhs": "Windows"
+            }
+        },
+        {
+            "name": "debug-msvc-asan",
+            "displayName": "Debug (static, with MSVC, with AddressSanitizer)",
+            "inherits": "debug-msvc-san-base",
+            "cacheVariables": {
+                "CMAKE_C_FLAGS_INIT": "/fsanitize=address"
+            }
+        },
+        {
             "name": "debug-llvm-unix",
             "displayName": "Debug (shared, with LLVM)",
             "inherits": "debug",
