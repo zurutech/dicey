@@ -1001,7 +1001,7 @@ static void on_read(uv_stream_t *const stream, const ssize_t nread, const uv_buf
     DICEY_UNUSED(buf);
 
     struct dicey_client_data *const client = (struct dicey_client_data *) stream;
-    assert(client && client->parent && client->chunk);
+    assert(client && client->parent);
 
     struct dicey_server *const server = client->parent;
 
@@ -1032,6 +1032,7 @@ static void on_read(uv_stream_t *const stream, const ssize_t nread, const uv_buf
     }
 
     struct dicey_chunk *const chunk = client->chunk;
+    assert(chunk); // if we got to this point, we must have a chunk
 
     // mark the first nread bytes of the chunk as taken
     chunk->len += (size_t) nread;
