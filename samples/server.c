@@ -1014,7 +1014,7 @@ static enum dicey_error on_timer_start(
     return send_reply(server, cln, seq, req->path, req->selector, (struct dicey_arg) { .type = DICEY_TYPE_UNIT });
 }
 
-#if defined(DICEY_HAS_PLUGINS)
+#if DICEY_HAS_PLUGINS
 
 #if defined(DICEY_IS_WINDOWS)
 #define DUMMY_PLUGIN "dummy_plugin.exe"
