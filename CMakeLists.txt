@@ -38,6 +38,21 @@ set(CMAKE_C_STANDARD 17)
 
 set(CMAKE_C_STANDARD_REQUIRED ON)
 
+if (CMAKE_SYSROOT)
+    # ignore the host package config directories if there's a sysroot
+    if (NOT DEFINED ENV{PKG_CONFIG_DIR})
+        set(ENV{PKG_CONFIG_DIR} "")
+    endif()
+
+    if (NOT DEFINED ENV{PKG_CONFIG_LIBDIR})
+        set(ENV{PKG_CONFIG_LIBDIR} "${CMAKE_SYSROOT}/usr/lib/pkgconfig:${CMAKE_SYSROOT}/usr/share/pkgconfig")
+    endif()
+
+    if (NOT DEFINED ENV{PKG_CONFIG_SYSROOT_DIR})
+        set(ENV{PKG_CONFIG_SYSROOT_DIR} ${CMAKE_SYSROOT})
+    endif()
+endif()
+
 option(BUILD_DOC "Build documentation" OFF)
 option(BUILD_SAMPLES "Build samples" ON)
 option(BUILD_SHARED_LIBS "Build using shared libraries" ON)
