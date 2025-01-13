@@ -59,7 +59,7 @@ option(BUILD_SHARED_LIBS "Build using shared libraries" ON)
 option(BUILD_LIBXML2 "Always build libxml2 from source" OFF)
 option(BUILD_UV "Always build libuv from source" OFF)
 option(GENERATE_EXPORTS "Generate exports for PkgConfig and CMake (for systemwide installation)" OFF)
-option(PLUGIN_SUPPORT "Enable plugin support" ON)
+option(PLUGIN_SUPPORT "Enable plugin support" OFF)
 option(USE_VENDORED_LIBS "Use vendored libraries (implies BUILD_LIBXML2 and BUILD_UV)" OFF)
 
 if (PLUGIN_SUPPORT)
