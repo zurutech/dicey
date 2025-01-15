@@ -405,18 +405,37 @@ static enum dicey_error read_work_response(
 static enum dicey_error handle_work_response(
     struct dicey_server *server,
     struct dicey_plugin_data *plugin,
+    const char *src_path,
     struct dicey_packet *const src,
-    const struct dicey_value *value
+    const struct dicey_value *value,
+    struct dicey_packet *const response
 ) {
-    assert(server && plugin && value);
+    assert(server && plugin && src_path && value && response);
 
-    struct work_response response = { 0 };
-    enum dicey_error err = read_work_response(src, value, &response);
+    struct work_response wr = { 0 };
+    enum dicey_error err = read_work_response(src, value, &wr);
     if (err) {
         return err;
     }
 
-    return dicey_server_plugin_report_work_done(server, plugin, response.jid, &response.value);
+    err = dicey_server_plugin_report_work_done(server, plugin, wr.jid, &wr.value);
+    if (err) {
+        return err;
+    }
+
+    return dicey_packet_message(
+        response,
+        0U,
+        DICEY_OP_RESPONSE,
+        src_path,
+        (struct dicey_selector) {
+            .trait = DICEY_PLUGIN_TRAIT_NAME,
+            .elem = PLUGIN_REPLY_OP_NAME,
+        },
+        (struct dicey_arg) {
+            .type = DICEY_TYPE_UNIT,
+        }
+    );
 }
 
 static enum dicey_error handle_quitting(
@@ -540,7 +559,7 @@ static enum dicey_error handle_plugin_operation(
         }
 
     case PLUGIN_CMD_RESPONSE:
-        return handle_work_response(client->parent, plugin, req->source, value);
+        return handle_work_response(client->parent, plugin, src_path, req->source, value, response);
     }
 
     DICEY_UNREACHABLE();
