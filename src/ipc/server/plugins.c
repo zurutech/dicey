@@ -49,8 +49,6 @@
 
 #include "ipc/plugin-common.h"
 
-#include "builtins/plugins/plugins.h"
-
 #include "client-data.h"
 #include "plugins-internal.h"
 #include "registry-internal.h"

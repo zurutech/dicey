@@ -17,7 +17,6 @@
 #define _XOPEN_SOURCE 700
 
 #include <assert.h>
-#include <ctype.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -40,10 +39,8 @@
 
 #include "ipc/plugin-common.h"
 
-#include "ipc/client/client-internal.h"
 #include "ipc/server/client-data.h"
 #include "ipc/server/plugins-internal.h"
-#include "ipc/server/server-clients.h"
 #include "ipc/server/server-internal.h"
 
 #include "../builtins.h"
