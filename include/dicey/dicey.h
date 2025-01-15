@@ -22,6 +22,7 @@
 #include "core/errors.h"
 #include "core/hashset.h"
 #include "core/hashtable.h"
+#include "core/message.h"
 #include "core/packet.h"
 #include "core/type.h"
 #include "core/typedescr.h"

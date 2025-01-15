@@ -19,8 +19,10 @@
 
 #include <stdint.h>
 
-#include "dicey_export.h"
+#include "message.h"
 #include "packet.h"
+
+#include "dicey_export.h"
 
 #if defined(__cplusplus)
 extern "C" {
@@ -242,7 +244,7 @@ struct dicey_value_builder {
     int _state;
 
     // root of the built message, i.e. a leaf if the value is not a compound type, or a node otherwise.
-    // this value is borrowed from the message builder, and must not be freed by the value builder
+    // this value is borrowed from the parent builder, and must not be freed by the value builder
     struct dicey_arg *_root;
 
     // specialised builder structure for subvalues (used by arrays and tuples)

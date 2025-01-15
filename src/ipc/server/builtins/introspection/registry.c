@@ -62,7 +62,12 @@ static enum dicey_error craft_bool_response(
         goto fail;
     }
 
-    return dicey_message_builder_build(&builder, dest);
+    err = dicey_message_builder_build(&builder, dest);
+    if (err) {
+        goto fail;
+    }
+
+    return DICEY_OK;
 
 fail:
     dicey_message_builder_discard(&builder);
@@ -413,7 +418,12 @@ enum dicey_error introspection_craft_pathlist(
         goto fail;
     }
 
-    return dicey_message_builder_build(&builder, dest);
+    err = dicey_message_builder_build(&builder, dest);
+    if (err) {
+        goto fail;
+    }
+
+    return DICEY_OK;
 
 fail:
     dicey_message_builder_discard(&builder);
@@ -440,12 +450,12 @@ enum dicey_error introspection_craft_traitlist(
     struct dicey_value_builder value_builder = { 0 };
     err = dicey_message_builder_value_start(&builder, &value_builder);
     if (err) {
-        return err;
+        goto fail;
     }
 
     err = dicey_value_builder_array_start(&value_builder, DICEY_TYPE_STR);
     if (err) {
-        return err;
+        goto fail;
     }
 
     const char *trait_name = NULL;
@@ -455,7 +465,7 @@ enum dicey_error introspection_craft_traitlist(
         struct dicey_value_builder trait_builder = { 0 };
         err = dicey_value_builder_next(&value_builder, &trait_builder);
         if (err) {
-            return err;
+            goto fail;
         }
 
         err = dicey_value_builder_set(
@@ -467,21 +477,31 @@ enum dicey_error introspection_craft_traitlist(
         );
 
         if (err) {
-            return err;
+            goto fail;
         }
     }
 
     err = dicey_value_builder_array_end(&value_builder);
     if (err) {
-        return err;
+        goto fail;
     }
 
     err = dicey_message_builder_value_end(&builder, &value_builder);
     if (err) {
-        return err;
+        goto fail;
     }
 
-    return dicey_message_builder_build(&builder, dest);
+    err = dicey_message_builder_build(&builder, dest);
+    if (err) {
+        goto fail;
+    }
+
+    return DICEY_OK;
+
+fail:
+    dicey_message_builder_discard(&builder);
+
+    return err;
 }
 
 enum dicey_error introspection_dump_object(
@@ -500,26 +520,36 @@ enum dicey_error introspection_dump_object(
     enum dicey_error err =
         introspection_init_builder(&builder, path, DICEY_INTROSPECTION_TRAIT_NAME, DICEY_INTROSPECTION_DATA_PROP_NAME);
     if (err) {
-        return err;
+        goto fail;
     }
 
     struct dicey_value_builder value_builder = { 0 };
     err = dicey_message_builder_value_start(&builder, &value_builder);
     if (err) {
-        return err;
+        goto fail;
     }
 
     err = populate_object_traitlist(registry, obj->traits, &value_builder);
     if (err) {
-        return err;
+        goto fail;
     }
 
     err = dicey_message_builder_value_end(&builder, &value_builder);
     if (err) {
-        return err;
+        goto fail;
     }
 
-    return dicey_message_builder_build(&builder, dest);
+    err = dicey_message_builder_build(&builder, dest);
+    if (err) {
+        goto fail;
+    }
+
+    return DICEY_OK;
+
+fail:
+    dicey_message_builder_discard(&builder);
+
+    return err;
 }
 
 enum dicey_error introspection_dump_xml(
@@ -546,13 +576,13 @@ enum dicey_error introspection_dump_xml(
     struct dicey_message_builder builder = { 0 };
     err = introspection_init_builder(&builder, path, DICEY_INTROSPECTION_TRAIT_NAME, DICEY_INTROSPECTION_XML_PROP_NAME);
     if (err) {
-        return err;
+        goto fail;
     }
 
     struct dicey_value_builder value_builder = { 0 };
     err = dicey_message_builder_value_start(&builder, &value_builder);
     if (err) {
-        return err;
+        goto fail;
     }
 
     err = dicey_value_builder_set(
@@ -566,13 +596,23 @@ enum dicey_error introspection_dump_xml(
     );
 
     if (err) {
-        return err;
+        goto fail;
     }
 
     err = dicey_message_builder_value_end(&builder, &value_builder);
     if (err) {
-        return err;
+        goto fail;
     }
 
-    return dicey_message_builder_build(&builder, dest);
+    err = dicey_message_builder_build(&builder, dest);
+    if (err) {
+        goto fail;
+    }
+
+    return DICEY_OK;
+
+fail:
+    dicey_message_builder_discard(&builder);
+
+    return err;
 }

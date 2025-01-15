@@ -21,24 +21,37 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#include "dicey_export.h"
 #include "errors.h"
+#include "packet.h"
 #include "type.h"
 
 #include "data-info.h"
 #include "views.h"
+
+#include "dicey_export.h"
 
 #if defined(__cplusplus)
 extern "C" {
 #endif
 
 /**
- * @brief A variant value, representing a value extracted by a dicey message.
+ * @brief A variant value, representing a view value extracted by a dicey message. Non owning - the data is borrowed
+ *        from a dicey_packet or dicey_owning_value.
  */
 struct dicey_value {
     // internal data - do not touch
     enum dicey_type _type;
     union _dicey_data_info _data;
+};
+
+/**
+ * @brief A container that keeps a value alive, without manually managing the lifetime of a packet. Use this when you
+ *        only need the value part of a message, and not the entire message.
+ */
+struct dicey_owning_value {
+    // internal data - do not touch
+    struct dicey_packet _owner;
+    struct dicey_value _value;
 };
 
 /**
@@ -100,6 +113,39 @@ struct dicey_pair {
     struct dicey_value first;
     struct dicey_value second;
 };
+
+/**
+ * @brief Borrows the value from the owning value. The value lifetime is tied to the lifetime of the owning value.
+ * @param value The owning value to borrow the value from.
+ * @return The borrowed value, or NULL if the owning value is invalid.
+ */
+DICEY_EXPORT const struct dicey_value *dicey_owning_value_borrow(const struct dicey_owning_value *value);
+
+/**
+ * @brief Deinitialises the owning value, freeing the value part of the owning value.
+ * @param value The owning value to deinitialise. The function is a no-op if the owning value is invalid.
+ */
+DICEY_EXPORT void dicey_owning_value_deinit(struct dicey_owning_value *value);
+
+/**
+ * @brief Checks if the given owning value is valid.
+ * @param value The value to check.
+ * @return true if the value is valid, false otherwise.
+ */
+DICEY_EXPORT bool dicey_owning_value_is_valid(const struct dicey_owning_value *value);
+
+/**
+ * @brief Reinterprets the given package as a message, and returns an owning value containing the value part of the
+ *        message. It is the caller's responsibility to free the owning value when is no longer needed.
+ * @note  This function consumes the packet, leaving it in an invalid state. This function doesn't perform allocations.
+ * @param packet The packet to reinterpret as a message. It will be consumed by this function.
+ * @param dest The destination to store the owning value.
+ * @return The error code indicating the success or failure of the operation.
+ *         Possible errors include:
+ *         - OK: The operation was successful.
+ *         - EINVAL: The packet is not a message.
+ */
+DICEY_EXPORT enum dicey_error dicey_packet_into_value(struct dicey_packet *packet, struct dicey_owning_value *dest);
 
 /**
  * @brief Verifies if the given value can be returned by an operation or property having the given signature.

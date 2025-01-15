@@ -404,7 +404,12 @@ enum dicey_error dicey_packet_message(
         }
     }
 
-    return dicey_message_builder_build(&builder, dest);
+    err = dicey_message_builder_build(&builder, dest);
+    if (err) {
+        goto fail;
+    }
+
+    return DICEY_OK;
 
 fail:
     dicey_message_builder_discard(&builder);
@@ -527,8 +532,8 @@ enum dicey_error dicey_value_builder_pair_end(struct dicey_value_builder *const 
 
     assert(list->elems);
 
-    struct dicey_arg *const first = dicey_arg_move(NULL, &list->elems[0]), *const second =
-                                                                               dicey_arg_move(NULL, &list->elems[1]);
+    struct dicey_arg *const first = dicey_arg_move(NULL, &list->elems[0]);
+    struct dicey_arg *const second = dicey_arg_move(NULL, &list->elems[1]);
 
     // get rid of the support array
     free(list->elems);

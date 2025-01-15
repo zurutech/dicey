@@ -38,19 +38,30 @@ enum dicey_error introspection_init_builder(
 
     err = dicey_message_builder_begin(builder, DICEY_OP_RESPONSE);
     if (err) {
-        return err;
+        goto fail;
     }
 
     err = dicey_message_builder_set_path(builder, path);
     if (err) {
-        return err;
+        goto fail;
     }
 
-    return dicey_message_builder_set_selector(
+    err = dicey_message_builder_set_selector(
         builder,
         (struct dicey_selector) {
             .trait = trait_name,
             .elem = elem_name,
         }
     );
+
+    if (err) {
+        goto fail;
+    }
+
+    return DICEY_OK;
+
+fail:
+    dicey_message_builder_discard(builder);
+
+    return err;
 }

@@ -80,7 +80,7 @@ struct dicey_plugin {
 };
 
 struct command_request {
-    uint64_t task_id;
+    uint64_t jid;
     enum dicey_plugin_command command;
     struct dicey_value value;
 };
@@ -199,7 +199,7 @@ static bool handle_command(
             struct dicey_packet stolen_packet = *packet;
             *packet = (struct dicey_packet) { 0 }; // steal the packet fron the callback
 
-            return start_work(plugin, stolen_packet, creq->task_id, creq->value);
+            return start_work(plugin, stolen_packet, creq->jid, creq->value);
         }
 
         return true; // no work to do
@@ -252,14 +252,16 @@ static ptrdiff_t try_get_command(
 
     struct dicey_iterator iter = dicey_list_iter(&tuple);
 
-    struct dicey_value tuple_elem = { 0 };
-    err = dicey_iterator_next(&iter, &tuple_elem);
+    // the tuple is structured as { payload, jid, cmd } due to server constraints
+    struct dicey_value payload_elem = { 0 };
+    err = dicey_iterator_next(&iter, &payload_elem);
     if (err) {
         return err;
     }
 
-    uint64_t task_id = 0U;
-    err = dicey_value_get_u64(&tuple_elem, &task_id);
+    struct dicey_value tuple_elem = { 0 };
+    uint64_t jid = 0U;
+    err = dicey_value_get_u64(&tuple_elem, &jid);
     if (err) {
         return err;
     }
@@ -291,9 +293,9 @@ static ptrdiff_t try_get_command(
     }
 
     *creq = (struct command_request) {
-        .task_id = task_id,
+        .jid = jid,
         .command = (enum dicey_plugin_command) cmd,
-        .value = tuple_elem, // borrowed from packet. Keep packet alive until we're done with the value
+        .value = payload_elem, // borrowed from packet. Keep packet alive until we're done with the value
     };
 
     return 1; // success

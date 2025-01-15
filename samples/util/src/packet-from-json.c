@@ -364,7 +364,12 @@ static enum dicey_error json_to_message(struct dicey_packet *const dest, const c
         }
     }
 
-    return dicey_message_builder_build(&msgbuild, dest);
+    err = dicey_message_builder_build(&msgbuild, dest);
+    if (err) {
+        goto fail;
+    }
+
+    return DICEY_OK;
 
 fail:
     dicey_message_builder_discard(&msgbuild);

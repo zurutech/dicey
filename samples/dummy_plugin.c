@@ -43,6 +43,8 @@
 #include <util/getopt.h>
 #include <util/packet-dump.h>
 
+#include "dummy_plugin.h"
+
 #include "dicey_config.h"
 
 #if defined(DICEY_CC_IS_MSVC_LIKE)
@@ -52,10 +54,7 @@
 
 #define DEFAULT_TIMEOUT 3000U // 3 seconds
 
-enum output_mode {
-    OUTPUT_NATIVE,
-    OUTPUT_XML,
-};
+static uv_sem_t halt_sem = { 0 };
 
 static void inspector(struct dicey_client *const client, void *const ctx, struct dicey_client_event event) {
     (void) client;
@@ -411,9 +410,70 @@ quit:
     return err;
 }
 
-static void quit_requested(void) {
-    // probably not ideal, but it's a dummy program anyway
-    exit(EXIT_SUCCESS);
+static void on_quit_requested(void) {
+    uv_sem_post(&halt_sem);
+}
+
+static enum dicey_error dummy_operation(struct dicey_value *const value, double *const result) {
+    assert(value && result);
+
+    struct dicey_pair pair = { 0 };
+    enum dicey_error err = dicey_value_get_pair(value, &pair);
+    if (err) {
+        return err;
+    }
+
+    double a = 0, b = 0;
+
+    err = dicey_value_get_float(&pair.first, &a);
+    if (err) {
+        return err;
+    }
+
+    err = dicey_value_get_float(&pair.second, &b);
+    if (err) {
+        return err;
+    }
+
+    *result = a * b;
+
+    return DICEY_OK;
+}
+
+static void on_work_request(struct dicey_plugin_work_ctx *const ctx, struct dicey_value *const value) {
+    assert(ctx && value);
+
+    // this function asserts because we're not expecting any errors here (and this is a dummy program)
+
+    double result = 0;
+    const enum dicey_error operr = dummy_operation(value, &result);
+
+    struct dicey_value_builder resp = { 0 };
+    enum dicey_error err = dicey_plugin_work_response_start(ctx, &resp);
+    assert(!err);
+
+    struct dicey_arg arg = { 0 };
+
+    if (operr) {
+        arg = (struct dicey_arg) {
+            .type = DICEY_TYPE_ERROR,
+            .error = {
+                .code = operr,
+                .message = dicey_error_msg(operr),
+            },
+        };
+    } else {
+        arg = (struct dicey_arg) {
+            .type = DICEY_TYPE_FLOAT,
+            .floating = result,
+        };
+    }
+
+    err = dicey_value_builder_set(&resp, arg);
+    assert(!err);
+
+    err = dicey_plugin_work_response_done(ctx);
+    assert(!err);
 }
 
 #if defined(DICEY_IS_UNIX)
@@ -438,6 +498,13 @@ int main(const int argc, const char *const argv[]) {
 
     // sleep(7);
 
+    const int uverr = uv_sem_init(&halt_sem, 0);
+    if (uverr) {
+        fprintf(stderr, "error: failed to initialise semaphore: %s\n", uv_strerror(uverr));
+
+        return EXIT_FAILURE;
+    }
+
     struct dicey_plugin *plugin = NULL;
 
     puts("info: dummy plugin launched");
@@ -448,9 +515,9 @@ int main(const int argc, const char *const argv[]) {
             .inspect_func = &inspector,
         },
 
-        .name = "DummyPlugin",
-        .on_quit = &quit_requested,
-        .on_work_received = NULL,
+        .name = DUMMY_PLUGIN_NAME,
+        .on_quit = &on_quit_requested,
+        .on_work_received = &on_work_request,
     });
 
     if (err) {
@@ -465,6 +532,8 @@ int main(const int argc, const char *const argv[]) {
     if (err) {
         fprintf(stderr, "error: failed to list objects: %s\n", dicey_error_msg(err));
     }
+
+    uv_sem_wait(&halt_sem);
 
     puts("info: dummy plugin quitting");
 

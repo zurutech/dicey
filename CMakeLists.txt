@@ -208,6 +208,7 @@ set(PUBLIC_HEADERS
     "include/dicey/core/errors.h"
     "include/dicey/core/hashset.h"
     "include/dicey/core/hashtable.h"
+    "include/dicey/core/message.h"
     "include/dicey/core/packet.h"
     "include/dicey/core/type.h"
     "include/dicey/core/typedescr.h"
@@ -243,6 +244,7 @@ set(CORE_SOURCES
     src/wirefmt/uuid.c
     src/wirefmt/value-validate.c
     src/wirefmt/value.c
+    src/wirefmt/value-internal.h
 
     # wirefmt/dtf
     src/wirefmt/dtf/dtf.h
@@ -336,6 +338,7 @@ set(PLUGIN_SOURCES
     src/ipc/client/plugins.c
 
     src/ipc/server/plugins.c
+    src/ipc/server/plugins-work.c
     src/ipc/server/plugins-internal.h
 
     src/ipc/server/builtins/plugins/plugins.c

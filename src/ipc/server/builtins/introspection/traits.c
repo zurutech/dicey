@@ -144,12 +144,12 @@ enum dicey_error introspection_craft_filtered_elemlist(
     struct dicey_value_builder value_builder = { 0 };
     err = dicey_message_builder_value_start(&builder, &value_builder);
     if (err) {
-        return err;
+        goto fail;
     }
 
     err = dicey_value_builder_array_start(&value_builder, DICEY_TYPE_TUPLE);
     if (err) {
-        return err;
+        goto fail;
     }
 
     struct dicey_trait_iter iter = dicey_trait_iter_start(trait);
@@ -161,26 +161,34 @@ enum dicey_error introspection_craft_filtered_elemlist(
 
         err = dicey_value_builder_next(&value_builder, &elem_builder);
         if (err) {
-            return err;
+            goto fail;
         }
 
         if (elem.type == op_kind) {
             err = populate_element_entry(element_name, &elem, &elem_builder);
             if (err) {
-                return err;
+                goto fail;
             }
         }
     }
 
     err = dicey_value_builder_array_end(&value_builder);
     if (err) {
-        return err;
+        goto fail;
     }
 
     err = dicey_message_builder_value_end(&builder, &value_builder);
     if (err) {
-        return err;
+        goto fail;
     }
 
-    return dicey_message_builder_build(&builder, dest);
+    err = dicey_message_builder_build(&builder, dest);
+    if (err) {
+        goto fail;
+    }
+
+fail:
+    dicey_message_builder_discard(&builder);
+
+    return err;
 }

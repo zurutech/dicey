@@ -146,7 +146,12 @@ static enum dicey_error unit_message_for(
         goto fail;
     }
 
-    return dicey_message_builder_build(&builder, dest);
+    err = dicey_message_builder_build(&builder, dest);
+    if (err) {
+        goto fail;
+    }
+
+    return DICEY_OK;
 
 fail:
     dicey_message_builder_discard(&builder);
@@ -155,28 +160,21 @@ fail:
 }
 
 static enum dicey_error handle_server_operation(
-    struct dicey_builtin_context *const context,
-    const uint8_t opcode,
-    struct dicey_client_data *const client,
-    const char *const src_path,
-    const struct dicey_element_entry *const src_entry,
-    const struct dicey_value *const value,
+    struct dicey_builtin_context *ctx,
+    struct dicey_builtin_request *const req,
     struct dicey_packet *const response
 ) {
-    DICEY_UNUSED(src_path);
-    DICEY_UNUSED(src_entry);
-
-    assert(context && client && value && response);
+    assert(dicey_builtin_request_is_valid(req) && response);
 
     const char *path = NULL;
     struct dicey_selector sel = { 0 };
 
-    enum dicey_error err = extract_path_sel(value, &path, &sel);
+    enum dicey_error err = extract_path_sel(req->value, &path, &sel);
     if (err) {
         return err;
     }
 
-    const struct dicey_element *elem = dicey_registry_get_element(context->registry, path, sel.trait, sel.elem);
+    const struct dicey_element *elem = dicey_registry_get_element(ctx->registry, path, sel.trait, sel.elem);
 
     if (!elem) {
         return TRACE(DICEY_EELEMENT_NOT_FOUND);
@@ -187,7 +185,7 @@ static enum dicey_error handle_server_operation(
     }
 
     // do not allocate the same stuff a billion times. use the scratchpad.
-    struct dicey_view_mut *const scratchpad = context->scratchpad;
+    struct dicey_view_mut *const scratchpad = ctx->scratchpad;
     assert(scratchpad);
 
     const char *const elemdescr = dicey_element_descriptor_format_to(scratchpad, path, sel);
@@ -195,15 +193,15 @@ static enum dicey_error handle_server_operation(
         return TRACE(DICEY_ENOMEM);
     }
 
-    switch (opcode) {
+    switch (req->opcode) {
     case SERVER_OP_EVENT_SUBSCRIBE:
-        err = dicey_client_data_subscribe(client, elemdescr);
+        err = dicey_client_data_subscribe(req->client, elemdescr);
         break;
 
     case SERVER_OP_EVENT_UNSUBSCRIBE:
         // do not trace the result of this operation, the ENOENT should be reported to the client without blocking
         // the server
-        err = dicey_client_data_unsubscribe(client, elemdescr) ? DICEY_OK : DICEY_ENOENT;
+        err = dicey_client_data_unsubscribe(req->client, elemdescr) ? DICEY_OK : DICEY_ENOENT;
 
         break;
 
@@ -220,15 +218,11 @@ static enum dicey_error handle_server_operation(
 }
 
 static ptrdiff_t builtin_handler(
-    struct dicey_builtin_context *const context,
-    const uint8_t opcode,
-    struct dicey_client_data *const client,
-    const char *const src_path,
-    const struct dicey_element_entry *const src_entry,
-    const struct dicey_value *const value,
+    struct dicey_builtin_context *const ctx,
+    struct dicey_builtin_request *const req,
     struct dicey_packet *const response
 ) {
-    const enum dicey_error err = handle_server_operation(context, opcode, client, src_path, src_entry, value, response);
+    const enum dicey_error err = handle_server_operation(ctx, req, response);
 
     // server builtin operations don't alter the client state
     return err ? err : CLIENT_DATA_STATE_RUNNING;

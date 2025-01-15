@@ -20,11 +20,13 @@
 #include <ctype.h>
 #include <stdbool.h>
 #include <stddef.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 
 #include <dicey/core/builders.h>
 #include <dicey/core/errors.h>
+#include <dicey/core/packet.h>
 #include <dicey/core/value.h>
 #include <dicey/ipc/builtins/plugins.h>
 #include <dicey/ipc/builtins/server.h>
@@ -34,8 +36,11 @@
 #include "sup/trace.h"
 #include "sup/util.h"
 
+#include "wirefmt/value-internal.h"
+
 #include "ipc/plugin-common.h"
 
+#include "ipc/client/client-internal.h"
 #include "ipc/server/client-data.h"
 #include "ipc/server/plugins-internal.h"
 #include "ipc/server/server-clients.h"
@@ -55,8 +60,8 @@ enum plugin_op {
 };
 
 struct work_response {
-    uint64_t jid;             // the job id
-    struct dicey_value value; // the response value
+    uint64_t jid;                    // the job id
+    struct dicey_owning_value value; // the response value
 };
 
 static const struct dicey_default_element pm_elements[] = {
@@ -128,12 +133,12 @@ static enum dicey_error craft_handshake_reply(
 
     enum dicey_error err = dicey_message_builder_begin(builder, DICEY_OP_RESPONSE);
     if (err) {
-        return err;
+        goto fail;
     }
 
     err = dicey_message_builder_set_path(builder, DICEY_SERVER_PATH);
     if (err) {
-        return err;
+        goto fail;
     }
 
     err = dicey_message_builder_set_selector(
@@ -145,7 +150,7 @@ static enum dicey_error craft_handshake_reply(
     );
 
     if (err) {
-        return err;
+        goto fail;
     }
 
     err = dicey_message_builder_set_value(
@@ -157,10 +162,20 @@ static enum dicey_error craft_handshake_reply(
     );
 
     if (err) {
-        return err;
+        goto fail;
     }
 
-    return dicey_message_builder_build(builder, response);
+    err = dicey_message_builder_build(builder, response);
+    if (err) {
+        goto fail;
+    }
+
+    return DICEY_OK;
+
+fail:
+    dicey_message_builder_discard(builder);
+
+    return err;
 }
 
 static enum dicey_error handle_get_plugin_property(
@@ -372,8 +387,12 @@ quit:
     return err;
 }
 
-static enum dicey_error read_work_response(const struct dicey_value *const value, struct work_response *const out) {
-    assert(value && out);
+static enum dicey_error read_work_response(
+    struct dicey_packet *const src,
+    const struct dicey_value *const value,
+    struct work_response *const out
+) {
+    assert(src && value && out);
 
     struct dicey_pair pair = { 0 };
     enum dicey_error err = dicey_value_get_pair(value, &pair);
@@ -387,22 +406,26 @@ static enum dicey_error read_work_response(const struct dicey_value *const value
         return err;
     }
 
-    *out = (struct work_response) {
-        .jid = jid,
-        .value = pair.second,
-    };
+    *out = (struct work_response) { .jid = jid };
+
+    // consume the packet and keep only the value
+    dicey_owning_value_from_parts(&out->value, *src, &pair.second);
+
+    // steal the packet: this prevents the server from freeing it (because we own it now)
+    *src = (struct dicey_packet) { 0 };
 
     return DICEY_OK;
 }
 static enum dicey_error handle_work_response(
     struct dicey_server *server,
     struct dicey_plugin_data *plugin,
+    struct dicey_packet *const src,
     const struct dicey_value *value
 ) {
     assert(server && plugin && value);
 
     struct work_response response = { 0 };
-    enum dicey_error err = read_work_response(value, &response);
+    enum dicey_error err = read_work_response(src, value, &response);
     if (err) {
         return err;
     }
@@ -443,22 +466,28 @@ static enum dicey_error handle_quitting(
 }
 
 static enum dicey_error handle_plugin_operation(
-    struct dicey_builtin_context *const context,
-    const uint8_t opcode,
-    struct dicey_client_data *const client,
-    const char *const src_path,
-    const struct dicey_element_entry *const src_entry,
-    const struct dicey_value *const value,
+    struct dicey_builtin_context *const ctx,
+    struct dicey_builtin_request *const req,
     struct dicey_packet *const response,
     enum dicey_client_data_state *new_state
 ) {
-    DICEY_UNUSED(context);
-    DICEY_UNUSED(src_entry);
+    assert(dicey_builtin_context_is_valid(ctx) && dicey_builtin_request_is_valid(req) && response);
 
-    assert(context && context->registry && client && value && response);
+    DICEY_UNUSED(ctx);
+
+    struct dicey_client_data *const client = req->client;
+    assert(client);
 
     struct dicey_server *const server = client->parent;
     assert(server);
+
+    const struct dicey_value *const value = req->value;
+    assert(value);
+
+    const char *const src_path = req->path;
+    assert(src_path);
+
+    const uint8_t opcode = req->opcode;
 
     *new_state = CLIENT_DATA_STATE_RUNNING; // by default assume that we will not change the client state from running
 
@@ -513,7 +542,7 @@ static enum dicey_error handle_plugin_operation(
         }
 
     case PLUGIN_CMD_RESPONSE:
-        return handle_work_response(client->parent, plugin, value);
+        return handle_work_response(client->parent, plugin, req->source, value);
     }
 
     DICEY_UNREACHABLE();
@@ -522,17 +551,12 @@ static enum dicey_error handle_plugin_operation(
 
 static ptrdiff_t builtin_handler(
     struct dicey_builtin_context *const context,
-    const uint8_t opcode,
-    struct dicey_client_data *const client,
-    const char *const src_path,
-    const struct dicey_element_entry *const src_entry,
-    const struct dicey_value *const value,
+    struct dicey_builtin_request *const request,
     struct dicey_packet *const response
 ) {
     enum dicey_client_data_state new_state = CLIENT_DATA_STATE_RUNNING;
 
-    const enum dicey_error err =
-        handle_plugin_operation(context, opcode, client, src_path, src_entry, value, response, &new_state);
+    const enum dicey_error err = handle_plugin_operation(context, request, response, &new_state);
 
     return err ? (ptrdiff_t) err : (ptrdiff_t) new_state;
 }

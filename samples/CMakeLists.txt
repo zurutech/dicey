@@ -30,6 +30,14 @@ foreach(SAMPLE IN LISTS SAMPLE_FILES)
 
     if (MSVC)
         target_compile_options("${target_name}" PRIVATE /W4 /WX)
+        
+        if (NOT DICEY_MSVC_HAS_C11_ATOMICS)
+            if (DICEY_MSVC_HAS_C11_EXPERIMENTAL_ATOMICS)
+                target_compile_options("${target_name}" PRIVATE /experimental:c11atomics)
+            else()
+                message(FATAL_ERROR "MSVC is too old - no C11 atomics support")
+            endif()
+        endif()
     elseif(NOT (CMAKE_C_SIMULATE_ID STREQUAL "MSVC" AND CMAKE_C_COMPILER_FRONTEND_VARIANT STREQUAL "GNU"))
         # again, `clang` targetting MSVC triggers too many warnings in MSVC headers, don't enable -Werror
 

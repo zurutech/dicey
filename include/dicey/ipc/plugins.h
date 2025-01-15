@@ -119,7 +119,7 @@ struct dicey_plugin;
 typedef void dicey_server_plugin_on_work_done_fn(
     const uint64_t *jid,
     enum dicey_error error,
-    const struct dicey_value *response,
+    const struct dicey_owning_value *response,
     void *ctx
 );
 
@@ -130,9 +130,9 @@ typedef void dicey_server_plugin_on_work_done_fn(
  */
 struct dicey_server_plugin_work_builder {
     struct dicey_server *_owner;
-    char *_name, *_path; // this is probably a bit inefficient, but it's probably pointless to optimise anyway
+    char *_name;
     struct dicey_message_builder _builder;
-    struct dicey_value_builder _val_builder;
+    struct dicey_value_builder _tuple_builder;
 };
 
 /**
@@ -214,22 +214,46 @@ DICEY_EXPORT enum dicey_error dicey_server_list_plugins(
 );
 
 /**
- * @brief Asks a plugin to quit. This function is asynchronous. If the plugin does not quit in `timeout` milliseconds,
- *        it will be killed (with SIGKILL or equivalent)
- *
- */
-DICEY_EXPORT enum dicey_error dicey_server_plugin_quit(struct dicey_server *server, uint64_t timeout);
-
-/**
  * @brief Shuts down a plugin without waiting for it to finish. This function is asynchronous.
- * @note  Alias of `dicey_server_kick
  * @param server The server to kick the client from.
- * @param id     The unique identifier of the client to kick.
+ * @param name   The name of the plugin
  * @return       Error code. The possible values are several and include:
  *               - OK: the kick request was successfully initiated
  *               - ENOMEM: memory allocation failed
+ *               - EPEER_NOT_FOUND: a plugin with the given name was not found
  */
-#define dicey_server_plugin_kill(server, id) dicey_server_kick(server, id)
+DICEY_EXPORT enum dicey_error dicey_server_plugin_kill(struct dicey_server *server, const char *name);
+
+/**
+ * @brief Asks a plugin to quit. This function is asynchronous. If the plugin does not quit in `timeout` milliseconds,
+ *        it will be killed (with SIGKILL or equivalent)
+ * @note  Register a global plugin event handler to get notified when the plugin finally quits.
+ * @param server A server instance
+ * @param name   The name of the plugin
+ * @return       Error code. The possible values are several and include:
+ *               - OK: the kick request was successfully initiated
+ *               - ENOMEM: memory allocation failed
+ *               - EPEER_NOT_FOUND: a plugin with the given name was not found
+ * @param
+ */
+DICEY_EXPORT enum dicey_error dicey_server_plugin_quit(struct dicey_server *server, const char *name);
+
+/**
+ * @brief Asks a plugin to quit. This function is synchronous. If the plugin does not quit in `timeout` milliseconds,
+ *        it will be killed (with SIGKILL or equivalent)
+ * @param server A server instance
+ * @param name   The plugin to target.
+ * @param retval If provided, this integer will be set to the value retuned by the process
+ * @return       Error code. The possible values are several and include:
+ *               - OK: the plugin was found and successfully exited. See the global plugin callback for more info.
+ *               - ENOMEM: memory allocation failed
+ *               - EPEER_NOT_FOUND: peer not found
+ */
+DICEY_EXPORT enum dicey_error dicey_server_plugin_quit_and_wait(
+    struct dicey_server *server,
+    const char *name,
+    int64_t *retval
+);
 
 /**
  * @brief Spawns the plugin at the given path. The binary is expected to be an executable file or a file the OS can
@@ -279,6 +303,26 @@ DICEY_EXPORT enum dicey_error dicey_server_plugin_send_work(
     struct dicey_arg payload,
     dicey_server_plugin_on_work_done_fn *on_done,
     void *ctx
+);
+
+/**
+ * @brief Submits work to a plugin. Every plugin has a generic server-initiated channel that can be used to send work
+ *        to a plugin, and receive a response back. The server and client can quickly exchange arbitrary data using this
+ *        channel.
+ * @note  This function is asynchronous and will return immediately. The caller should listen for the plugin events on
+ *        the `dicey_server_on_plugin_event_fn` callback.
+ * @param server  The server to submit the work to.
+ * @param plugin  The name of plugin to submit the work to, as returned by `dicey_server_list_plugins` or
+ * `dicey_spawn_plugin_and_wait`.
+ * @param payload The payload to send to the plugin.
+ * @param response The response to the work request. Will be populated with the response value when the work is done and
+ *                 must be freed from the caller.
+ */
+DICEY_EXPORT enum dicey_error dicey_server_plugin_send_work_and_wait(
+    struct dicey_server *server,
+    const char *plugin,
+    struct dicey_arg payload,
+    struct dicey_owning_value *response
 );
 
 /**

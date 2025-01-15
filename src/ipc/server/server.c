@@ -818,9 +818,16 @@ static ptrdiff_t client_got_message(struct dicey_client_data *const client, stru
             .scratchpad = &server->scratchpad,
         };
 
-        const ptrdiff_t builtin_res =
-            binfo.handler(&context, binfo.opcode, client, message.path, &elem_entry, &message.value, &response.single);
+        struct dicey_builtin_request request = {
+            .opcode = binfo.opcode,
+            .client = client,
+            .path = message.path,
+            .entry = &elem_entry,
+            .source = &packet,
+            .value = &message.value,
+        };
 
+        const ptrdiff_t builtin_res = binfo.handler(&context, &request, &response.single);
         if (builtin_res < 0) {
             const enum dicey_error repl_err =
                 server_report_error(server, client, packet, (enum dicey_error) builtin_res);
@@ -833,8 +840,10 @@ static ptrdiff_t client_got_message(struct dicey_client_data *const client, stru
 
         enum dicey_client_data_state new_state = (enum dicey_client_data_state) builtin_res;
 
-        // get rid of the request, we don't need it anymore
-        dicey_packet_deinit(&packet);
+        // if the builtin code didn't do this already, get rid of the request - we don't need it anymore
+        if (dicey_packet_is_valid(packet)) {
+            dicey_packet_deinit(&packet);
+        }
 
         struct dicey_packet rpkt = outbound_packet_borrow(response);
 

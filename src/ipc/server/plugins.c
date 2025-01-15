@@ -36,6 +36,7 @@
 #include <dicey/core/errors.h>
 #include <dicey/core/packet.h>
 #include <dicey/core/type.h>
+#include <dicey/core/value.h>
 #include <dicey/core/views.h>
 #include <dicey/ipc/builtins/plugins.h>
 #include <dicey/ipc/plugins.h>
@@ -75,8 +76,6 @@
  * plugin_deinit(client) -> client_data_deinit(client)
  */
 
-#define METAPLUGIN_FORMAT DICEY_SERVER_PLUGINS_PATH "/%s"
-
 // default time the plugin has to start up and handshake with the server before we consider it dead (one second)
 #define PLUGIN_DEFAULT_TIMEOUT_MS ((uint64_t) 1000)
 
@@ -98,51 +97,9 @@
 
 #define TERM_SIGNAL SIGTERM
 
-// the fixed, non variable-sized bits of the request
-struct plugin_spawn_metadata {
-    struct dicey_plugin_info *out_info; // output, will be filled after handshake
-    uv_sem_t *spawn_wait_sem;           // optional, only for blocking requests
-    enum dicey_error *spawn_result;     // optional, used to report the result of the spawn if it's a blocking request
-};
-
-struct plugin_work_request {
-    uint64_t jid;                                 // the job id
-    struct dicey_packet packet;                   // the request to send (must be signal)
-    dicey_server_plugin_on_work_done_fn *on_done; // the callback to call when the work is done
-    void *ctx;                                    // the context to pass to the callback
-};
-
-struct plugin_send_work_data {
-    char *name;                         // the name of the plugin
-    struct plugin_work_request request; // the request to send
-};
-
-#define ARRAY_TYPE_NAME plugin_work_list
-#define ARRAY_VALUE_TYPE struct plugin_work_request
-#define ARRAY_VALUE_TYPE_NEEDS_CLEANUP 1
-#include "sup/array.inc"
-
-struct dicey_plugin_data {
-    struct dicey_client_data client; // must remain the first field for the cast to work
-
-    uv_process_t process;
-
-    // timer used for both the handshake timeout and process killing
-    uv_timer_t process_timer;
-
-    enum dicey_plugin_state state;
-    struct dicey_plugin_info info;
-
-    uint64_t next_jid;                  // the next job id
-    struct plugin_work_list *work_list; // list of pending jobs
-
-    // spawn metadata
-    struct plugin_spawn_metadata spawn_md;
-
-    // store the after cleanup function somewhere during cleanup
-    // this is necessary because the cleanup has to be done in multiple steps to let the various close
-    // variables time to fire before freeing the memory
-    dicey_client_data_after_cleanup_fn *after_cleanup;
+struct plugin_list_request {
+    struct dicey_plugin_info **buf;
+    uint16_t *count;
 };
 
 struct plugin_spawn_request {
@@ -154,32 +111,12 @@ struct plugin_spawn_request {
 static enum dicey_error plugin_object_delete(struct dicey_registry *const registry, const char *const name) {
     assert(registry && name);
 
-    const char *const metaplugin_name = dicey_registry_format_metaname(registry, METAPLUGIN_FORMAT, name);
+    const char *const metaplugin_name = dicey_registry_format_metaname(registry, DICEY_METAPLUGIN_FORMAT, name);
     if (!metaplugin_name) {
         return TRACE(DICEY_ENOMEM); // extraordinarily unlikely
     }
 
     return dicey_registry_delete_object(registry, metaplugin_name);
-}
-
-static void plugin_work_request_finish(
-    struct plugin_work_request *const req,
-    const enum dicey_error err,
-    const struct dicey_value *const value
-) {
-    assert(req && req->on_done);
-
-    dicey_packet_deinit(&req->packet);
-
-    req->on_done(&req->jid, err, value, req->ctx);
-}
-
-static void plugin_work_request_fail(struct plugin_work_request *const req, const enum dicey_error err) {
-    plugin_work_request_finish(req, err, NULL);
-}
-
-static void plugin_work_request_cancel(struct plugin_work_request *const elem) {
-    plugin_work_request_fail(elem, DICEY_ECANCELLED);
 }
 
 static void plugin_close_timer(uv_handle_t *const timer) {
@@ -214,7 +151,7 @@ static enum dicey_error plugin_deinit(
         enum dicey_error err = DICEY_OK;
 
         // fail all pending jobs
-        plugin_work_list_delete(data->work_list, &plugin_work_request_cancel);
+        plugin_work_list_delete(data->work_list, &dicey_server_plugin_work_request_cancel);
 
         // deregister the plugin from the registry. Set the error for later
         // if the plugin never handshaked (i.e. the process crashed immediately) this can be skipped
@@ -392,6 +329,25 @@ static enum dicey_error plugin_kill_disconnected(
         uv_timer_start(&data->process_timer, &plugin_terminate_timedout, PLUGIN_TIMEOUT_FOR(server), 0)
     );
 #endif // TERM_IS_KILL
+}
+
+static enum dicey_error plugin_kill_request(
+    struct dicey_server *const server,
+    struct dicey_client_data *const client,
+    void *const request_data
+) {
+    assert(server && request_data);
+
+    DICEY_UNUSED(client);
+
+    const char *const name = request_data;
+
+    struct dicey_plugin_data *const plugin = dicey_server_plugin_find_by_name(server, name);
+    if (!plugin) {
+        return TRACE(DICEY_EPEER_NOT_FOUND);
+    }
+
+    return dicey_server_kick(server, plugin->client.info.id);
 }
 
 // cleans up the plugin data in general. called by the server when the _pipe_ is closed
@@ -578,76 +534,94 @@ static void plugin_exit_cb(uv_process_t *const proc, const int64_t exit_status, 
         server->on_error(server, err, info, "failed to cleanup plugin: %s\n", dicey_error_name(err));
     }
 
-    // if there's a spawn wait semaphore, we post the result to it
-    uv_sem_t *const spawn_wait_sem = plugin->spawn_md.spawn_wait_sem;
-    if (spawn_wait_sem) {
-        *plugin->spawn_md.spawn_result = err;
-        uv_sem_post(spawn_wait_sem);
+    // if there's a waiting semaphore, we post the result to it
+    uv_sem_t *const waiting_sem = plugin->spawn_md.wait_sem;
+    if (waiting_sem) {
+        *plugin->spawn_md.error = err;
+        uv_sem_post(waiting_sem);
+    }
+
+    // if the caller wants the exit status, we give it to them
+    if (plugin->spawn_md.retval) {
+        *plugin->spawn_md.retval = exit_status;
     }
 }
 
-static void plugin_send_work_data_fail(struct plugin_send_work_data *const work, const enum dicey_error err) {
-    if (work) {
-        plugin_work_request_fail(&work->request, err);
-        free(work->name);
-    }
-}
-
-static enum dicey_error plugin_issue_work(
+enum dicey_error plugins_list(
     struct dicey_server *const server,
     struct dicey_client_data *const client,
-    void *const req_data
+    void *const request_data
 ) {
-    assert(server && req_data);
+    assert(server && request_data);
 
-    if (client) {
-        return TRACE(EACCES); // clients can't send work to plugins
+    struct plugin_list_request req = { 0 };
+    memcpy(&req, request_data, sizeof req);
+
+    assert(req.count);
+
+    struct dicey_plugin_info **const buf = req.buf;
+    uint16_t *const count = req.count;
+
+    DICEY_UNUSED(client);
+
+    if (server->state != SERVER_STATE_RUNNING) {
+        return TRACE(DICEY_EINVAL);
     }
 
-    enum dicey_error err = DICEY_OK;
-
-    struct plugin_send_work_data data = { 0 };
-    memcpy(&data, req_data, sizeof data);
-
-    struct plugin_work_request *work_req = &data.request;
-
-    assert(data.name && dicey_packet_is_valid(work_req->packet) && work_req->on_done);
-
-    struct dicey_plugin_data *const target = dicey_server_plugin_find_by_name(server, data.name);
-    if (!target) {
-        err = TRACE(DICEY_ENOENT);
-
-        goto fail;
+    const size_t plugin_count = count_plugins(server->clients);
+    if (plugin_count > UINT16_MAX) {
+        return TRACE(DICEY_EOVERFLOW);
     }
 
-    const struct plugin_work_request *const entry = plugin_work_list_append(
-        &target->work_list,
-        &(struct plugin_work_request) {
-            .jid = target->next_jid++, // even if this fails, we don't care, jids are expendable
-            .packet = work_req->packet,
-            .on_done = work_req->on_done,
-            .ctx = work_req->ctx,
+    if (!plugin_count) {
+        // quick shortcircuit: set NULL and quit
+        *buf = NULL;
+        *count = 0U;
+
+        return DICEY_OK;
+    }
+
+    // null target buffer: just count the plugins
+    if (!buf) {
+        *count = (uint16_t) plugin_count;
+
+        return DICEY_OK;
+    }
+
+    // if the user provides a count, we assume that buf of size *count and the user doesn't want to allocate a new
+    // buffer
+    if (*count && plugin_count > *count) {
+        assert(*buf);
+
+        *count = (uint16_t) plugin_count;
+
+        return TRACE(DICEY_EOVERFLOW);
+    }
+
+    if (!*buf) {
+        *buf = calloc(plugin_count, sizeof **buf);
+        if (!*buf) {
+            return TRACE(DICEY_ENOMEM);
         }
-    );
-
-    if (!entry) {
-        err = TRACE(DICEY_ENOMEM);
-
-        goto fail;
     }
 
-    err = dicey_server_raise_internal(server, work_req->packet);
-    if (err) {
-        goto clean_prefail;
+    *count = (uint16_t) plugin_count;
+
+    struct dicey_plugin_info *plugins = *buf;
+
+    struct dicey_client_data *const *it = dicey_client_list_begin(server->clients);
+    struct dicey_client_data *const *const end = dicey_client_list_end(server->clients);
+
+    for (; it != end; ++it) {
+        const struct dicey_plugin_data *const plugin_data = dicey_client_data_as_plugin(*it);
+        if (plugin_data) {
+            assert(plugins < *buf + plugin_count);
+
+            *plugins++ = plugin_data->info;
+        }
     }
 
-clean_prefail:
-    plugin_work_list_erase(target->work_list, entry);
-
-fail:
-    plugin_send_work_data_fail(&data, err);
-
-    return TRACE(err);
+    return DICEY_OK;
 }
 
 static void plugin_no_handshake_timeout(uv_timer_t *const timer) {
@@ -850,47 +824,6 @@ static enum dicey_error plugin_submit_spawn(
     return dicey_server_submit_request(server, req);
 }
 
-static enum dicey_error plugin_submit_work(
-    struct dicey_server *const server,
-    const struct plugin_send_work_data *const work_data
-) {
-    assert(server && work_data);
-
-    struct dicey_server_loop_request *const req = DICEY_SERVER_LOOP_REQ_NEW(struct plugin_send_work_data);
-    if (!req) {
-        return TRACE(DICEY_ENOMEM);
-    }
-
-    *req = (struct dicey_server_loop_request) {
-        .cb = &plugin_issue_work,
-        .target = DICEY_SERVER_LOOP_REQ_NO_TARGET,
-    };
-
-    DICEY_SERVER_LOOP_SET_PAYLOAD(req, struct plugin_send_work_data, work_data);
-
-    return dicey_server_submit_request(server, req);
-}
-
-static bool plugin_work_list_pop_job(
-    struct plugin_work_list *const list,
-    const uint64_t jid,
-    struct plugin_work_request *const dest
-) {
-    assert(list && dest);
-
-    for (const struct plugin_work_request *it = plugin_work_list_cbegin(list), *const end = plugin_work_list_cend(list);
-         it != end;
-         ++it) {
-        if (it->jid == jid) {
-            *dest = plugin_work_list_erase(list, it);
-
-            return true;
-        }
-    }
-
-    return false;
-}
-
 struct dicey_plugin_data *dicey_client_data_as_plugin(struct dicey_client_data *const client) {
     return client && CLIENT_DATA_IS_PLUGIN(client) ? (struct dicey_plugin_data *) client : NULL;
 }
@@ -942,64 +875,53 @@ enum dicey_error dicey_server_list_plugins(
 ) {
     assert(server && count);
 
-    if (server->state != SERVER_STATE_RUNNING) {
-        return TRACE(DICEY_EINVAL);
+    struct dicey_server_loop_request *req = DICEY_SERVER_LOOP_REQ_NEW(struct plugin_list_request);
+    if (!req) {
+        return TRACE(DICEY_ENOMEM);
     }
 
-    const size_t plugin_count = count_plugins(server->clients);
-    if (plugin_count > UINT16_MAX) {
-        return TRACE(DICEY_EOVERFLOW);
+    *req = (struct dicey_server_loop_request) {
+        .cb = &plugins_list,
+        .target = DICEY_SERVER_LOOP_REQ_NO_TARGET,
+    };
+
+    struct plugin_list_request lreq = {
+        .buf = buf,
+        .count = count,
+    };
+
+    DICEY_SERVER_LOOP_SET_PAYLOAD(req, struct plugin_list_request, &lreq);
+
+    const enum dicey_error err = dicey_server_submit_request(server, req);
+    if (err) {
+        free(req);
     }
 
-    if (!plugin_count) {
-        // quick shortcircuit: set NULL and quit
-        *buf = NULL;
-        *count = 0U;
+    return err;
+}
 
-        return DICEY_OK;
-    }
+struct dicey_plugin_data *dicey_server_plugin_find_by_name(
+    const struct dicey_server *const server,
+    const char *const name
+) {
+    assert(server && name);
 
-    // null target buffer: just count the plugins
-    if (!buf) {
-        *count = (uint16_t) plugin_count;
+    for (struct dicey_client_data *const *cur = dicey_client_list_begin(server->clients),
+                                         *const *const end = dicey_client_list_end(server->clients);
+         cur < end;
+         ++cur) {
+        struct dicey_client_data *const client = *cur;
 
-        return DICEY_OK;
-    }
+        if (client && CLIENT_DATA_IS_PLUGIN(client)) {
+            struct dicey_plugin_data *const plugin = (struct dicey_plugin_data *) client;
 
-    // if the user provides a count, we assume that buf of size *count and the user doesn't want to allocate a new
-    // buffer
-    if (*count && plugin_count > *count) {
-        assert(*buf);
-
-        *count = (uint16_t) plugin_count;
-
-        return TRACE(DICEY_EOVERFLOW);
-    }
-
-    if (!*buf) {
-        *buf = calloc(plugin_count, sizeof **buf);
-        if (!*buf) {
-            return TRACE(DICEY_ENOMEM);
+            if (strcmp(plugin->info.name, name) == 0) {
+                return plugin;
+            }
         }
     }
 
-    *count = (uint16_t) plugin_count;
-
-    struct dicey_plugin_info *plugins = *buf;
-
-    struct dicey_client_data *const *it = dicey_client_list_begin(server->clients);
-    struct dicey_client_data *const *const end = dicey_client_list_end(server->clients);
-
-    for (; it != end; ++it) {
-        const struct dicey_plugin_data *const plugin_data = dicey_client_data_as_plugin(*it);
-        if (plugin_data) {
-            assert(plugins < *buf + plugin_count);
-
-            *plugins++ = plugin_data->info;
-        }
-    }
-
-    return DICEY_OK;
+    return NULL;
 }
 
 enum dicey_error dicey_server_plugin_handshake(
@@ -1036,7 +958,7 @@ enum dicey_error dicey_server_plugin_handshake(
     plugin->info.name = name_dup;
 
     // create the plugin object
-    metaplugin_name = dicey_registry_format_metaname(&server->registry, METAPLUGIN_FORMAT, name);
+    metaplugin_name = dicey_registry_format_metaname(&server->registry, DICEY_METAPLUGIN_FORMAT, name);
     if (!metaplugin_name) {
         err = TRACE(DICEY_ENOMEM);
 
@@ -1063,9 +985,9 @@ quit:
             *out_info = plugin->info;
         }
 
-        uv_sem_t *const spawn_wait_sem = plugin->spawn_md.spawn_wait_sem;
+        uv_sem_t *const spawn_wait_sem = plugin->spawn_md.wait_sem;
         if (spawn_wait_sem) {
-            *plugin->spawn_md.spawn_result = err;
+            *plugin->spawn_md.error = err;
             uv_sem_post(spawn_wait_sem);
         }
 
@@ -1079,77 +1001,29 @@ quit:
     return err;
 }
 
-struct dicey_plugin_data *dicey_server_plugin_find_by_name(
-    const struct dicey_server *const server,
-    const char *const name
-) {
+enum dicey_error dicey_server_plugin_kill(struct dicey_server *const server, const char *const name) {
     assert(server && name);
 
-    for (struct dicey_client_data *const *cur = dicey_client_list_begin(server->clients),
-                                         *const *const end = dicey_client_list_end(server->clients);
-         cur < end;
-         ++cur) {
-        struct dicey_client_data *const client = *cur;
+    const size_t name_size = dutl_zstring_size(name);
 
-        if (client && CLIENT_DATA_IS_PLUGIN(client)) {
-            struct dicey_plugin_data *const plugin = (struct dicey_plugin_data *) client;
-
-            if (strcmp(plugin->info.name, name) == 0) {
-                return plugin;
-            }
-        }
+    struct dicey_server_loop_request *const req = DICEY_SERVER_LOOP_REQ_NEW_WITH_BYTES(name_size);
+    if (!req) {
+        return TRACE(DICEY_ENOMEM);
     }
 
-    return NULL;
-}
+    *req = (struct dicey_server_loop_request) {
+        .cb = &plugin_kill_request,
+        .target = DICEY_SERVER_LOOP_REQ_NO_TARGET,
+    };
 
-enum dicey_error dicey_server_plugin_report_work_done(
-    struct dicey_server *const server,
-    struct dicey_plugin_data *const plugin,
-    const uint64_t jid,
-    const struct dicey_value *const value
-) {
-    assert(server && plugin && value);
-    DICEY_UNUSED(server);
+    memcpy(req->payload, name, name_size);
 
-    // can never be too sure
-    assert(plugin->state == PLUGIN_STATE_RUNNING);
-
-    struct plugin_work_request work = { 0 };
-    if (!plugin_work_list_pop_job(plugin->work_list, jid, &work)) {
-        return TRACE(DICEY_ENOENT);
-    }
-
-    plugin_work_request_finish(&work, DICEY_OK, value);
-
-    return DICEY_OK;
-}
-
-enum dicey_error dicey_server_plugin_send_work(
-    struct dicey_server *const server,
-    const char *const plugin,
-    const struct dicey_arg payload,
-    dicey_server_plugin_on_work_done_fn *const on_done,
-    void *const ctx
-) {
-    assert(server && plugin && on_done && dicey_type_is_valid(payload.type));
-
-    struct dicey_server_plugin_work_builder builder = { 0 };
-    struct dicey_value_builder value = { 0 };
-
-    enum dicey_error err = dicey_server_plugin_work_request_start(server, plugin, &builder, &value);
+    const enum dicey_error err = dicey_server_submit_request(server, req);
     if (err) {
-        return err;
+        free(req);
     }
 
-    err = dicey_value_builder_set(&value, payload);
-    if (err) {
-        dicey_server_plugin_work_builder_discard(&builder);
-
-        return err;
-    }
-
-    return dicey_server_plugin_work_request_submit(server, &builder, on_done, ctx);
+    return err;
 }
 
 enum dicey_error dicey_server_plugin_quitting(
@@ -1205,8 +1079,8 @@ enum dicey_error dicey_server_spawn_plugin_and_wait(
     struct dicey_plugin_info info = { 0 };
     struct plugin_spawn_metadata md = {
         .out_info = &info,
-        .spawn_wait_sem = &sync_sem,
-        .spawn_result = &sync_result,
+        .wait_sem = &sync_sem,
+        .error = &sync_result,
     };
 
     const enum dicey_error err = plugin_submit_spawn(server, path, &md);
@@ -1224,98 +1098,6 @@ enum dicey_error dicey_server_spawn_plugin_and_wait(
     }
 
     return sync_result;
-}
-
-void dicey_server_plugin_work_builder_discard(struct dicey_server_plugin_work_builder *builder) {
-    if (builder) {
-        dicey_message_builder_discard(&builder->_builder);
-        free(builder->_name);
-        free(builder->_path);
-
-        *builder = (struct dicey_server_plugin_work_builder) { 0 };
-    }
-}
-
-enum dicey_error dicey_server_plugin_work_request_start(
-    struct dicey_server *const server,
-    const char *const plugin,
-    struct dicey_server_plugin_work_builder *const builder,
-    struct dicey_value_builder *const value
-) {
-    assert(server && plugin && builder && value);
-
-    *builder = (struct dicey_server_plugin_work_builder) {
-        ._owner = server,
-        ._name = strdup(plugin),
-        ._path = dicey_metaname_format(METAPLUGIN_FORMAT, plugin),
-    };
-
-    enum dicey_error err = dicey_message_builder_init(&builder->_builder);
-    if (err) {
-        goto fail;
-    }
-
-    err = dicey_message_builder_begin(&builder->_builder, DICEY_OP_SIGNAL);
-    if (err) {
-        goto fail;
-    }
-
-    err = dicey_message_builder_set_path(&builder->_builder, builder->_path);
-    if (err) {
-        goto fail;
-    }
-
-    err = dicey_message_builder_set_selector(
-        &builder->_builder,
-        (struct dicey_selector) {
-            .trait = DICEY_PLUGIN_TRAIT_NAME,
-            .elem = PLUGIN_COMMAND_SIGNAL_NAME,
-        }
-    );
-
-    err = dicey_message_builder_value_start(&builder->_builder, value);
-    if (err) {
-        goto fail;
-    }
-
-    return DICEY_OK;
-
-fail:
-    dicey_server_plugin_work_builder_discard(builder);
-
-    return err;
-}
-
-enum dicey_error dicey_server_plugin_work_request_submit(
-    struct dicey_server *const server,
-    struct dicey_server_plugin_work_builder *const builder,
-    dicey_server_plugin_on_work_done_fn *const on_done,
-    void *const ctx
-) {
-    assert(server && builder && on_done);
-
-    struct dicey_packet request = { 0 };
-    enum dicey_error err = dicey_message_builder_build(&builder->_builder, &request);
-    if (err) {
-        dicey_server_plugin_work_builder_discard(builder);
-
-        return err;
-    }
-
-    const struct plugin_send_work_data work_data = {
-        .name = builder->_name,
-        .request = {
-            .packet = request,
-            .on_done = on_done,
-            .ctx = ctx,
-        },
-    };
-
-    builder->_name = NULL; // steal name from the builder
-
-    dicey_server_plugin_work_builder_discard(builder);
-
-    return plugin_submit_work(server, &work_data);
 }
 
 // Arbitrary rule: the name must be in pascal case (/[A-Z][A-Za-z0-9]+/), no underscores

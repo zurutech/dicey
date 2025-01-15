@@ -21,6 +21,7 @@
 #include <assert.h>
 
 #include <dicey/core/errors.h>
+#include <dicey/core/packet.h>
 #include <dicey/ipc/registry.h>
 #include <dicey/ipc/traits.h>
 
@@ -136,6 +137,15 @@ static enum dicey_error populate_registry_with(
     }
 
     return populate_objects(registry, set->objects, set->nobjects);
+}
+
+bool dicey_builtin_context_is_valid(const struct dicey_builtin_context *const ctx) {
+    return ctx && ctx->registry && ctx->scratchpad;
+}
+
+bool dicey_builtin_request_is_valid(const struct dicey_builtin_request *const request) {
+    return request && request->client && request->path && request->entry && request->source &&
+           dicey_packet_is_valid(*request->source) && request->value;
 }
 
 bool dicey_registry_get_builtin_info_for(

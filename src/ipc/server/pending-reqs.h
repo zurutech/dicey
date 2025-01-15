@@ -22,6 +22,7 @@
 #include <stdint.h>
 
 #include <dicey/core/errors.h>
+#include <dicey/core/message.h>
 #include <dicey/core/packet.h>
 
 struct dicey_pending_request {

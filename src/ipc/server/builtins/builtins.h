@@ -38,18 +38,34 @@ struct dicey_builtin_context {
     struct dicey_view_mut *scratchpad;
 };
 
+bool dicey_builtin_context_is_valid(const struct dicey_builtin_context *ctx);
+
+/**
+ * @brief The request for a builtin operation.
+ * @note  The handler can "steal" the source packet by zeroing it out, to keep the runtime from freeing it. This is
+ *        useful when the handler wants to keep the packet around for later use.
+ */
+struct dicey_builtin_request {
+    uint8_t opcode;
+    struct dicey_client_data *client;
+    const char *path;
+    const struct dicey_element_entry *entry;
+    struct dicey_packet *source;
+    const struct dicey_value *value;
+};
+
+bool dicey_builtin_request_is_valid(const struct dicey_builtin_request *request);
+
 /**
  * @brief A function pointer type that describes the handler for a builtin operation.
+ * @note  The handler can "steal" the request packet by zeroing it out, to keep the runtime from freeing it. This is
+ *        useful when the handler wants to keep the packet around for later use.
  * @return If positive, the state of the client after executing the builtin operation (usually RUNNING)
  *         If negative, an error code of enum dicey_error
  */
 typedef ptrdiff_t dicey_registry_builtin_op(
-    struct dicey_builtin_context *context,
-    uint8_t opcode,
-    struct dicey_client_data *client,
-    const char *path,
-    const struct dicey_element_entry *entry,
-    const struct dicey_value *value,
+    struct dicey_builtin_context *ctx,
+    struct dicey_builtin_request *request,
     struct dicey_packet *response
 );
 
