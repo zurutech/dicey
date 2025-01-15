@@ -1046,7 +1046,7 @@ static void on_plugin_event(struct dicey_server *const server, const struct dice
         event.info.name ? event.info.name : "N/A (not handshaked yet)",
         event.info.path);
 
-    if (!strcmp(event.info.name, DUMMY_PLUGIN)) {
+    if (event.info.name && !strcmp(event.info.name, DUMMY_PLUGIN)) {
         switch (event.kind) {
         case DICEY_PLUGIN_EVENT_READY:
             dummy_running = true;
