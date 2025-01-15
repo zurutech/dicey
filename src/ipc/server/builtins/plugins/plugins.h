@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+#include <stdio.h>
 #if !defined(KXYIXJEFNE_PLUGINS_H)
 #define KXYIXJEFNE_PLUGINS_H
 
@@ -38,6 +39,9 @@
 #define PLUGIN_QUITTING_OP_SIG "$ -> $"
 #define PLUGIN_REPLY_OP_NAME "Reply"
 #define PLUGIN_REPLY_OP_SIG "{tv} -> $"
+
+#define PLUGIN_COMMAND_SIGNAL_SEL                                                                                      \
+    (struct dicey_selector) { .trait = DICEY_PLUGIN_TRAIT_NAME, .elem = PLUGIN_COMMAND_SIGNAL_NAME, }
 
 extern const struct dicey_registry_builtin_set dicey_registry_plugins_builtins;
 

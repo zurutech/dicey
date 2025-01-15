@@ -48,6 +48,9 @@
 #pragma warning(disable : 4996) // strdup
 #endif
 
+#define COMMAND_REPLY_SEL                                                                                              \
+    (struct dicey_selector) { .trait = DICEY_PLUGIN_TRAIT_NAME, .elem = PLUGIN_REPLY_OP_NAME, }
+
 struct dicey_plugin_work_ctx {
     struct dicey_plugin *plugin;
     uint64_t task_id;
@@ -83,16 +86,6 @@ struct command_request {
     uint64_t jid;
     enum dicey_plugin_command command;
     struct dicey_value value;
-};
-
-static const struct dicey_selector command_sig = {
-    .trait = DICEY_PLUGIN_TRAIT_NAME,
-    .elem = PLUGIN_COMMAND_SIGNAL_NAME,
-};
-
-static const struct dicey_selector command_reply = {
-    .trait = DICEY_PLUGIN_TRAIT_NAME,
-    .elem = PLUGIN_REPLY_OP_NAME,
 };
 
 static void clear_pending_job(struct dicey_plugin_work_ctx *const ctx) {
@@ -236,7 +229,7 @@ static ptrdiff_t try_get_command(
         return 0; // can't be a command, not directed to us
     }
 
-    if (dicey_selector_cmp(msg.selector, command_sig)) {
+    if (dicey_selector_cmp(msg.selector, PLUGIN_COMMAND_SIGNAL_SEL)) {
         return 0; // not a command
     }
 
@@ -302,7 +295,7 @@ static ptrdiff_t try_get_command(
 }
 
 static void plugin_on_signal(struct dicey_client *const client, void *const ctx, struct dicey_packet *const packet) {
-    assert(client && ctx && packet);
+    assert(client && packet);
 
     struct dicey_plugin *const plugin = (struct dicey_plugin *) client;
 
@@ -330,16 +323,10 @@ static void plugin_on_signal(struct dicey_client *const client, void *const ctx,
     }
 }
 
-static enum dicey_error subscribe_to_commands(struct dicey_plugin *const plugin, const char *const path) {
-    assert(plugin && path);
-
-    return dicey_client_subscribe_to((struct dicey_client *) plugin, path, command_sig, CLIENT_DEFAULT_TIMEOUT);
-}
-
 static enum dicey_error plugin_client_handshake(struct dicey_plugin *const plugin, const char *const name) {
     assert(plugin && name && !plugin->dicey_path);
 
-    // step 1. send the handshake packet with the name of the plugin
+    // step 1. send the handshake packet with the name of the plugin (will also subscribe to the commands signal)
     struct dicey_packet response = { 0 };
 
     enum dicey_error err = dicey_client_exec(
@@ -368,14 +355,6 @@ static enum dicey_error plugin_client_handshake(struct dicey_plugin *const plugi
     dicey_packet_deinit(&response);
 
     if (err) {
-        return err;
-    }
-
-    // step 3. subscribe to the commands signal
-    err = subscribe_to_commands(plugin, dicey_path);
-    if (err) {
-        free(dicey_path);
-
         return err;
     }
 
@@ -613,7 +592,7 @@ enum dicey_error dicey_plugin_work_response_start(
         goto fail;
     }
 
-    err = dicey_message_builder_set_selector(&ctx->builder, command_reply);
+    err = dicey_message_builder_set_selector(&ctx->builder, COMMAND_REPLY_SEL);
     if (err) {
         goto fail;
     }

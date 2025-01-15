@@ -47,7 +47,10 @@
 #include "sup/uvtools.h"
 #include "sup/view-ops.h"
 
+#include "ipc/elemdescr.h"
 #include "ipc/plugin-common.h"
+
+#include "builtins/plugins/plugins.h"
 
 #include "client-data.h"
 #include "plugins-internal.h"
@@ -72,9 +75,13 @@
  * # Quit
  * exit(client) -> exit_cb(child) -> close(pipe(S)) ->  client_data_cleanup(client) -> plugin_cleanup(client) ->
  * plugin_deinit(client) -> client_data_deinit(client)
+ *
+ * # Gentle quit (via commands)
+ * command[quit] -> on_quit(child) -> quitting -> timer_start -> [continues as "kick/client closes pipe"]
  */
 
 // default time the plugin has to start up and handshake with the server before we consider it dead (one second)
+
 #define PLUGIN_DEFAULT_TIMEOUT_MS ((uint64_t) 1000)
 
 // if the server has a custom timeout, use that instead of the default
@@ -822,6 +829,21 @@ static enum dicey_error plugin_submit_spawn(
     return dicey_server_submit_request(server, req);
 }
 
+static enum dicey_error plugin_subscribe_to_commands(
+    struct dicey_plugin_data *const plugin,
+    const char *const path,
+    struct dicey_view_mut *const buffer
+) {
+    assert(plugin && path && buffer);
+
+    const char *const elemdescr = dicey_element_descriptor_format_to(buffer, path, PLUGIN_COMMAND_SIGNAL_SEL);
+    if (!elemdescr) {
+        return TRACE(DICEY_ENOMEM);
+    }
+
+    return dicey_client_data_subscribe((struct dicey_client_data *) plugin, elemdescr);
+}
+
 struct dicey_plugin_data *dicey_client_data_as_plugin(struct dicey_client_data *const client) {
     return client && CLIENT_DATA_IS_PLUGIN(client) ? (struct dicey_plugin_data *) client : NULL;
 }
@@ -934,7 +956,7 @@ enum dicey_error dicey_server_plugin_handshake(
         return TRACE(DICEY_EPLUGIN_INVALID_NAME);
     }
 
-    const char *metaplugin_name = NULL;
+    const char *metaplugin_path = NULL;
 
     enum dicey_error err = DICEY_OK;
     if (plugin->state != PLUGIN_STATE_SPAWNED) {
@@ -956,20 +978,28 @@ enum dicey_error dicey_server_plugin_handshake(
     plugin->info.name = name_dup;
 
     // create the plugin object
-    metaplugin_name = dicey_registry_format_metaname(&server->registry, DICEY_METAPLUGIN_FORMAT, name);
-    if (!metaplugin_name) {
+    metaplugin_path = dicey_registry_format_metaname(&server->registry, DICEY_METAPLUGIN_FORMAT, name);
+    if (!metaplugin_path) {
         err = TRACE(DICEY_ENOMEM);
 
         goto quit;
     }
 
-    err = dicey_registry_add_object_with(&server->registry, metaplugin_name, DICEY_PLUGIN_TRAIT_NAME, NULL);
+    err = dicey_registry_add_object_with(&server->registry, metaplugin_path, DICEY_PLUGIN_TRAIT_NAME, NULL);
     if (err) {
         goto quit;
     }
 
     // this has to be the last thing ever done in the handshake, otherwise we need to restart it if something fails
     err = dicey_error_from_uv(uv_timer_stop(&plugin->process_timer));
+    if (err) {
+        goto quit;
+    }
+
+    // the plugin now needs to be subscribed to its own events, and it must be done right now because doing it via IPC
+    // would cause a race condition that's extremely hard to solve. Given that a plugin _must_ subscribe, this is also
+    // way more efficient because it avoids a round trip
+    err = plugin_subscribe_to_commands(plugin, metaplugin_path, &server->scratchpad);
     if (err) {
         goto quit;
     }
@@ -994,7 +1024,7 @@ quit:
         plugin->spawn_md = (struct plugin_spawn_metadata) { 0 };
     }
 
-    *out_path = metaplugin_name;
+    *out_path = metaplugin_path;
 
     return err;
 }

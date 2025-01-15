@@ -70,6 +70,9 @@ struct dicey_server {
     struct dicey_client_list *clients;
     struct dicey_registry registry;
 
+    // a simple buffer used to write strings here and there. Unfortunately I've been using this a bit
+    // too much and I'm starting to worry some operations may overlap and corrupt it someday.
+    // TODO: make this a real type, maybe with explicit borrowing
     struct dicey_view_mut scratchpad;
 
 #if DICEY_HAS_PLUGINS
