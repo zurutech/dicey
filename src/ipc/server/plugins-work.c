@@ -681,7 +681,6 @@ void dicey_server_plugin_work_builder_discard(struct dicey_server_plugin_work_bu
         struct plugin_work_builder_state *const state = builder->_state;
 
         dicey_message_builder_discard(&state->builder);
-        free(state->name);
         free(state);
 
         *builder = (struct dicey_server_plugin_work_builder) { 0 };
