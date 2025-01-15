@@ -185,7 +185,7 @@ ARRAY_EXPORTED_FUNCTION_DECL(end, ARRAY_VALUE_TYPE_ALIAS *, struct ARRAY_TYPE_NA
 ARRAY_EXPORTED_FUNCTION_DECL(erase_at, ARRAY_VALUE_TYPE, struct ARRAY_TYPE_NAME *const list, const size_t entry) {
     assert(list && entry < list->len && list->len);
 
-    const ARRAY_VALUE_TYPE value = list->data[entry];
+    ARRAY_VALUE_TYPE const value = list->data[entry];
 
     if (entry + 1 < list->len) {
         const ptrdiff_t len_after = list->len - entry - 1;
@@ -198,7 +198,7 @@ ARRAY_EXPORTED_FUNCTION_DECL(erase_at, ARRAY_VALUE_TYPE, struct ARRAY_TYPE_NAME 
     return value;
 }
 
-ARRAY_EXPORTED_FUNCTION_DECL(erase, ARRAY_VALUE_TYPE, struct ARRAY_TYPE_NAME *const list, const ARRAY_VALUE_TYPE *value) {
+ARRAY_EXPORTED_FUNCTION_DECL(erase, ARRAY_VALUE_TYPE, struct ARRAY_TYPE_NAME *const list, ARRAY_VALUE_TYPE const *value) {
     // it's UB to compare a pointer outside of the array, so we assume that the user will always pass a valid pointer
     // abusing the fact that compilers will not optimise this out in debug mode (hopefully)
     assert(list && value && ARRAY_EXPORTED_FUNCTION(begin)(list) <= value && value < ARRAY_EXPORTED_FUNCTION(end)(list));

@@ -53,14 +53,16 @@
 
 struct dicey_plugin_work_ctx {
     struct dicey_plugin *plugin;
-    uint64_t task_id;
+    uint64_t jid;
     struct dicey_packet request;
     struct dicey_value payload;
     struct dicey_message_builder builder;
+    struct dicey_value_builder pair_builder;
+    struct dicey_value_builder value_builder; // tied to builder
 };
 
 #define ARRAY_TYPE_NAME plugin_work_list
-#define ARRAY_VALUE_TYPE struct dicey_plugin_work_ctx
+#define ARRAY_VALUE_TYPE struct dicey_plugin_work_ctx *
 #define ARRAY_VALUE_TYPE_NEEDS_CLEANUP 1
 #include "sup/array.inc"
 
@@ -88,10 +90,19 @@ struct command_request {
     struct dicey_value value;
 };
 
-static void clear_pending_job(struct dicey_plugin_work_ctx *const ctx) {
+static void plugin_work_ctx_free(struct dicey_plugin_work_ctx *const ctx) {
     if (ctx) {
         dicey_packet_deinit(&ctx->request);
         dicey_message_builder_discard(&ctx->builder);
+
+        free(ctx);
+    }
+}
+
+static void clear_pending_job(struct dicey_plugin_work_ctx **const ctx_ptr) {
+    if (ctx_ptr && *ctx_ptr) {
+        plugin_work_ctx_free(*ctx_ptr);
+        *ctx_ptr = NULL;
     }
 }
 
@@ -118,6 +129,25 @@ static enum dicey_error extract_path(struct dicey_packet response, char **dest) 
     return err;
 }
 
+static enum dicey_error finalise_work_response(
+    struct dicey_plugin_work_ctx *const ctx,
+    struct dicey_packet *const output
+) {
+    assert(ctx && output);
+
+    enum dicey_error err = dicey_value_builder_pair_end(&ctx->pair_builder);
+    if (err) {
+        return err;
+    }
+
+    err = dicey_message_builder_value_end(&ctx->builder, &ctx->pair_builder);
+    if (err) {
+        return err;
+    }
+
+    return dicey_message_builder_build(&ctx->builder, output);
+}
+
 static bool is_cmd_valid(const uint8_t cmd) {
     switch (cmd) {
     case PLUGIN_COMMAND_DO_WORK:
@@ -136,7 +166,7 @@ static bool is_fd_valid(const uv_file fd) {
     return uv_guess_handle(fd) != UV_UNKNOWN_HANDLE;
 }
 
-static bool start_work(
+static enum dicey_error start_work(
     struct dicey_plugin *const plugin,
     struct dicey_packet packet,
     const uint64_t task_id,
@@ -144,9 +174,14 @@ static bool start_work(
 ) {
     assert(plugin && dicey_packet_is_valid(packet) && plugin->on_work_received);
 
-    struct dicey_plugin_work_ctx ctx = {
+    struct dicey_plugin_work_ctx *ctx = malloc(sizeof *ctx);
+    if (!ctx) {
+        return TRACE(DICEY_ENOMEM);
+    }
+
+    *ctx = (struct dicey_plugin_work_ctx) {
         .plugin = plugin,
-        .task_id = task_id,
+        .jid = task_id,
         .request = packet,
         .payload = value,
     };
@@ -162,24 +197,24 @@ static bool start_work(
         goto fail;
     }
 
-    struct dicey_plugin_work_ctx *const stored_ctx = plugin_work_list_append(&plugin->todo_list, &ctx);
+    struct dicey_plugin_work_ctx **const stored_ctx = plugin_work_list_append(&plugin->todo_list, &ctx);
     uv_mutex_unlock(&plugin->list_lock);
 
     if (!stored_ctx) {
         goto fail;
     }
 
-    plugin->on_work_received(stored_ctx, &stored_ctx->payload);
+    plugin->on_work_received(ctx, &ctx->payload);
 
     return true;
 
 fail:
-    clear_pending_job(&ctx);
+    plugin_work_ctx_free(ctx);
 
     return false;
 }
 
-static bool handle_command(
+static enum dicey_error handle_command(
     struct dicey_plugin *const plugin,
     struct dicey_packet *const packet,
     struct command_request *const creq
@@ -195,19 +230,19 @@ static bool handle_command(
             return start_work(plugin, stolen_packet, creq->jid, creq->value);
         }
 
-        return true; // no work to do
+        return DICEY_OK; // no work to do
 
     case PLUGIN_COMMAND_HALT:
         if (plugin->on_quit) {
             plugin->on_quit();
         }
 
-        return true;
+        return DICEY_OK;
 
     default:
         DICEY_UNREACHABLE(); // we check for this in try_get_command, so this should never happen
 
-        return false;
+        return TRACE(DICEY_EINVAL);
     }
 }
 
@@ -253,6 +288,11 @@ static ptrdiff_t try_get_command(
     }
 
     struct dicey_value tuple_elem = { 0 };
+    err = dicey_iterator_next(&iter, &tuple_elem);
+    if (err) {
+        return err;
+    }
+
     uint64_t jid = 0U;
     err = dicey_value_get_u64(&tuple_elem, &jid);
     if (err) {
@@ -272,12 +312,6 @@ static ptrdiff_t try_get_command(
 
     if (!is_cmd_valid(cmd)) {
         return TRACE(DICEY_EBADMSG);
-    }
-
-    // extract the third, variant element we'll pass on to the user callback
-    err = dicey_iterator_next(&iter, &tuple_elem);
-    if (err) {
-        return err;
     }
 
     // tuple must be exhausted
@@ -334,7 +368,7 @@ static enum dicey_error plugin_client_handshake(struct dicey_plugin *const plugi
         DICEY_SERVER_PATH,
         (struct dicey_selector) {
             .trait = DICEY_PLUGINMANAGER_TRAIT_NAME,
-            .elem = PLUGINMANAGER_HANDSHAKEINTERNAL_OP_NAME,
+            .elem = PLUGINMANAGER_HANDSHAKEINTERNAL_START_OP_NAME,
         },
         (struct dicey_arg) {
             .type = DICEY_TYPE_STR,
@@ -358,6 +392,25 @@ static enum dicey_error plugin_client_handshake(struct dicey_plugin *const plugi
         return err;
     }
 
+    // step 3. mark ourselves as ready to receive work
+    err = dicey_client_exec(
+        (struct dicey_client *) plugin,
+        dicey_path,
+        (struct dicey_selector) {
+            .trait = DICEY_PLUGIN_TRAIT_NAME,
+            .elem = PLUGIN_READY_OP_NAME,
+        },
+        (struct dicey_arg) { .type = DICEY_TYPE_UNIT },
+        &response,
+        CLIENT_DEFAULT_TIMEOUT
+    );
+
+    if (err) {
+        free(dicey_path);
+
+        return err;
+    }
+
     plugin->dicey_path = dicey_path;
 
     return DICEY_OK;
@@ -365,6 +418,52 @@ static enum dicey_error plugin_client_handshake(struct dicey_plugin *const plugi
 
 static void quit_immediately(void) {
     exit(EXIT_FAILURE);
+}
+
+static void work_response_cb(
+    struct dicey_client *const client,
+    void *const ctx,
+    enum dicey_error err,
+    struct dicey_packet *const resp
+) {
+    assert(client && resp);
+
+    DICEY_UNUSED(ctx);
+    DICEY_UNUSED(resp);
+
+    if (!err) {
+        struct dicey_message srv_msg = { 0 };
+        DICEY_ASSUME(dicey_packet_as_message(*resp, &srv_msg));
+
+        if (dicey_value_is_unit(&srv_msg.value)) {
+            return;
+        }
+
+        if (dicey_value_is(&srv_msg.value, DICEY_TYPE_ERROR)) {
+            struct dicey_errmsg errmsg = { 0 };
+
+            err = dicey_value_get_error(&srv_msg.value, &errmsg);
+            if (!err) {
+                err = errmsg.code;
+            }
+        } else {
+            // the server would be very broken if this happens
+            DICEY_UNREACHABLE();
+
+            err = TRACE(DICEY_EBADMSG);
+        }
+    }
+
+    if (err && client->inspect_func) {
+        client->inspect_func(
+            client,
+            dicey_client_get_context(client),
+            (struct dicey_client_event) {
+                .type = DICEY_CLIENT_EVENT_ERROR,
+                .error = {.err = err, .msg = "failed to send work response"},
+        }
+        );
+    }
 }
 
 enum dicey_error dicey_plugin_finish(struct dicey_plugin *const plugin) {
@@ -528,13 +627,20 @@ enum dicey_error dicey_plugin_work_response_done(struct dicey_plugin_work_ctx *c
 
     uv_mutex_lock(&plugin->list_lock); // probably unnecessary
 
-    err = dicey_message_builder_build(&ctx->builder, &output);
+    err = finalise_work_response(ctx, &output);
 
-    if (!err) {
-        // destroy the context now that we're done with it
-        clear_pending_job(ctx);
+    // destroy the context now that we're done with it
+    plugin_work_ctx_free(ctx);
 
-        DICEY_UNUSED(plugin_work_list_erase(plugin->todo_list, ctx));
+    for (struct dicey_plugin_work_ctx **it = plugin_work_list_begin(plugin->todo_list),
+                                      **end = plugin_work_list_end(plugin->todo_list);
+         it != end;
+         ++it) {
+
+        if (*it == ctx) {
+            plugin_work_list_erase(plugin->todo_list, it);
+            break;
+        }
     }
 
     uv_mutex_unlock(&plugin->list_lock);
@@ -543,25 +649,16 @@ enum dicey_error dicey_plugin_work_response_done(struct dicey_plugin_work_ctx *c
         return err;
     }
 
-    struct dicey_packet srv_response = { 0 };
-
-    err = dicey_client_request((struct dicey_client *) plugin, output, &srv_response, CLIENT_DEFAULT_TIMEOUT);
-
-#if !defined(NDEBUG)
-    if (!err) {
-        // if we're building in debug mode, check the validity of the server response
-        struct dicey_message srv_msg = { 0 };
-        DICEY_ASSUME(dicey_packet_as_message(srv_response, &srv_msg));
-        assert(dicey_value_is_unit(&srv_msg.value));
-    }
-#endif
-
-    return err;
+    // we use the async request because this would stall the client loop otherwise. The callback is pointless but
+    // necessary for the API
+    return dicey_client_request_async(
+        (struct dicey_client *) plugin, output, &work_response_cb, NULL, CLIENT_DEFAULT_TIMEOUT
+    );
 }
 
 enum dicey_error dicey_plugin_work_response_start(
     struct dicey_plugin_work_ctx *const ctx,
-    struct dicey_value_builder *const value
+    struct dicey_value_builder **const value
 ) {
     assert(ctx && value);
 
@@ -597,7 +694,40 @@ enum dicey_error dicey_plugin_work_response_start(
         goto fail;
     }
 
-    err = dicey_message_builder_value_start(&ctx->builder, value);
+    err = dicey_message_builder_value_start(&ctx->builder, &ctx->pair_builder);
+    if (err) {
+        goto fail;
+    }
+
+    err = dicey_value_builder_pair_start(&ctx->pair_builder);
+    if (err) {
+        goto fail;
+    }
+
+    struct dicey_value_builder jid_builder = { 0 };
+    err = dicey_value_builder_next(&ctx->pair_builder, &jid_builder);
+    if (err) {
+        goto fail;
+    }
+
+    err = dicey_value_builder_set(
+        &jid_builder,
+        (struct dicey_arg) {
+            .type = DICEY_TYPE_UINT64,
+            .u64 = ctx->jid,
+        }
+    );
+
+    if (err) {
+        goto fail;
+    }
+
+    err = dicey_value_builder_next(&ctx->pair_builder, &ctx->value_builder);
+    if (err) {
+        goto fail;
+    }
+
+    *value = &ctx->value_builder;
 
 fail:
     if (err) {

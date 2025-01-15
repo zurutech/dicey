@@ -255,13 +255,13 @@ static void disconnect_end(const int64_t id, struct dicey_task_error *const err,
 }
 
 static const struct dicey_task_request full_disconnect_sequence = {
-    .work = (dicey_task_loop_do_work_fn *[]) {&send_bye, &issue_close, &dicey_task_no_work, NULL},
+    .work = (dicey_task_loop_do_work_fn *[]) {&send_bye, &issue_close, &dicey_task_noop, NULL},
     .at_end = &disconnect_end,
 };
 
 static const struct dicey_task_request quick_disconnect_sequence = {
     .work = (dicey_task_loop_do_work_fn *[]
-    ) {&issue_close, &dicey_task_no_work, NULL}, // skip the bye packet when quick disconnecting
+    ) {&issue_close, &dicey_task_noop, NULL}, // skip the bye packet when quick disconnecting
     .at_end = &disconnect_end,
 };
 

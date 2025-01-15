@@ -701,7 +701,7 @@ enum dicey_error dicey_task_loop_submit(struct dicey_task_loop *const tloop, str
     return DICEY_OK;
 }
 
-struct dicey_task_result dicey_task_no_work(
+struct dicey_task_result dicey_task_noop(
     struct dicey_task_loop *const tloop,
     const int64_t id,
     void *const ctx,

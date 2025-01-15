@@ -49,8 +49,9 @@
 
 enum plugin_op {
     PLUGIN_OP_LIST,
-    PLUGIN_OP_HANDSHAKEINTERNAL,
+    PLUGIN_OP_HANDSHAKEINTERNAL_START,
     PLUGIN_OP_QUITTING,
+    PLUGIN_OP_READY,
     PLUGIN_GET_NAME,
     PLUGIN_GET_PATH,
     PLUGIN_CMD_RESPONSE,
@@ -69,11 +70,11 @@ static const struct dicey_default_element pm_elements[] = {
      .opcode = PLUGIN_OP_LIST,
      },
     {
-     .name = PLUGINMANAGER_HANDSHAKEINTERNAL_OP_NAME,
+     .name = PLUGINMANAGER_HANDSHAKEINTERNAL_START_OP_NAME,
      .type = DICEY_ELEMENT_TYPE_OPERATION,
-     .signature = PLUGINMANAGER_HANDSHAKEINTERNAL_OP_SIG,
+     .signature = PLUGINMANAGER_HANDSHAKEINTERNAL_START_OP_SIG,
      .flags = DICEY_ELEMENT_INTERNAL,
-     .opcode = PLUGIN_OP_HANDSHAKEINTERNAL,
+     .opcode = PLUGIN_OP_HANDSHAKEINTERNAL_START,
      },
 };
 
@@ -108,6 +109,13 @@ static const struct dicey_default_element plugin_elements[] = {
      .opcode = PLUGIN_OP_QUITTING,
      },
     {
+     .name = PLUGIN_READY_OP_NAME,
+     .type = DICEY_ELEMENT_TYPE_OPERATION,
+     .signature = PLUGIN_READY_OP_SIG,
+     .flags = DICEY_ELEMENT_INTERNAL,
+     .opcode = PLUGIN_OP_READY,
+     },
+    {
      .name = PLUGIN_REPLY_OP_NAME,
      .type = DICEY_ELEMENT_TYPE_OPERATION,
      .signature = PLUGIN_REPLY_OP_SIG,
@@ -121,58 +129,37 @@ static const struct dicey_default_trait plugin_traits[] = {
     { .name = DICEY_PLUGINMANAGER_TRAIT_NAME, .elements = pm_elements,     .num_elements = DICEY_LENOF(pm_elements)    },
 };
 
-static enum dicey_error craft_handshake_reply(
-    struct dicey_message_builder *const builder,
-    const char *const obj_path,
+static enum dicey_error handle_end_handshake(
+    struct dicey_server *const server,
+    struct dicey_plugin_data *const plugin,
+    const char *const src_path,
+    const struct dicey_value *const value,
     struct dicey_packet *const response
 ) {
-    assert(builder && obj_path && response);
+    assert(server && plugin && value && response);
 
-    enum dicey_error err = dicey_message_builder_begin(builder, DICEY_OP_RESPONSE);
-    if (err) {
-        goto fail;
+    if (!dicey_value_is(value, DICEY_TYPE_UNIT)) {
+        return TRACE(DICEY_ESIGNATURE_MISMATCH);
     }
 
-    err = dicey_message_builder_set_path(builder, DICEY_SERVER_PATH);
+    const enum dicey_error err = dicey_server_plugin_handshake_end(server, plugin);
     if (err) {
-        goto fail;
+        return err;
     }
 
-    err = dicey_message_builder_set_selector(
-        builder,
+    return dicey_packet_message(
+        response,
+        0U,
+        DICEY_OP_RESPONSE,
+        src_path,
         (struct dicey_selector) {
-            .trait = DICEY_PLUGINMANAGER_TRAIT_NAME,
-            .elem = PLUGINMANAGER_HANDSHAKEINTERNAL_OP_NAME,
-        }
-    );
-
-    if (err) {
-        goto fail;
-    }
-
-    err = dicey_message_builder_set_value(
-        builder,
+            .trait = DICEY_PLUGIN_TRAIT_NAME,
+            .elem = PLUGIN_READY_OP_NAME,
+        },
         (struct dicey_arg) {
-            .type = DICEY_TYPE_PATH,
-            .path = obj_path,
+            .type = DICEY_TYPE_UNIT,
         }
     );
-
-    if (err) {
-        goto fail;
-    }
-
-    err = dicey_message_builder_build(builder, response);
-    if (err) {
-        goto fail;
-    }
-
-    return DICEY_OK;
-
-fail:
-    dicey_message_builder_discard(builder);
-
-    return err;
 }
 
 static enum dicey_error handle_get_plugin_property(
@@ -249,8 +236,8 @@ quit:
     return err;
 }
 
-static enum dicey_error handle_handshake(
-    struct dicey_server *server,
+static enum dicey_error handle_start_handshake(
+    struct dicey_server *const server,
     struct dicey_plugin_data *const plugin,
     const struct dicey_value *const value,
     struct dicey_packet *const response
@@ -264,25 +251,27 @@ static enum dicey_error handle_handshake(
     }
 
     const char *obj_path = NULL;
-    err = dicey_server_plugin_handshake(server, plugin, name, &obj_path);
+    err = dicey_server_plugin_handshake_start(server, plugin, name, &obj_path);
     if (err) {
         return err;
     }
 
     assert(obj_path);
 
-    struct dicey_message_builder builder = { 0 };
-    err = dicey_message_builder_init(&builder);
-    if (err) {
-        return err;
-    }
-
-    err = craft_handshake_reply(&builder, obj_path, response);
-    if (err) {
-        dicey_message_builder_discard(&builder);
-    }
-
-    return err;
+    return dicey_packet_message(
+        response,
+        0U,
+        DICEY_OP_RESPONSE,
+        DICEY_SERVER_PATH,
+        (struct dicey_selector) {
+            .trait = DICEY_PLUGINMANAGER_TRAIT_NAME,
+            .elem = PLUGINMANAGER_HANDSHAKEINTERNAL_START_OP_NAME,
+        },
+        (struct dicey_arg) {
+            .type = DICEY_TYPE_PATH,
+            .path = obj_path,
+        }
+    );
 }
 
 static enum dicey_error handle_list_plugins(struct dicey_server *const server, struct dicey_packet *const response) {
@@ -509,9 +498,9 @@ static enum dicey_error handle_plugin_operation(
     }
 
     switch (opcode) {
-    case PLUGIN_OP_HANDSHAKEINTERNAL:
+    case PLUGIN_OP_HANDSHAKEINTERNAL_START:
         {
-            const enum dicey_error err = handle_handshake(server, plugin, value, response);
+            const enum dicey_error err = handle_start_handshake(server, plugin, value, response);
             if (err) {
                 // uncereomoniously kill the plugin if the handshake fails
                 (void) dicey_server_client_raised_error(server, client, err);
@@ -536,6 +525,18 @@ static enum dicey_error handle_plugin_operation(
             }
 
             return err;
+        }
+
+    case PLUGIN_OP_READY:
+        {
+            const enum dicey_error err = handle_end_handshake(server, plugin, src_path, value, response);
+            if (err) {
+                // uncereomoniously kill the plugin if the handshake fails
+                (void) dicey_server_client_raised_error(server, client, err);
+            }
+
+            // like above, we don't care about the response, the child will be killed if an error occurs
+            return DICEY_OK;
         }
 
     case PLUGIN_CMD_RESPONSE:

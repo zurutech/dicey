@@ -87,7 +87,7 @@ struct dicey_task_result dicey_task_retry(void);
 /**
  * @brief A work function that does nothing except returning a continue result.
  */
-struct dicey_task_result dicey_task_no_work(struct dicey_task_loop *tloop, int64_t id, void *ctx, void *input);
+struct dicey_task_result dicey_task_noop(struct dicey_task_loop *tloop, int64_t id, void *ctx, void *input);
 
 enum dicey_error dicey_task_loop_new(struct dicey_task_loop **dest, struct dicey_task_loop_args *args);
 void dicey_task_loop_delete(struct dicey_task_loop *tloop);

@@ -48,6 +48,7 @@ struct dicey_plugin_info {
  */
 enum dicey_plugin_event_kind {
     DICEY_PLUGIN_EVENT_SPAWNED,      /**< A plugin was spawned; it hasn't handshaked yet, and still is not registered */
+    DICEY_PLUGIN_EVENT_GOT_NAME,     /**< A plugin has sent its name */
     DICEY_PLUGIN_EVENT_READY,        /**< A plugin was loaded. It is now registered and ready to be used */
     DICEY_PLUGIN_EVENT_TERMINATED,   /**< A plugin was sent SIGTERM. Meaningless on Windows */
     DICEY_PLUGIN_EVENT_QUITTING,     /**< A plugin has communicated its intention to quit */
@@ -169,14 +170,16 @@ DICEY_EXPORT enum dicey_error dicey_plugin_init(
 
 /**
  * @brief `dicey_plugin_work_response_start` initialises an internal builder and starts building a response to a work
- * job request. `builder` will be initialised with a value builder that the user can fill to build the response.
+ *        job request. `builder` will be set to the address of an internal value builder that the user can fill to build
+ *        the response.
  * @note  `dicey_plugin_work_response_done` must be called after the response is built to finalise the response.
  * @param ctx   The context of the work request.
- * @param value The value builder to initialise.
+ * @param value A pointer that will be set to the value builder address. Valid until `dicey_plugin_work_response_done`
+ *              is called.
  */
 DICEY_EXPORT enum dicey_error dicey_plugin_work_response_start(
     struct dicey_plugin_work_ctx *ctx,
-    struct dicey_value_builder *value
+    struct dicey_value_builder **value
 );
 
 /**

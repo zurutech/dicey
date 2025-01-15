@@ -40,6 +40,7 @@
 #include <dicey/core/views.h>
 #include <dicey/ipc/builtins/plugins.h>
 #include <dicey/ipc/plugins.h>
+#include <dicey/ipc/registry.h>
 #include <dicey/ipc/server.h>
 
 #include "sup/trace.h"
@@ -220,6 +221,10 @@ static void plugin_change_state(struct dicey_plugin_data *const plugin, const en
     switch (new_state) {
     case PLUGIN_STATE_SPAWNED:
         plugin_raise_event(plugin, DICEY_PLUGIN_EVENT_SPAWNED);
+        break;
+
+    case PLUGIN_STATE_NAME_ASSIGNED:
+        plugin_raise_event(plugin, DICEY_PLUGIN_EVENT_GOT_NAME);
         break;
 
     case PLUGIN_STATE_RUNNING:
@@ -865,6 +870,9 @@ const char *dicey_plugin_event_kind_to_string(const enum dicey_plugin_event_kind
     case DICEY_PLUGIN_EVENT_SPAWNED:
         return "spawned";
 
+    case DICEY_PLUGIN_EVENT_GOT_NAME:
+        return "got_name";
+
     case DICEY_PLUGIN_EVENT_READY:
         return "ready";
 
@@ -944,62 +952,20 @@ struct dicey_plugin_data *dicey_server_plugin_find_by_name(
     return NULL;
 }
 
-enum dicey_error dicey_server_plugin_handshake(
+enum dicey_error dicey_server_plugin_handshake_end(
     struct dicey_server *const server,
-    struct dicey_plugin_data *const plugin,
-    const char *const name,
-    const char **const out_path
+    struct dicey_plugin_data *const plugin
 ) {
-    assert(server && plugin && name && out_path);
+    assert(server && plugin);
 
-    if (!dicey_string_is_valid_plugin_name(name)) {
-        return TRACE(DICEY_EPLUGIN_INVALID_NAME);
+    DICEY_UNUSED(server);
+
+    if (plugin->state != PLUGIN_STATE_NAME_ASSIGNED) {
+        return TRACE(DICEY_EINVAL);
     }
 
-    const char *metaplugin_path = NULL;
-
-    enum dicey_error err = DICEY_OK;
-    if (plugin->state != PLUGIN_STATE_SPAWNED) {
-        err = TRACE(DICEY_EINVAL);
-
-        goto quit;
-    }
-
-    // the name must not be set yet
-    assert(!plugin->info.name);
-
-    char *const name_dup = strdup(name);
-    if (!name_dup) {
-        err = TRACE(DICEY_ENOMEM);
-
-        goto quit;
-    }
-
-    plugin->info.name = name_dup;
-
-    // create the plugin object
-    metaplugin_path = dicey_registry_format_metaname(&server->registry, DICEY_METAPLUGIN_FORMAT, name);
-    if (!metaplugin_path) {
-        err = TRACE(DICEY_ENOMEM);
-
-        goto quit;
-    }
-
-    err = dicey_registry_add_object_with(&server->registry, metaplugin_path, DICEY_PLUGIN_TRAIT_NAME, NULL);
-    if (err) {
-        goto quit;
-    }
-
-    // this has to be the last thing ever done in the handshake, otherwise we need to restart it if something fails
-    err = dicey_error_from_uv(uv_timer_stop(&plugin->process_timer));
-    if (err) {
-        goto quit;
-    }
-
-    // the plugin now needs to be subscribed to its own events, and it must be done right now because doing it via IPC
-    // would cause a race condition that's extremely hard to solve. Given that a plugin _must_ subscribe, this is also
-    // way more efficient because it avoids a round trip
-    err = plugin_subscribe_to_commands(plugin, metaplugin_path, &server->scratchpad);
+    // finally, stop the timer
+    enum dicey_error err = dicey_error_from_uv(uv_timer_stop(&plugin->process_timer));
     if (err) {
         goto quit;
     }
@@ -1024,7 +990,71 @@ quit:
         plugin->spawn_md = (struct plugin_spawn_metadata) { 0 };
     }
 
+    return err;
+}
+
+enum dicey_error dicey_server_plugin_handshake_start(
+    struct dicey_server *const server,
+    struct dicey_plugin_data *const plugin,
+    const char *const name,
+    const char **const out_path
+) {
+    assert(server && plugin && name && out_path);
+
+    if (!dicey_string_is_valid_plugin_name(name)) {
+        return TRACE(DICEY_EPLUGIN_INVALID_NAME);
+    }
+
+    const char *metaplugin_path = NULL;
+
+    if (plugin->state != PLUGIN_STATE_SPAWNED) {
+        return TRACE(DICEY_EINVAL);
+    }
+
+    // the name must not be set yet
+    assert(!plugin->info.name);
+
+    char *const name_dup = strdup(name);
+    if (!name_dup) {
+        return TRACE(DICEY_ENOMEM);
+    }
+
+    enum dicey_error err = DICEY_OK;
+
+    // create the plugin object
+    metaplugin_path = dicey_registry_format_metaname(&server->registry, DICEY_METAPLUGIN_FORMAT, name);
+    if (!metaplugin_path) {
+        err = TRACE(DICEY_ENOMEM);
+
+        goto fail;
+    }
+
+    err = dicey_registry_add_object_with(&server->registry, metaplugin_path, DICEY_PLUGIN_TRAIT_NAME, NULL);
+    if (err) {
+        goto fail;
+    }
+
+    // the plugin now needs to be subscribed to its own events, and it must be done right now because doing it via IPC
+    // would cause a race condition that's extremely hard to solve. Given that a plugin _must_ subscribe, this is also
+    // way more efficient because it avoids a round trip
+    err = plugin_subscribe_to_commands(plugin, metaplugin_path, &server->scratchpad);
+    if (err) {
+        goto after_register;
+    }
+
+    plugin->info.name = name_dup;
+
+    plugin_change_state(plugin, PLUGIN_STATE_NAME_ASSIGNED);
+
     *out_path = metaplugin_path;
+
+    return err;
+
+after_register:
+    (void) dicey_registry_remove_object(&server->registry, metaplugin_path);
+
+fail:
+    free(name_dup);
 
     return err;
 }

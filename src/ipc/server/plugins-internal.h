@@ -19,7 +19,9 @@
 enum dicey_plugin_state {
     PLUGIN_STATE_INVALID,
 
-    PLUGIN_STATE_SPAWNED, // the child was spawned, but hasn't yet handshaked
+    // transient states
+    PLUGIN_STATE_SPAWNED,       // the child was spawned, but hasn't yet handshaked
+    PLUGIN_STATE_NAME_ASSIGNED, // the child now has a name, and has to notify the server that it's ready
 
     // good states
     PLUGIN_STATE_RUNNING, // the child is running and has handshaked with the server
@@ -91,7 +93,9 @@ enum dicey_plugin_state dicey_plugin_data_get_state(const struct dicey_plugin_da
 
 struct dicey_plugin_data *dicey_server_plugin_find_by_name(const struct dicey_server *server, const char *name);
 
-enum dicey_error dicey_server_plugin_handshake(
+enum dicey_error dicey_server_plugin_handshake_end(struct dicey_server *server, struct dicey_plugin_data *plugin);
+
+enum dicey_error dicey_server_plugin_handshake_start(
     struct dicey_server *server,
     struct dicey_plugin_data *plugin,
     const char *name,

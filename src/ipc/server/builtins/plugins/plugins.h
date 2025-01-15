@@ -22,21 +22,24 @@
 
 /*
  *     // internal operation used by the plugin API. Never call directly!
- *     HandshakeInternal: s -> @ // takes the name and returns the plugin object path
+ *     HandshakeInternalStart: s -> @ // takes the name and returns the plugin object path
  */
-#define PLUGINMANAGER_HANDSHAKEINTERNAL_OP_NAME "HandshakeInternal"
-#define PLUGINMANAGER_HANDSHAKEINTERNAL_OP_SIG "s -> @"
+#define PLUGINMANAGER_HANDSHAKEINTERNAL_START_OP_NAME "HandshakeInternalStart"
+#define PLUGINMANAGER_HANDSHAKEINTERNAL_START_OP_SIG "s -> @"
 
 /*
  *     // internal plugin communication. Don't call directly
  *     signal Command: {tc} // job number + an enumeration of plugin commands (private)
  *     Quitting: $ -> $     // the plugin communicates its intention to quit
+ *     Ready: $ -> $        // the plugin is ready to receive commands
  *     Reply: {tv} -> $     // reply to a command (private)
  */
 #define PLUGIN_COMMAND_SIGNAL_NAME "Command"
 #define PLUGIN_COMMAND_SIGNAL_SIG "(tcv)"
 #define PLUGIN_QUITTING_OP_NAME "Quitting"
 #define PLUGIN_QUITTING_OP_SIG "$ -> $"
+#define PLUGIN_READY_OP_NAME "Ready"
+#define PLUGIN_READY_OP_SIG "$ -> $"
 #define PLUGIN_REPLY_OP_NAME "Reply"
 #define PLUGIN_REPLY_OP_SIG "{tv} -> $"
 
