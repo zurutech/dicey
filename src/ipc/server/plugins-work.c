@@ -55,6 +55,34 @@
 #define PLUGIN_CMD_SEL                                                                                                 \
     (struct dicey_selector) { .trait = DICEY_PLUGIN_TRAIT_NAME, .elem = PLUGIN_COMMAND_SIGNAL_NAME }
 
+struct plugin_send_work_data {
+    char *name;                                      // the name of the plugin
+    struct dicey_server_plugin_work_builder builder; // a yet to complete work request builder
+    dicey_server_plugin_on_work_done_fn *on_done;    // the callback to call when the work is done
+    void *ctx;
+};
+
+struct plugin_quit_metadata {
+    uv_sem_t *quit_sem;
+    enum dicey_error *quit_err;
+    int64_t *quit_status;
+};
+
+struct plugin_quit_request {
+    struct plugin_quit_metadata md;
+
+    char target[];
+};
+
+// the builders use the value pointers to check for borrowing. This means that this has to go into the heap
+struct plugin_work_builder_state {
+    struct dicey_server *owner;
+    struct dicey_message_builder builder;
+    struct dicey_value_builder tuple_builder;
+
+    char name[];
+};
+
 const struct dicey_arg TUPLE_ARGS[] = {
     [0] = {
         .type = DICEY_TYPE_UNIT,
@@ -75,25 +103,6 @@ const struct dicey_arg PLUGIN_CMD_ARG = {
         .nitems = DICEY_LENOF(TUPLE_ARGS),
         .elems = TUPLE_ARGS,
     },
-};
-
-struct plugin_send_work_data {
-    char *name;                                      // the name of the plugin
-    struct dicey_server_plugin_work_builder builder; // a yet to complete work request builder
-    dicey_server_plugin_on_work_done_fn *on_done;    // the callback to call when the work is done
-    void *ctx;
-};
-
-struct plugin_quit_metadata {
-    uv_sem_t *quit_sem;
-    enum dicey_error *quit_err;
-    int64_t *quit_status;
-};
-
-struct plugin_quit_request {
-    struct plugin_quit_metadata md;
-
-    char target[];
 };
 
 static enum dicey_error craft_quit_packet(
@@ -183,7 +192,10 @@ static enum dicey_error plugin_work_request_complete(
 ) {
     assert(server && wb && dest);
 
-    struct dicey_value_builder *const tuple = &wb->_tuple_builder;
+    struct plugin_work_builder_state *const wbs = wb->_state;
+    assert(wbs);
+
+    struct dicey_value_builder *const tuple = &wbs->tuple_builder;
 
     struct dicey_value_builder argument_builder = { 0 };
     enum dicey_error err = dicey_value_builder_next(tuple, &argument_builder);
@@ -226,10 +238,15 @@ static enum dicey_error plugin_work_request_complete(
         return err;
     }
 
-    struct dicey_message_builder *const builder = &wb->_builder;
+    struct dicey_message_builder *const builder = &wbs->builder;
+
+    err = dicey_message_builder_value_end(builder, tuple);
+    if (err) {
+        return err;
+    }
 
     // because this runs in the loop, it's safe to use the scratchpad
-    const char *const path = dicey_metaname_format_to(&server->scratchpad, DICEY_METAPLUGIN_FORMAT, wb->_name);
+    const char *const path = dicey_metaname_format_to(&server->scratchpad, DICEY_METAPLUGIN_FORMAT, wbs->name);
     if (!path) {
         return TRACE(DICEY_ENOMEM);
     }
@@ -660,9 +677,12 @@ enum dicey_error dicey_server_plugin_send_work_and_wait(
 }
 
 void dicey_server_plugin_work_builder_discard(struct dicey_server_plugin_work_builder *const builder) {
-    if (builder) {
-        dicey_message_builder_discard(&builder->_builder);
-        free(builder->_name);
+    if (builder && builder->_state) {
+        struct plugin_work_builder_state *const state = builder->_state;
+
+        dicey_message_builder_discard(&state->builder);
+        free(state->name);
+        free(state);
 
         *builder = (struct dicey_server_plugin_work_builder) { 0 };
     }
@@ -671,39 +691,53 @@ void dicey_server_plugin_work_builder_discard(struct dicey_server_plugin_work_bu
 enum dicey_error dicey_server_plugin_work_request_start(
     struct dicey_server *const server,
     const char *const plugin,
-    struct dicey_server_plugin_work_builder *const builder,
+    struct dicey_server_plugin_work_builder *const wb,
     struct dicey_value_builder *const value
 ) {
-    assert(server && plugin && builder && value);
+    assert(server && plugin && wb && value);
 
-    *builder = (struct dicey_server_plugin_work_builder) {
-        ._owner = server,
-        ._name = strdup(plugin),
+    const size_t plugin_size = dutl_zstring_size(plugin);
+
+    struct plugin_work_builder_state *const state = malloc(sizeof *state + plugin_size);
+    if (!state) {
+        return TRACE(DICEY_ENOMEM);
+    }
+
+    *state = (struct plugin_work_builder_state) {
+        .owner = server,
     };
 
-    enum dicey_error err = dicey_message_builder_init(&builder->_builder);
+    memcpy(state->name, plugin, plugin_size);
+
+    wb->_state = state;
+
+    struct dicey_message_builder *const builder = &state->builder;
+
+    enum dicey_error err = dicey_message_builder_init(builder);
     if (err) {
         goto fail;
     }
 
-    err = dicey_message_builder_begin(&builder->_builder, DICEY_OP_SIGNAL);
+    err = dicey_message_builder_begin(builder, DICEY_OP_SIGNAL);
     if (err) {
         goto fail;
     }
 
-    err = dicey_message_builder_value_start(&builder->_builder, &builder->_tuple_builder);
+    struct dicey_value_builder *const tuple_builder = &state->tuple_builder;
+
+    err = dicey_message_builder_value_start(builder, tuple_builder);
     if (err) {
         goto fail;
     }
 
-    err = dicey_value_builder_tuple_start(&builder->_tuple_builder);
+    err = dicey_value_builder_tuple_start(tuple_builder);
     if (err) {
         goto fail;
     }
 
     // here we return the value builder of slot #1 to the caller, which will be used to set the payload
     // we'll set the reminder later
-    err = dicey_value_builder_next(&builder->_tuple_builder, value);
+    err = dicey_value_builder_next(tuple_builder, value);
     if (err) {
         goto fail;
     }
@@ -711,7 +745,7 @@ enum dicey_error dicey_server_plugin_work_request_start(
     return DICEY_OK;
 
 fail:
-    dicey_server_plugin_work_builder_discard(builder);
+    dicey_server_plugin_work_builder_discard(wb);
 
     return err;
 }
@@ -728,8 +762,11 @@ enum dicey_error dicey_server_plugin_work_request_submit(
 ) {
     assert(server && builder && on_done);
 
+    struct plugin_work_builder_state *const state = builder->_state;
+    assert(state);
+
     const struct plugin_send_work_data work_data = {
-        .name = builder->_name,
+        .name = state->name,
         .builder = *builder,
         .on_done = on_done,
         .ctx = ctx,

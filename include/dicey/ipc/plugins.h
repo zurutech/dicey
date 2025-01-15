@@ -129,10 +129,7 @@ typedef void dicey_server_plugin_on_work_done_fn(
  *        user, which can fill it with a value and submit it back to the server. Do not access its internals directly.
  */
 struct dicey_server_plugin_work_builder {
-    struct dicey_server *_owner;
-    char *_name;
-    struct dicey_message_builder _builder;
-    struct dicey_value_builder _tuple_builder;
+    void *_state;
 };
 
 /**
