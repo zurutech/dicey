@@ -521,11 +521,11 @@ enum dicey_error dicey_plugin_finish(struct dicey_plugin *const plugin) {
                         dicey_client_get_context(client),
                         (struct dicey_client_event) {
                             .type = DICEY_CLIENT_EVENT_ERROR,
-                            .error = {.err = err,
-                                      .msg =
-                                           "failed to notify the server of plugin shutdown - expect the server to kill "
-                                           "us"},
-                    }
+                            .error = {
+                                .err = err,
+                                .msg = "failed to notify the server of plugin shutdown - expect the server to kill us",
+                            },
+                        }
                     );
                 }
             }
