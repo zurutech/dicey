@@ -14,7 +14,7 @@
 
 cmake_minimum_required(VERSION 3.26.0)
 
-project(dicey VERSION 0.3.9 LANGUAGES C)
+project(dicey VERSION 0.4.0 LANGUAGES C)
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 include(JoinPaths)
@@ -133,7 +133,7 @@ if (NOT UV_FOUND)
     FetchContent_Declare(
         libuv
         GIT_REPOSITORY https://github.com/libuv/libuv.git
-        GIT_TAG        v1.49.2
+        GIT_TAG        v1.50.0
     )
 
     FetchContent_MakeAvailable(libuv)
@@ -167,7 +167,7 @@ if (NOT LibXml2_FOUND)
     FetchContent_Declare(
         libxml2
         GIT_REPOSITORY https://gitlab.gnome.org/GNOME/libxml2.git
-        GIT_TAG        v2.13.4
+        GIT_TAG        v2.13.5
     )
 
     FetchContent_MakeAvailable(libxml2)

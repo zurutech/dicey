@@ -112,7 +112,7 @@ if (NOT cJSON_FOUND)
     FetchContent_Declare(
         cJSON
         GIT_REPOSITORY https://github.com/DaveGamble/cJSON
-        GIT_TAG        v1.7.17
+        GIT_TAG        v1.7.18
     )
 
     FetchContent_MakeAvailable(cJSON)
