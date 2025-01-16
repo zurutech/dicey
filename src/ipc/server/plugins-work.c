@@ -308,6 +308,8 @@ static void plugin_send_work_data_fail(struct plugin_send_work_data *const work,
         assert(work->on_done);
 
         work->on_done(NULL, err, NULL, work->ctx);
+
+        dicey_server_plugin_work_builder_discard(&work->builder);
         free(work->name);
     }
 }
@@ -436,6 +438,9 @@ static enum dicey_error plugin_issue_work(
     if (err) {
         goto fail;
     }
+
+    // get rid of the builder now that the packet has been crafted
+    dicey_server_plugin_work_builder_discard(&req.builder);
 
     const struct plugin_work_request *const entry = plugin_work_list_append(
         &target->work_list,

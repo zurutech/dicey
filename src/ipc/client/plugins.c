@@ -233,6 +233,8 @@ static enum dicey_error handle_command(
         return DICEY_OK; // no work to do
 
     case PLUGIN_COMMAND_HALT:
+        plugin->quitting = true;
+
         if (plugin->on_quit) {
             plugin->on_quit();
         }
@@ -470,60 +472,66 @@ enum dicey_error dicey_plugin_finish(struct dicey_plugin *const plugin) {
     if (plugin) {
         uv_mutex_lock(&plugin->list_lock);
 
+        // if quitting was already set to true, it means the server kindly asked us to quit
+        const bool was_asked_to_quit = plugin->quitting;
+
         plugin->quitting = true;
 
         // this way, when deinit attempts to stop the client, the loop will not be stuck waiting for the lock
         uv_mutex_unlock(&plugin->list_lock);
 
+        enum dicey_error err = DICEY_OK;
         struct dicey_client *const client = (struct dicey_client *) plugin;
 
-        struct dicey_packet response = { 0 };
+        if (!was_asked_to_quit) {
+            struct dicey_packet response = { 0 };
+            // first, tell the server we're quitting (best effort). After this we know we will not get any more requests
+            enum dicey_error err = dicey_client_exec(
+                client,
+                plugin->dicey_path,
+                (struct dicey_selector) {
+                    .trait = DICEY_PLUGIN_TRAIT_NAME,
+                    .elem = PLUGIN_QUITTING_OP_NAME,
+                },
+                (struct dicey_arg) { .type = DICEY_TYPE_UNIT },
+                &response, /* we don't care about the response */
+                CLIENT_DEFAULT_TIMEOUT
+            );
 
-        // first, tell the client we're quitting (best effort). After this we know we will not get any more requests
-        enum dicey_error err = dicey_client_exec(
-            client,
-            plugin->dicey_path,
-            (struct dicey_selector) {
-                .trait = DICEY_PLUGIN_TRAIT_NAME,
-                .elem = PLUGIN_QUITTING_OP_NAME,
-            },
-            (struct dicey_arg) { .type = DICEY_TYPE_UNIT },
-            &response, /* we don't care about the response */
-            CLIENT_DEFAULT_TIMEOUT
-        );
+            if (!err) {
+                struct dicey_message msg = { 0 };
 
-        if (!err) {
-            struct dicey_message msg = { 0 };
+                err = dicey_packet_as_message(response, &msg);
+                if (!err && dicey_value_is(&msg.value, DICEY_TYPE_ERROR)) {
+                    struct dicey_errmsg errmsg = { 0 };
 
-            err = dicey_packet_as_message(response, &msg);
-            if (!err && dicey_value_is(&msg.value, DICEY_TYPE_ERROR)) {
-                struct dicey_errmsg errmsg = { 0 };
-
-                err = dicey_value_get_error(&msg.value, &errmsg);
-                if (!err) {
-                    err = errmsg.code;
+                    err = dicey_value_get_error(&msg.value, &errmsg);
+                    if (!err) {
+                        err = errmsg.code;
+                    }
                 }
             }
-        }
 
-        if (err) {
-            if (client->inspect_func) {
-                // if we can't send the quit signal, we can't guarantee the plugin will quit. We can only hope
-                // that the plugin will quit on its own
-                client->inspect_func(
-                    client,
-                    dicey_client_get_context(client),
-                    (struct dicey_client_event) {
-                        .type = DICEY_CLIENT_EVENT_ERROR,
-                        .error = {.err = err,
-                                  .msg = "failed to notify the server of plugin shutdown - expect the server to kill "
-                                          "us"},
+            if (err) {
+                if (client->inspect_func) {
+                    // if we can't send the quit signal, we can't guarantee the plugin will quit. We can only hope
+                    // that the plugin will quit on its own
+                    client->inspect_func(
+                        client,
+                        dicey_client_get_context(client),
+                        (struct dicey_client_event) {
+                            .type = DICEY_CLIENT_EVENT_ERROR,
+                            .error = {.err = err,
+                                      .msg =
+                                           "failed to notify the server of plugin shutdown - expect the server to kill "
+                                           "us"},
+                    }
+                    );
                 }
-                );
             }
-        }
 
-        dicey_packet_deinit(&response);
+            dicey_packet_deinit(&response);
+        }
 
         err = dicey_client_disconnect(client);
 
