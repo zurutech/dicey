@@ -63,10 +63,10 @@ static void inspector(struct dicey_client *const client, void *const ctx, struct
     assert(client);
 
     if (event.type == DICEY_CLIENT_EVENT_ERROR) {
-        fprintf(stderr, "error: [%s] %s\n", dicey_error_msg(event.error.err), event.error.msg);
+        fprintf(stderr, "error[child]: [%s] %s\n", dicey_error_msg(event.error.err), event.error.msg);
 
         if (dicey_client_is_running(client) && dicey_client_disconnect(client) != DICEY_OK) {
-            fprintf(stderr, "error: failed to stop client\n");
+            fprintf(stderr, "error[child]: failed to stop client\n");
 
             exit(EXIT_FAILURE);
         }
@@ -80,11 +80,13 @@ static void on_client_event(struct dicey_client *const client, void *const ctx, 
     assert(client && packet);
 
     struct util_dumper dumper = util_dumper_for(stdout);
-    util_dumper_printlnf(&dumper, "received event:");
+    util_dumper_printlnf(&dumper, "info[child]: received event = ");
     util_dumper_dump_packet(&dumper, *packet);
 }
 
 static void on_quit_requested(void) {
+    puts("info[child]: server asked us to quit");
+
     uv_sem_post(&halt_sem);
 }
 
@@ -156,7 +158,7 @@ static void on_work_request(struct dicey_plugin_work_ctx *const ctx, struct dice
 // it's pointless to catch signals on Windows anyway
 
 void dummy_signal_handler(const int signum) {
-    printf("info: signal %d received, quitting", signum);
+    printf("info[child]: signal %d received, quitting", signum);
 
     signal(signum, SIG_DFL);
     raise(signum);
@@ -174,14 +176,14 @@ int main(const int argc, const char *const argv[]) {
 
     const int uverr = uv_sem_init(&halt_sem, 0);
     if (uverr) {
-        fprintf(stderr, "error: failed to initialise semaphore: %s\n", uv_strerror(uverr));
+        fprintf(stderr, "error[child]: failed to initialise semaphore: %s\n", uv_strerror(uverr));
 
         return EXIT_FAILURE;
     }
 
     struct dicey_plugin *plugin = NULL;
 
-    puts("info: dummy plugin launched");
+    puts("info[child]: dummy plugin launched");
 
     enum dicey_error err = dicey_plugin_init(argc, argv, &plugin, &(struct dicey_plugin_args) {
         .cargs = {
@@ -195,16 +197,16 @@ int main(const int argc, const char *const argv[]) {
     });
 
     if (err) {
-        fprintf(stderr, "error: failed to initialise plugin: %s\n", dicey_error_msg(err));
+        fprintf(stderr, "error[child]: failed to initialise plugin: %s\n", dicey_error_msg(err));
 
         return EXIT_FAILURE;
     }
 
-    puts("info: dummy plugin initialised");
+    puts("info[child]: dummy plugin initialised");
 
     uv_sem_wait(&halt_sem);
 
-    puts("info: dummy plugin quitting");
+    puts("info[child]: dummy plugin quitting");
 
     err = dicey_plugin_finish(plugin);
 

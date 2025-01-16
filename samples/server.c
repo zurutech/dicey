@@ -111,7 +111,7 @@ static inline void dump_packet(const struct dicey_packet packet) {
 
 static _Atomic bool dummy_running = false;
 
-static void quit_dummy(struct dicey_server *const server) {
+static enum dicey_error quit_dummy(struct dicey_server *const server) {
     assert(server);
 
     if (dummy_running) {
@@ -119,23 +119,16 @@ static void quit_dummy(struct dicey_server *const server) {
 
         // this is not great, we should store the name the plugin returns somewhere instead. Still this is just a
         // testing example
-        const enum dicey_error err = dicey_server_plugin_quit_and_wait(server, DUMMY_PLUGIN_NAME, &res);
-        if (err) {
-            out("[FAIL] failed to quit DummyPlugin: %s\n", dicey_error_name(err));
-        } else {
-            out("[INFO] DummyPlugin exited with status %d\n", res);
-        }
+        return dicey_server_plugin_quit_and_wait(server, DUMMY_PLUGIN_NAME, &res);
     }
+
+    return DICEY_OK;
 }
 
 #endif
 
 static enum dicey_error shutdown_server(struct dicey_server *const server) {
     assert(server);
-
-#if DICEY_HAS_PLUGINS
-    quit_dummy(server);
-#endif
 
     return dicey_server_stop(server);
 }
@@ -1046,7 +1039,7 @@ static void on_plugin_event(struct dicey_server *const server, const struct dice
         event.info.name ? event.info.name : "N/A (not handshaked yet)",
         event.info.path);
 
-    if (event.info.name && !strcmp(event.info.name, DUMMY_PLUGIN)) {
+    if (event.info.name && !strcmp(event.info.name, DUMMY_PLUGIN_NAME)) {
         switch (event.kind) {
         case DICEY_PLUGIN_EVENT_READY:
             dummy_running = true;
@@ -1311,6 +1304,11 @@ static enum dicey_error spawn_server_thread(uv_thread_t *const tid, struct threa
     if (err) {
         return err;
     }
+
+    err = quit_dummy(server);
+    if (err) {
+        return err;
+    }
 #endif
 
     uverr = uv_thread_join(tid);
@@ -1437,7 +1435,7 @@ int main(const int argc, char *argv[]) {
 
     err = spawn_server_thread(&tid, &targs);
     if (err) {
-        fprintf(stderr, "uv_thread_create: %s\n", dicey_error_msg(err));
+        fprintf(stderr, "error: %s\n", dicey_error_msg(err));
 
         goto quit;
     }
