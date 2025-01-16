@@ -35,6 +35,13 @@
 
 #if !defined(NDEBUG)
 
+#if defined __has_include
+#if __has_include(<execinfo.h>)
+#include <execinfo.h>
+#define HAS_EXECINFO 1
+#endif
+#endif
+
 #if defined(DICEY_IS_WINDOWS)
 #define DICEY_TRACE_ENABLED 1
 
@@ -111,15 +118,13 @@ static void print_trace(const enum dicey_error errnum) {
     }
 }
 
-#elif defined(DICEY_IS_UNIX) && !defined(DICEY_IS_CYGWIN)
+#elif defined(DICEY_IS_UNIX) && HAS_EXECINFO
 #define DICEY_TRACE_ENABLED 1
 
 #include <signal.h>
 #include <stdio.h>
 
 #include <unistd.h>
-
-#include <execinfo.h>
 
 #if defined(DICEY_IS_LINUX)
 
