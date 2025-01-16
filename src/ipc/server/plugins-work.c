@@ -661,13 +661,17 @@ enum dicey_error dicey_server_plugin_send_work_and_wait(
 
     uv_sem_t sync_sem = { 0 };
 
+    enum dicey_error err = dicey_error_from_uv(uv_sem_init(&sync_sem, 0));
+    if (err) {
+        return err;
+    }
+
     struct dicey_work_request_sync_data sync_data = {
         .sem = &sync_sem,
         .result = response,
     };
 
-    enum dicey_error err =
-        dicey_server_plugin_send_work(server, plugin, payload, &plugin_work_request_sync_cb, &sync_data);
+    err = dicey_server_plugin_send_work(server, plugin, payload, &plugin_work_request_sync_cb, &sync_data);
 
     if (err) {
         uv_sem_destroy(&sync_sem);
