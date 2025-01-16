@@ -486,7 +486,7 @@ enum dicey_error dicey_plugin_finish(struct dicey_plugin *const plugin) {
         if (!was_asked_to_quit) {
             struct dicey_packet response = { 0 };
             // first, tell the server we're quitting (best effort). After this we know we will not get any more requests
-            enum dicey_error err = dicey_client_exec(
+            err = dicey_client_exec(
                 client,
                 plugin->dicey_path,
                 (struct dicey_selector) {
