@@ -24,12 +24,17 @@
 #include "../core/packet.h"
 
 #include "address.h"
-#include "plugins.h"
 #include "registry.h"
 #include "server.h"
 
 #include "dicey_config.h"
 #include "dicey_export.h"
+
+#if DICEY_HAS_PLUGINS
+
+#include "plugins.h"
+
+#endif
 
 #if defined(__cplusplus)
 extern "C" {
