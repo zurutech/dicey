@@ -127,6 +127,7 @@ static void on_work_request(struct dicey_plugin_work_ctx *const ctx, struct dice
     struct dicey_value_builder *resp = NULL;
     enum dicey_error err = dicey_plugin_work_response_start(ctx, &resp);
     assert(!err);
+    (void) err; // in release builds err is never read
 
     struct dicey_arg arg = { 0 };
 
