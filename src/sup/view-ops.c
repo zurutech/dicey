@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2024 Zuru Tech HK Limited, All rights reserved.
+ * Copyright (c) 2024-2025 Zuru Tech HK Limited, All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -92,6 +92,10 @@ ptrdiff_t dicey_view_read(struct dicey_view *const view, const struct dicey_view
     return dicey_view_advance(view, (ptrdiff_t) dest.len);
 }
 
+ptrdiff_t dicey_view_read_ptr(struct dicey_view *const view, void *const ptr, const size_t nbytes) {
+    return dicey_view_read(view, dicey_view_mut_from(ptr, nbytes));
+}
+
 ptrdiff_t dicey_view_take(struct dicey_view *const view, const ptrdiff_t nbytes, struct dicey_view *const slice) {
     if (!view || !view->data || !slice || nbytes < 0) {
         return TRACE(DICEY_EINVAL);
@@ -169,6 +173,10 @@ ptrdiff_t dicey_view_mut_write(struct dicey_view_mut *const dest, const struct d
     return dicey_view_mut_advance(dest, view.len);
 }
 
+ptrdiff_t dicey_view_mut_write_ptr(struct dicey_view_mut *const dest, const void *const ptr, const size_t nbytes) {
+    return dicey_view_mut_write(dest, dicey_view_from(ptr, nbytes));
+}
+
 ptrdiff_t dicey_view_mut_write_chunks(
     struct dicey_view_mut *const dest,
     const struct dicey_view *const chunks,
@@ -197,10 +205,5 @@ ptrdiff_t dicey_view_mut_write_zstring(struct dicey_view_mut *const dest, const 
         return size;
     }
 
-    struct dicey_view data = {
-        .data = (void *) str,
-        .len = (uint32_t) size,
-    };
-
-    return dicey_view_mut_write(dest, data);
+    return dicey_view_mut_write_ptr(dest, (void *) str, (uint32_t) size);
 }

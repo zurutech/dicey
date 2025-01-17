@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2024 Zuru Tech HK Limited, All rights reserved.
+ * Copyright (c) 2024-2025 Zuru Tech HK Limited, All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,17 +17,19 @@
 #if !defined(MIFVOFWBUL_GETOPT_WIN_H)
 #define MIFVOFWBUL_GETOPT_WIN_H
 
-#if defined(_WIN32)
+#include <dicey/dicey.h>
+
+#if defined(DICEY_IS_UNIX)
+
+#include <unistd.h>
+
+#else
 
 int getopt(const int nargc, char *const nargv[], const char *const ostr);
 
 extern char *optarg;
 extern int optind, opterr, optopt;
 extern int optreset;
-
-#else
-
-#include <unistd.h>
 
 #endif
 

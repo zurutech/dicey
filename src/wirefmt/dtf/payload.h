@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2024 Zuru Tech HK Limited, All rights reserved.
+ * Copyright (c) 2024-2025 Zuru Tech HK Limited, All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -40,7 +40,7 @@ enum dtf_payload_kind {
     DTF_PAYLOAD_GET = DICEY_OP_GET,
     DTF_PAYLOAD_SET = DICEY_OP_SET,
     DTF_PAYLOAD_EXEC = DICEY_OP_EXEC,
-    DTF_PAYLOAD_EVENT = DICEY_OP_EVENT,
+    DTF_PAYLOAD_EVENT = DICEY_OP_SIGNAL,
     DTF_PAYLOAD_RESPONSE = DICEY_OP_RESPONSE,
 };
 

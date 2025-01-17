@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2024 Zuru Tech HK Limited, All rights reserved.
+ * Copyright (c) 2024-2025 Zuru Tech HK Limited, All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,6 +21,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include "dicey_config.h"
 #include "dicey_export.h"
 
 #include "errors.h"
@@ -92,6 +93,14 @@ struct dicey_selector {
 };
 
 /**
+ * @brief Compares two selectors.
+ * @param a The first selector.
+ * @param b The second selector.
+ * @return < 0 if a < b, 0 if a == b, > 0 if a > b.
+ */
+DICEY_EXPORT int dicey_selector_cmp(struct dicey_selector a, struct dicey_selector b);
+
+/**
  * @brief Checks if a selector is valid.
  * @param selector The selector to check.
  * @return true if the selector is valid, false otherwise.
@@ -108,7 +117,8 @@ DICEY_EXPORT bool dicey_selector_is_valid(struct dicey_selector selector);
  */
 DICEY_EXPORT ptrdiff_t dicey_selector_size(struct dicey_selector sel);
 
-#if defined(__GNUC__) || defined(__clang__)
+// __uint128_t is only available on GCC and Clang on 64-bit platforms
+#if (defined(DICEY_CC_IS_GCC) || defined(DICEY_CC_IS_CLANG)) && defined(DICEY_HAS_64BIT_POINTERS)
 #define DICEY_UUID_SIZE sizeof(__uint128_t)
 #else
 #define DICEY_UUID_SIZE (sizeof(uint64_t) * 2U)

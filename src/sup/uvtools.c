@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2024 Zuru Tech HK Limited, All rights reserved.
+ * Copyright (c) 2024-2025 Zuru Tech HK Limited, All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -33,6 +33,12 @@ enum dicey_error dicey_error_from_uv(const int uv_error) {
 
     case UV_ENOMEM:
         return TRACE(DICEY_ENOMEM);
+
+    case UV_EACCES:
+        return TRACE(DICEY_EACCES);
+
+    case UV_ENOTDIR:
+        return TRACE(DICEY_ENOTDIR);
 
     case UV_EINVAL:
         return TRACE(DICEY_EINVAL);

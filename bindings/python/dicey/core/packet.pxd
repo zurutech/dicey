@@ -1,4 +1,4 @@
-# Copyright (c) 2014-2024 Zuru Tech HK Limited, All rights reserved.
+# Copyright (c) 2024-2025 Zuru Tech HK Limited, All rights reserved.
 # 
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -33,7 +33,7 @@ cdef extern from "dicey/dicey.h":
         DICEY_OP_GET
         DICEY_OP_SET
         DICEY_OP_EXEC
-        DICEY_OP_EVENT
+        DICEY_OP_SIGNAL
         DICEY_OP_RESPONSE
 
     cdef enum dicey_packet_kind:

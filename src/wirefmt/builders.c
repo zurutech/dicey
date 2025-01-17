@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2024 Zuru Tech HK Limited, All rights reserved.
+ * Copyright (c) 2024-2025 Zuru Tech HK Limited, All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -106,7 +106,7 @@ static ptrdiff_t msgkind_to_dtf(const enum dicey_op kind) {
     case DICEY_OP_EXEC:
         return DTF_PAYLOAD_EXEC;
 
-    case DICEY_OP_EVENT:
+    case DICEY_OP_SIGNAL:
         return DTF_PAYLOAD_EVENT;
 
     case DICEY_OP_RESPONSE:
@@ -122,7 +122,7 @@ static bool valbuilder_is_valid(const struct dicey_value_builder *const builder)
 
 #endif
 
-enum dicey_error valbuilder_list_start(
+static enum dicey_error valbuilder_list_start(
     struct dicey_value_builder *const builder,
     const enum builder_state list_kind,
     const enum dicey_type type
@@ -142,14 +142,6 @@ enum dicey_error valbuilder_list_start(
     }
 
     builder_state_set(builder, list_kind);
-
-    return DICEY_OK;
-}
-
-enum dicey_error dicey_message_builder_init(struct dicey_message_builder *const builder) {
-    assert(builder);
-
-    *builder = (struct dicey_message_builder) { 0 };
 
     return DICEY_OK;
 }
@@ -214,9 +206,30 @@ enum dicey_error dicey_message_builder_build(
 void dicey_message_builder_discard(struct dicey_message_builder *const builder) {
     assert(builder);
 
+    if (builder->_borrowed_to) {
+        // free any lingering list elements
+        const struct _dicey_value_builder_list *const list = &builder->_borrowed_to->_list;
+
+        dicey_arg_free_list(list->elems, list->nitems);
+    }
+
     dicey_arg_free(builder->_root);
 
     *builder = (struct dicey_message_builder) { 0 };
+}
+
+enum dicey_error dicey_message_builder_init(struct dicey_message_builder *const builder) {
+    assert(builder);
+
+    *builder = (struct dicey_message_builder) { 0 };
+
+    return DICEY_OK;
+}
+
+bool dicey_message_builder_is_pending(const struct dicey_message_builder *const builder) {
+    assert(builder);
+
+    return builder_state_get(builder) != BUILDER_STATE_IDLE;
 }
 
 enum dicey_error dicey_message_builder_set_path(struct dicey_message_builder *const builder, const char *const path) {
@@ -258,6 +271,13 @@ enum dicey_error dicey_message_builder_set_seq(struct dicey_message_builder *con
     return DICEY_OK;
 }
 
+#if defined(DICEY_IS_MINGW) && defined(DICEY_CC_IS_GCC)
+#pragma GCC diagnostic push
+// for some arcane reason GCC on MinGW thinks we're leaking stack memory here - we're not, starts sets and stop unsets
+// _borrowed_to, with no ifs in between
+#pragma GCC diagnostic ignored "-Wdangling-pointer"
+#endif
+
 enum dicey_error dicey_message_builder_set_value(
     struct dicey_message_builder *const builder,
     const struct dicey_arg value
@@ -282,6 +302,10 @@ enum dicey_error dicey_message_builder_set_value(
 
     return err ? err : end_err;
 }
+
+#if defined(DICEY_IS_MINGW) && defined(DICEY_CC_IS_GCC)
+#pragma GCC diagnostic pop
+#endif
 
 enum dicey_error dicey_message_builder_value_start(
     struct dicey_message_builder *const builder,
@@ -326,7 +350,9 @@ enum dicey_error dicey_message_builder_value_end(
     }
 
     *value = (struct dicey_value_builder) { 0 };
+
     builder->_state = BUILDER_STATE_PENDING;
+    builder->_borrowed_to = NULL;
 
     return DICEY_OK;
 }
@@ -378,7 +404,12 @@ enum dicey_error dicey_packet_message(
         }
     }
 
-    return dicey_message_builder_build(&builder, dest);
+    err = dicey_message_builder_build(&builder, dest);
+    if (err) {
+        goto fail;
+    }
+
+    return DICEY_OK;
 
 fail:
     dicey_message_builder_discard(&builder);
@@ -424,6 +455,12 @@ bool dicey_value_builder_is_list(const struct dicey_value_builder *const builder
     const enum builder_state state = builder_state_get(builder);
 
     return state == BUILDER_STATE_ARRAY || state == BUILDER_STATE_PAIR || state == BUILDER_STATE_TUPLE;
+}
+
+bool dicey_value_builder_is_pending(const struct dicey_value_builder *const builder) {
+    assert(builder);
+
+    return builder_state_get(builder) != BUILDER_STATE_IDLE;
 }
 
 enum dicey_error dicey_value_builder_next(
@@ -495,8 +532,8 @@ enum dicey_error dicey_value_builder_pair_end(struct dicey_value_builder *const 
 
     assert(list->elems);
 
-    struct dicey_arg *const first = dicey_arg_move(NULL, &list->elems[0]), *const second =
-                                                                               dicey_arg_move(NULL, &list->elems[1]);
+    struct dicey_arg *const first = dicey_arg_move(NULL, &list->elems[0]);
+    struct dicey_arg *const second = dicey_arg_move(NULL, &list->elems[1]);
 
     // get rid of the support array
     free(list->elems);

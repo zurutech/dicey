@@ -1,4 +1,4 @@
-# Copyright (c) 2014-2024 Zuru Tech HK Limited, All rights reserved.
+# Copyright (c) 2024-2025 Zuru Tech HK Limited, All rights reserved.
 # 
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -35,10 +35,10 @@ from .traits cimport dicey_element_type
 
 DEFAULT_TIMEOUT_MS = 1000
 
-EventCallback = _Callable[[object], None]
-GlobalEventCallback = _Callable[[Message], None]
+SignalCallback = _Callable[[object], None]
+GlobalSignalCallback = _Callable[[Message], None]
 
-cdef void on_cevent(dicey_client *const cclient, void *const ctx, dicey_packet *const packet) noexcept with gil:
+cdef void on_csignal(dicey_client *const cclient, void *const ctx, dicey_packet *const packet) noexcept with gil:
     cdef Message msg
     client = <Client> ctx
 
@@ -47,34 +47,34 @@ cdef void on_cevent(dicey_client *const cclient, void *const ctx, dicey_packet *
     # prevent the message from being deallocated twice
     packet[0] = dicey_packet(NULL, 0)
 
-    if client.on_event:    
-        client.on_event(msg)
+    if client.on_signal:    
+        client.on_signal(msg)
 
     # this function is basically a private member of client, so it's not a problem to touch its private members
-    for callback in client._event_map.get((msg.path, msg.selector), []):
+    for callback in client._signal_map.get((msg.path, msg.selector), []):
         callback(msg.value)
 
 cdef class Client:
     cdef dicey_client *_client
     cdef Address _addr
 
-    _on_event: GlobalEventCallback
+    _on_signal: GlobalSignalCallback
 
-    _event_map: dict[(Pair, Selector), set[EventCallback]]
+    _signal_map: dict[(Pair, Selector), set[SignalCallback]]
 
 
     def __cinit__(self):
         cdef dicey_client_args args
 
-        args.on_event = &on_cevent
+        args.on_signal = &on_csignal
         args.inspect_func = NULL
 
         _check(dicey_client_new(&self._client, &args))
 
         dicey_client_set_context(self._client, <void *> self)
 
-        self._on_event = None
-        self._event_map = {}
+        self._on_signal = None
+        self._signal_map = {}
 
     def __enter__(self) -> Client:
         return self
@@ -142,17 +142,17 @@ cdef class Client:
         return Message.from_cpacket(response).value
 
     @property
-    def on_event(self) -> GlobalEventCallback:
-        return self._on_event
+    def on_signal(self) -> GlobalSignalCallback:
+        return self._on_signal
 
-    @on_event.setter
-    def on_event(self, value: GlobalEventCallback):
-        self._on_event = value
+    @on_signal.setter
+    def on_signal(self, value: GlobalSignalCallback):
+        self._on_signal = value
 
-    def register_for(self, path: Path | str, selector: Selector | (str, str), callback: EventCallback):
-        self._event_map.setdefault((path, selector), set()).add(callback)
+    def register_for(self, path: Path | str, selector: Selector | (str, str), callback: SignalCallback):
+        self._signal_map.setdefault((path, selector), set()).add(callback)
 
-        # as a good measure, subscribe to the event, but ignore the error the server might throw
+        # as a good measure, subscribe to the signal, but ignore the error the server might throw
         # if we're already subscribed
         try:
             self.subscribe(path, selector)
@@ -187,8 +187,8 @@ cdef class Client:
     def traits(self, path: Path | str, *, timeout_ms: int = DEFAULT_TIMEOUT_MS) -> _Any:
         return self.request(Message(Operation.LIST_TRAITS, path), timeout_ms)
 
-    def unregister_from(self, path: Path | str, selector: Selector | (str, str), callback: EventCallback, *, unsubscribe: bool = True):
-        if callbacks := self._event_map.get((path, selector)):
+    def unregister_from(self, path: Path | str, selector: Selector | (str, str), callback: SignalCallback, *, unsubscribe: bool = True):
+        if callbacks := self._signal_map.get((path, selector)):
             callbacks.discard(callback)
 
             if not callbacks and unsubscribe:
@@ -207,22 +207,22 @@ cdef class Client:
     def __repr__(self):
         return f"<Dicey client for dicey://[{self.address}]>"
 
-class Event:
+class Signal:
     def __init__(self, client: Client, path: Path | str, selector: Selector | (str, str)):
         self._client = client
         self._path = Path(path)
         self._selector = Selector(*selector) if isinstance(selector, tuple) else selector
 
-    def register(self, callback: EventCallback):
+    def register(self, callback: SignalCallback):
         self._client.register_for(self._path, self._selector, callback)
 
-    def unregister(self, callback: EventCallback, *, unsubscribe: bool = True):
+    def unregister(self, callback: SignalCallback, *, unsubscribe: bool = True):
         self._client.unregister_from(self._path, self._selector, callback, unsubscribe=unsubscribe)
 
-def connect(addr: Address | str, *, on_event: _Optional[GlobalEventCallback] = None) -> Client:
+def connect(addr: Address | str, *, on_signal: _Optional[GlobalSignalCallback] = None) -> Client:
     cl = Client()
 
-    cl.on_event = on_event
+    cl.on_signal = on_signal
 
     cl.connect(addr)
 
@@ -295,7 +295,7 @@ def _craft_object_for(client: Client, path: Path | str, timeout_ms: int, skip_in
                 )
 
             elif dtype == _SIGNAL:
-                synthesised = Event(client, path, (trait, elem))
+                synthesised = Signal(client, path, (trait, elem))
             else:
                 raise DiceyError(f"Unknown element type: {dtype}")
 

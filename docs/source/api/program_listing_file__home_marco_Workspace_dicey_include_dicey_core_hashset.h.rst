@@ -11,7 +11,7 @@ Program Listing for File hashset.h
 .. code-block:: cpp
 
    /*
-    * Copyright (c) 2014-2024 Zuru Tech HK Limited, All rights reserved.
+    * Copyright (c) 2024-2025 Zuru Tech HK Limited, All rights reserved.
     *
     * Licensed under the Apache License, Version 2.0 (the "License");
     * you may not use this file except in compliance with the License.

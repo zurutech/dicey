@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2024 Zuru Tech HK Limited, All rights reserved.
+ * Copyright (c) 2024-2025 Zuru Tech HK Limited, All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,15 +17,17 @@
 #if !defined(GFBKZEFZQX_SERVER_H)
 #define GFBKZEFZQX_SERVER_H
 
+#include "dicey_config.h"
+
 /**
- * object "/dicey/server" : dicey.EventManager
+ * object "/dicey/server" : dicey.EventManager, dicey.PluginManager (if plugins are enabled)
  */
 #define DICEY_SERVER_PATH "/dicey/server"
 
 /**
  * trait dicey.EventManager {
- *     Subscribe: (@%) -> u // takes a path and selector of an event to subscribe to
- *     Unsubscribe: (@%) -> u // takes a path and selector of an event to unsubscribe from
+ *     Subscribe: {@%} -> u // takes a path and selector of an event to subscribe to
+ *     Unsubscribe: {@%} -> u // takes a path and selector of an event to unsubscribe from
  * }
  */
 

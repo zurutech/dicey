@@ -1,4 +1,4 @@
-# Copyright (c) 2014-2024 Zuru Tech HK Limited, All rights reserved.
+# Copyright (c) 2024-2025 Zuru Tech HK Limited, All rights reserved.
 # 
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -67,22 +67,34 @@ add_library(samples_util STATIC)
 
 if (MSVC)
     target_compile_options(samples_util PRIVATE /W4 /WX)
-else()
+elseif(NOT (CMAKE_C_SIMULATE_ID STREQUAL "MSVC" AND CMAKE_C_COMPILER_FRONTEND_VARIANT STREQUAL "GNU"))
+        # again, `clang` targetting MSVC triggers too many warnings in MSVC headers, don't enable -Werror
     target_compile_options(samples_util PRIVATE -Wall -Wextra -pedantic -Werror)
 endif()
 
-if (DEFINED CJSON_DIRS AND DEFINED CJSON_LIBS)
-    target_include_directories(samples_util PUBLIC ${CJSON_INCLUDE_DIRS})
-    target_link_libraries(samples_util PUBLIC ${CJSON_LIBS})
-    set(cJSON_FOUND TRUE)
-elseif (NOT DEFINED RAW_CROSS) # set above in the root CMakeLists.txt
-    find_package(PkgConfig QUIET)
+# On MinGW or Clang there are wonky warnings around libuv that cause pedantic and Werror to fail randomly.
+if (MINGW OR (MSVC AND CMAKE_C_COMPILER_ID STREQUAL "Clang"))
+    target_compile_options(samples_util PRIVATE -Wno-missing-braces)
+endif()
 
-    if (PkgConfig_FOUND)
-        pkg_check_modules(cJSON QUIET IMPORTED_TARGET libcjson)
+if (USE_VENDORED_LIBS)
+    set(BUILD_CJSON ON)
+endif()
 
-        if (cJSON_FOUND)
-            target_link_libraries(samples_util PUBLIC PkgConfig::cJSON)
+if (NOT BUILD_CSJON)
+    if (DEFINED CJSON_DIRS AND DEFINED CJSON_LIBS)
+        target_include_directories(samples_util PUBLIC ${CJSON_INCLUDE_DIRS})
+        target_link_libraries(samples_util PUBLIC ${CJSON_LIBS})
+        set(cJSON_FOUND TRUE)
+    elseif (NOT DEFINED RAW_CROSS) # set above in the root CMakeLists.txt
+        find_package(PkgConfig QUIET)
+
+        if (PkgConfig_FOUND)
+            pkg_check_modules(cJSON QUIET IMPORTED_TARGET libcjson)
+
+            if (cJSON_FOUND)
+                target_link_libraries(samples_util PUBLIC PkgConfig::cJSON)
+            endif()
         endif()
     endif()
 endif()
@@ -100,14 +112,10 @@ if (NOT cJSON_FOUND)
     FetchContent_Declare(
         cJSON
         GIT_REPOSITORY https://github.com/DaveGamble/cJSON
-        GIT_TAG        v1.7.17
+        GIT_TAG        v1.7.18
     )
 
-    FetchContent_GetProperties(cJSON)
-    if(NOT cJSON_POPULATED)
-        FetchContent_Populate(cJSON)
-        add_subdirectory(${cjson_SOURCE_DIR} ${cjson_BINARY_DIR} EXCLUDE_FROM_ALL)
-    endif()
+    FetchContent_MakeAvailable(cJSON)
 
     set(BUILD_SHARED_LIBS ${OLD_SHARED_STATE})
 

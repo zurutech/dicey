@@ -1,4 +1,4 @@
-# Copyright (c) 2014-2024 Zuru Tech HK Limited, All rights reserved.
+# Copyright (c) 2024-2025 Zuru Tech HK Limited, All rights reserved.
 # 
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -16,6 +16,10 @@ add_subdirectory(util)
 
 set(SAMPLE_FILES base64.c client.c dump.c inspect.c load.c server.c subtest.c sval.c)
 
+if (DICEY_HAS_PLUGINS)
+    list(APPEND SAMPLE_FILES dummy_plugin.c)
+endif()
+
 set(CMAKE_C_STANDARD 17)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 
@@ -26,8 +30,23 @@ foreach(SAMPLE IN LISTS SAMPLE_FILES)
 
     if (MSVC)
         target_compile_options("${target_name}" PRIVATE /W4 /WX)
-    else()
+        
+        if (NOT DICEY_MSVC_HAS_C11_ATOMICS)
+            if (DICEY_MSVC_HAS_C11_EXPERIMENTAL_ATOMICS)
+                target_compile_options("${target_name}" PRIVATE /experimental:c11atomics)
+            else()
+                message(FATAL_ERROR "MSVC is too old - no C11 atomics support")
+            endif()
+        endif()
+    elseif(NOT (CMAKE_C_SIMULATE_ID STREQUAL "MSVC" AND CMAKE_C_COMPILER_FRONTEND_VARIANT STREQUAL "GNU"))
+        # again, `clang` targetting MSVC triggers too many warnings in MSVC headers, don't enable -Werror
+
         target_compile_options("${target_name}" PRIVATE -Wall -Wextra -pedantic -Werror)
+    endif()
+
+    # On MinGW or Clang there are wonky warnings around libuv that cause pedantic and Werror to fail randomly.
+    if (MINGW OR (MSVC AND CMAKE_C_COMPILER_ID STREQUAL "Clang"))
+        target_compile_options("${target_name}" PRIVATE -Wno-missing-braces)
     endif()
     
     # add the include directory of the parent project

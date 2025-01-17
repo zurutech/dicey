@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2024 Zuru Tech HK Limited, All rights reserved.
+ * Copyright (c) 2024-2025 Zuru Tech HK Limited, All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,6 +16,7 @@
 
 // Disable the warnings about the unsafe functions
 #define _CRT_SECURE_NO_WARNINGS 1
+#define _XOPEN_SOURCE 700
 
 #include <assert.h>
 #include <inttypes.h>
@@ -118,7 +119,7 @@ static int do_send(const char *const addr, struct dicey_packet packet) {
         &client,
         &(struct dicey_client_args) {
             .inspect_func = &inspector,
-            .on_event = &on_client_event,
+            .on_signal = &on_client_event,
         }
     );
 

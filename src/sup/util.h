@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2024 Zuru Tech HK Limited, All rights reserved.
+ * Copyright (c) 2024-2025 Zuru Tech HK Limited, All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,7 +23,64 @@
 
 #include <dicey/core/views.h>
 
+#include "dicey_config.h"
+
 #define DICEY_UNUSED(X) ((void) (X))
+
+#define DICEY_ASSUME(EXPR)                                                                                             \
+    do {                                                                                                               \
+        const enum dicey_error dicey__internal_err = (EXPR);                                                           \
+        assert(dicey__internal_err == DICEY_OK);                                                                       \
+        DICEY_UNUSED(dicey__internal_err);                                                                             \
+    } while (0)
+
+#if defined(DICEY_CC_IS_GCC) || defined(DICEY_CC_IS_CLANG)
+
+// if we have GNU extensions, we can use the kernel version with type checking using typeof and GCC's expression
+// statements
+
+#define DICEY_CONTAINEROF(PTR, TYPE, MEMBER)                                                                           \
+    (__extension__({                                                                                                   \
+        const __typeof__(((TYPE *) NULL)->MEMBER) *const _ptr_to_member_with_unique_name = (PTR);                      \
+        (TYPE *) ((char *) _ptr_to_member_with_unique_name - offsetof(TYPE, MEMBER));                                  \
+    }))
+
+// if we have GNU extensions, we can check the format string and the arguments using GCC's format attribute
+
+#if defined(DICEY_IS_MINGW) && defined(DICEY_CC_IS_GCC) // clang on Windows doesn't support ms_printf
+#define DICEY_FORMAT(FPOS, VAPOS) __attribute__((format(ms_printf, FPOS, VAPOS)))
+#else
+#define DICEY_FORMAT(FPOS, VAPOS) __attribute__((format(printf, FPOS, VAPOS)))
+#endif // DICEY_IS_WINDOWS
+
+#else
+#define DICEY_CONTAINEROF(PTR, TYPE, MEMBER) ((TYPE *) ((char *) (PTR) -offsetof(TYPE, MEMBER)))
+#define DICEY_FORMAT(FPOS, VAPOS) // do not bother with SAL on MSVC
+#endif
+
+#if defined(__STDC_VERSION__) && __STDC_VERSION__ >= 202311L
+#define DICEY_FALLTHROUGH [[fallthrough]]
+#elif defined(__has_attribute)
+#if __has_attribute(fallthrough)
+#define DICEY_FALLTHROUGH __attribute__((fallthrough))
+#endif
+#endif
+
+#if !defined(DICEY_FALLTHROUGH)
+#define DICEY_FALLTHROUGH // for msvc and friends
+#endif
+
+#define DICEY_LENOF(ARR) (sizeof(ARR) / sizeof(*(ARR)))
+
+#if defined(NDEBUG) && defined(__has_builtin)
+#if __has_builtin(__builtin_unreachable)
+#define DICEY_UNREACHABLE() __builtin_unreachable()
+#else
+#define DICEY_UNREACHABLE() // do nothing, we're in release mode and we don't have a builtin
+#endif
+#else
+#define DICEY_UNREACHABLE() assert(!"Unreachable code reached")
+#endif
 
 /**
  * @brief Get a pointer to a member of a struct
@@ -37,7 +94,7 @@
  */
 #define MEMBER_PTR(STRUCT, NAME, BASE) ((uint8_t *) (BASE) + offsetof(STRUCT, NAME))
 
-#if defined(__GNUC__) || defined(__clang__)
+#if defined(DICEY_CC_IS_GCC) || defined(DICEY_CC_IS_CLANG)
 #define SAFE_ADD(DEST, A, B) (!__builtin_add_overflow((A), (B), (DEST)))
 #else
 

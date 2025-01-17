@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2024 Zuru Tech HK Limited, All rights reserved.
+ * Copyright (c) 2024-2025 Zuru Tech HK Limited, All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+#define _XOPEN_SOURCE 700
+
 #include <assert.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -23,7 +25,7 @@
 #include <dicey/core/errors.h>
 #include <dicey/ipc/address.h>
 
-#include "ipc/uvtools.h"
+#include "sup/uvtools.h"
 
 #include "io.h"
 #include "loop.h"
@@ -154,7 +156,7 @@ struct dicey_task_error *dicey_task_op_connect_pipe(
     assert(tloop && pipe && addr.addr && addr.len);
 
     // assume the pipe is uninitialized. Allocate it using safe defaults
-    uv_loop_t *const loop = dicey_task_loop_get_raw_handle(tloop);
+    uv_loop_t *const loop = dicey_task_loop_get_uv_handle(tloop);
     assert(loop);
 
     int uverr = uv_pipe_init(loop, pipe, 0);
@@ -198,4 +200,30 @@ struct dicey_task_error *dicey_task_op_write_and_wait(
     uv_buf_t buf
 ) {
     return perform_write(tloop, id, stream, buf, TASK_LOCK_INDEFINITELY);
+}
+
+struct dicey_task_error *dicey_task_op_open_pipe(
+    struct dicey_task_loop *const tloop,
+    int64_t id,
+    uv_pipe_t *const pipe,
+    const uv_file fd
+) {
+    assert(tloop && pipe && fd >= 0);
+    DICEY_UNUSED(id);
+
+    // assume the pipe is uninitialized. Allocate it using safe defaults
+    uv_loop_t *const loop = dicey_task_loop_get_uv_handle(tloop);
+    assert(loop);
+
+    int uverr = uv_pipe_init(loop, pipe, 0);
+    if (uverr < 0) {
+        return dicey_task_error_new(dicey_error_from_uv(uverr), "failed to initialize pipe: %s", uv_strerror(uverr));
+    }
+
+    uverr = uv_pipe_open(pipe, fd);
+    if (uverr < 0) {
+        return dicey_task_error_new(dicey_error_from_uv(uverr), "failed to open pipe: %s", uv_strerror(uverr));
+    }
+
+    return NULL;
 }

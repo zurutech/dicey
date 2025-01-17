@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2024 Zuru Tech HK Limited, All rights reserved.
+ * Copyright (c) 2024-2025 Zuru Tech HK Limited, All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,7 +21,9 @@
 
 #include <dicey/core/errors.h>
 
-#if defined(_MSC_VER)
+#include "sup/util.h"
+
+#if defined(DICEY_CC_IS_MSVC)
 #pragma warning(disable : 4200)
 #endif
 
@@ -37,7 +39,7 @@ struct dicey_task_error {
     char message[];
 };
 
-struct dicey_task_error *dicey_task_error_new(enum dicey_error error, const char *fmt, ...);
+struct dicey_task_error *dicey_task_error_new(enum dicey_error error, const char *fmt, ...) DICEY_FORMAT(2, 3);
 
 struct dicey_task_loop;
 
@@ -85,7 +87,7 @@ struct dicey_task_result dicey_task_retry(void);
 /**
  * @brief A work function that does nothing except returning a continue result.
  */
-struct dicey_task_result dicey_task_no_work(struct dicey_task_loop *tloop, int64_t id, void *ctx, void *input);
+struct dicey_task_result dicey_task_noop(struct dicey_task_loop *tloop, int64_t id, void *ctx, void *input);
 
 enum dicey_error dicey_task_loop_new(struct dicey_task_loop **dest, struct dicey_task_loop_args *args);
 void dicey_task_loop_delete(struct dicey_task_loop *tloop);
@@ -101,6 +103,6 @@ enum dicey_error dicey_task_loop_submit(struct dicey_task_loop *tloop, struct di
 void dicey_task_loop_stop(struct dicey_task_loop *tloop);
 void dicey_task_loop_stop_and_wait(struct dicey_task_loop *tloop);
 
-uv_loop_t *dicey_task_loop_get_raw_handle(struct dicey_task_loop *tloop);
+uv_loop_t *dicey_task_loop_get_uv_handle(struct dicey_task_loop *tloop);
 
 #endif // JRUPPTCCIV_TASK_LOOP_H

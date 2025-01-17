@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2024 Zuru Tech HK Limited, All rights reserved.
+ * Copyright (c) 2024-2025 Zuru Tech HK Limited, All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,8 +14,13 @@
  * limitations under the License.
  */
 
+#define _XOPEN_SOURCE 700
+
 #include <assert.h>
 #include <stdbool.h>
+#include <stddef.h>
+#include <stdint.h>
+#include <stdlib.h>
 
 #include <dicey/core/builders.h>
 #include <dicey/core/errors.h>
@@ -23,6 +28,7 @@
 #include <dicey/core/type.h>
 #include <dicey/core/value.h>
 #include <dicey/core/views.h>
+#include <dicey/ipc/builtins/plugins.h>
 #include <dicey/ipc/builtins/server.h>
 #include <dicey/ipc/traits.h>
 
@@ -31,6 +37,7 @@
 #include "ipc/server/client-data.h"
 
 #include "sup/trace.h"
+#include "sup/util.h"
 
 #include "server.h"
 
@@ -54,16 +61,56 @@ static const struct dicey_default_element em_elements[] = {
      },
 };
 
-static const struct dicey_default_object server_objects[] = {
-    {
-     .path = DICEY_SERVER_PATH,
-     .traits = (const char *[]) { DICEY_EVENTMANAGER_TRAIT_NAME, NULL },
-     },
-};
-
 static const struct dicey_default_trait server_traits[] = {
     {.name = DICEY_EVENTMANAGER_TRAIT_NAME, .elements = em_elements, .num_elements = DICEY_LENOF(em_elements)},
 };
+
+static const char *const server_object_traits[] = {
+    DICEY_EVENTMANAGER_TRAIT_NAME,
+
+#if DICEY_HAS_PLUGINS
+
+    // if  plugins are enabled, add the plugin manager trait
+    DICEY_PLUGINMANAGER_TRAIT_NAME,
+
+#endif // DICEY_HAS_PLUGINS
+
+    NULL,
+};
+
+static const struct dicey_default_object server_objects[] = {
+    {
+     .path = DICEY_SERVER_PATH,
+     .traits = server_object_traits,
+     },
+};
+
+static enum dicey_error extract_path_sel(
+    const struct dicey_value *const value,
+    const char **const path,
+    struct dicey_selector *const sel
+) {
+    assert(value && path && sel);
+
+    struct dicey_pair pair = { 0 };
+
+    enum dicey_error err = dicey_value_get_pair(value, &pair);
+    if (err) {
+        return err;
+    }
+
+    err = dicey_value_get_path(&pair.first, path);
+    if (err) {
+        return err;
+    }
+
+    err = dicey_value_get_selector(&pair.second, sel);
+    if (err) {
+        return err;
+    }
+
+    return DICEY_OK;
+}
 
 static enum dicey_error unit_message_for(
     struct dicey_packet *const dest,
@@ -99,7 +146,12 @@ static enum dicey_error unit_message_for(
         goto fail;
     }
 
-    return dicey_message_builder_build(&builder, dest);
+    err = dicey_message_builder_build(&builder, dest);
+    if (err) {
+        goto fail;
+    }
+
+    return DICEY_OK;
 
 fail:
     dicey_message_builder_discard(&builder);
@@ -107,55 +159,22 @@ fail:
     return err;
 }
 
-static enum dicey_error extract_path_sel(
-    const struct dicey_value *const value,
-    const char **const path,
-    struct dicey_selector *const sel
-) {
-    assert(value && path && sel);
-
-    struct dicey_pair pair = { 0 };
-
-    enum dicey_error err = dicey_value_get_pair(value, &pair);
-    if (err) {
-        return err;
-    }
-
-    err = dicey_value_get_path(&pair.first, path);
-    if (err) {
-        return err;
-    }
-
-    err = dicey_value_get_selector(&pair.second, sel);
-    if (err) {
-        return err;
-    }
-
-    return DICEY_OK;
-}
-
-static enum dicey_error handle_sub_operation(
-    struct dicey_builtin_context *const context,
-    const uint8_t opcode,
-    struct dicey_client_data *const client,
-    const char *const src_path,
-    const struct dicey_element_entry *const src_entry,
-    const struct dicey_value *const value,
+static enum dicey_error handle_server_operation(
+    struct dicey_builtin_context *ctx,
+    struct dicey_builtin_request *const req,
     struct dicey_packet *const response
 ) {
-    (void) src_path;
-    (void) src_entry;
+    assert(dicey_builtin_request_is_valid(req) && response);
 
-    assert(context && client && value && response);
     const char *path = NULL;
     struct dicey_selector sel = { 0 };
 
-    enum dicey_error err = extract_path_sel(value, &path, &sel);
+    enum dicey_error err = extract_path_sel(req->value, &path, &sel);
     if (err) {
         return err;
     }
 
-    const struct dicey_element *elem = dicey_registry_get_element(context->registry, path, sel.trait, sel.elem);
+    const struct dicey_element *elem = dicey_registry_get_element(ctx->registry, path, sel.trait, sel.elem);
 
     if (!elem) {
         return TRACE(DICEY_EELEMENT_NOT_FOUND);
@@ -166,7 +185,7 @@ static enum dicey_error handle_sub_operation(
     }
 
     // do not allocate the same stuff a billion times. use the scratchpad.
-    struct dicey_view_mut *const scratchpad = context->scratchpad;
+    struct dicey_view_mut *const scratchpad = ctx->scratchpad;
     assert(scratchpad);
 
     const char *const elemdescr = dicey_element_descriptor_format_to(scratchpad, path, sel);
@@ -174,15 +193,15 @@ static enum dicey_error handle_sub_operation(
         return TRACE(DICEY_ENOMEM);
     }
 
-    switch (opcode) {
+    switch (req->opcode) {
     case SERVER_OP_EVENT_SUBSCRIBE:
-        err = dicey_client_data_subscribe(client, elemdescr);
+        err = dicey_client_data_subscribe(req->client, elemdescr);
         break;
 
     case SERVER_OP_EVENT_UNSUBSCRIBE:
         // do not trace the result of this operation, the ENOENT should be reported to the client without blocking
         // the server
-        err = dicey_client_data_unsubscribe(client, elemdescr) ? DICEY_OK : DICEY_ENOENT;
+        err = dicey_client_data_unsubscribe(req->client, elemdescr) ? DICEY_OK : DICEY_ENOENT;
 
         break;
 
@@ -198,6 +217,17 @@ static enum dicey_error handle_sub_operation(
     return unit_message_for(response, path, sel);
 }
 
+static ptrdiff_t builtin_handler(
+    struct dicey_builtin_context *const ctx,
+    struct dicey_builtin_request *const req,
+    struct dicey_packet *const response
+) {
+    const enum dicey_error err = handle_server_operation(ctx, req, response);
+
+    // server builtin operations don't alter the client state
+    return err ? err : CLIENT_DATA_STATE_RUNNING;
+}
+
 const struct dicey_registry_builtin_set dicey_registry_server_builtins = {
     .objects = server_objects,
     .nobjects = DICEY_LENOF(server_objects),
@@ -205,5 +235,5 @@ const struct dicey_registry_builtin_set dicey_registry_server_builtins = {
     .traits = server_traits,
     .ntraits = DICEY_LENOF(server_traits),
 
-    .handler = &handle_sub_operation,
+    .handler = &builtin_handler,
 };

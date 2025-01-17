@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2024 Zuru Tech HK Limited, All rights reserved.
+ * Copyright (c) 2024-2025 Zuru Tech HK Limited, All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,8 +19,10 @@
 
 #include <stdint.h>
 
-#include "dicey_export.h"
+#include "message.h"
 #include "packet.h"
+
+#include "dicey_export.h"
 
 #if defined(__cplusplus)
 extern "C" {
@@ -46,17 +48,6 @@ struct dicey_message_builder {
     // holding the lock over this message builder.
     const struct dicey_value_builder *_borrowed_to;
 };
-
-/**
- * @brief Initializes a message builder.
- * @note All message builders must be initialized before use using this function. Any current state is discarded without
- *       being freed, so make sure to discard or finalise a message builder before re-initializing it.
- *       Message builders are designed to be reused, so you should not init and destroy them for each message.
- * @param builder Message builder to initialize.
- * @return Error code. Possible errors are:
- *         - OK: (Never fails)
- */
-DICEY_EXPORT enum dicey_error dicey_message_builder_init(struct dicey_message_builder *builder);
 
 /**
  * @brief Begins building a message.
@@ -87,10 +78,30 @@ DICEY_EXPORT enum dicey_error dicey_message_builder_build(
 
 /**
  * @brief Discards the current state of a message builder.
- * @note This function completely discards the builder contents, leaving it ready to be reused.
+ * @note This function completely discards the builder contents, leaving it ready to be reused. Discarding an already
+ *       discarded builder is a no-op.
  * @param builder Message builder to wipe.
  */
 DICEY_EXPORT void dicey_message_builder_discard(struct dicey_message_builder *builder);
+
+/**
+ * @brief Initializes a message builder.
+ * @note All message builders must be initialized before use using this function. Any current state is discarded without
+ *       being freed, so make sure to discard or finalise a message builder before re-initializing it.
+ *       Message builders are designed to be reused, so you should not init and destroy them for each message.
+ * @param builder Message builder to initialize.
+ * @return Error code. Possible errors are:
+ *         - OK: (Never fails)
+ */
+DICEY_EXPORT enum dicey_error dicey_message_builder_init(struct dicey_message_builder *builder);
+
+/**
+ * @brief Checks if a message builder is in a pending state, i.e. if the builder is currently being used to build a
+ *        message.
+ * @param builder Message builder to check.
+ * @return True if the message builder is in a pending state, false otherwise.
+ */
+DICEY_EXPORT bool dicey_message_builder_is_pending(const struct dicey_message_builder *builder);
 
 /**
  * @brief Sets the path of a message builder.
@@ -184,6 +195,12 @@ struct dicey_arg {
         /**< String value. Note: strings are never copied, and must be alive for the entire lifetime of the argument */
         const char *str;
 
+        /**
+         * Path value. Note: paths are never copied, and must be alive for the entire lifetime of the argument.
+         * Note: Identical to string
+         */
+        const char *path;
+
         struct dicey_uuid uuid; /**< UUID value. */
 
         /**<
@@ -227,7 +244,7 @@ struct dicey_value_builder {
     int _state;
 
     // root of the built message, i.e. a leaf if the value is not a compound type, or a node otherwise.
-    // this value is borrowed from the message builder, and must not be freed by the value builder
+    // this value is borrowed from the parent builder, and must not be freed by the value builder
     struct dicey_arg *_root;
 
     // specialised builder structure for subvalues (used by arrays and tuples)
@@ -304,6 +321,14 @@ DICEY_EXPORT enum dicey_error dicey_value_builder_array_end(struct dicey_value_b
  * @return True if the value builder is in a "list" state, false otherwise.
  */
 DICEY_EXPORT bool dicey_value_builder_is_list(const struct dicey_value_builder *builder);
+
+/**
+ * @brief Checks if a value builder is in a pending state, i.e. if the builder is currently being used to build a
+ *        value.
+ * @param builder Value builder to check.
+ * @return True if the value builder is in a pending state, false otherwise.
+ */
+DICEY_EXPORT bool dicey_value_builder_is_pending(const struct dicey_value_builder *builder);
 
 /**
  * @brief Moves to the next element in a value builder locked on a "list" state (i.e. array or tuple).

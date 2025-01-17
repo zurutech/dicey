@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2024 Zuru Tech HK Limited, All rights reserved.
+ * Copyright (c) 2024-2025 Zuru Tech HK Limited, All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -30,8 +30,6 @@
 
 #include "ipc/server/client-data.h"
 
-#define DICEY_LENOF(ARR) (sizeof(ARR) / sizeof(ARR)[0])
-
 struct dicey_builtin_context {
     struct dicey_registry *registry;
 
@@ -40,17 +38,34 @@ struct dicey_builtin_context {
     struct dicey_view_mut *scratchpad;
 };
 
+bool dicey_builtin_context_is_valid(const struct dicey_builtin_context *ctx);
+
+/**
+ * @brief The request for a builtin operation.
+ * @note  The handler can "steal" the source packet by zeroing it out, to keep the runtime from freeing it. This is
+ *        useful when the handler wants to keep the packet around for later use.
+ */
+struct dicey_builtin_request {
+    uint8_t opcode;
+    struct dicey_client_data *client;
+    const char *path;
+    const struct dicey_element_entry *entry;
+    struct dicey_packet *source;
+    const struct dicey_value *value;
+};
+
+bool dicey_builtin_request_is_valid(const struct dicey_builtin_request *request);
+
 /**
  * @brief A function pointer type that describes the handler for a builtin operation.
- *
+ * @note  The handler can "steal" the request packet by zeroing it out, to keep the runtime from freeing it. This is
+ *        useful when the handler wants to keep the packet around for later use.
+ * @return If positive, the state of the client after executing the builtin operation (usually RUNNING)
+ *         If negative, an error code of enum dicey_error
  */
-typedef enum dicey_error dicey_registry_builtin_op(
-    struct dicey_builtin_context *context,
-    uint8_t opcode,
-    struct dicey_client_data *client,
-    const char *path,
-    const struct dicey_element_entry *entry,
-    const struct dicey_value *value,
+typedef ptrdiff_t dicey_registry_builtin_op(
+    struct dicey_builtin_context *ctx,
+    struct dicey_builtin_request *request,
     struct dicey_packet *response
 );
 
@@ -58,13 +73,13 @@ struct dicey_default_element {
     const char *name;
     enum dicey_element_type type;
     const char *signature;
-    bool readonly;
+    int flags;
     uint8_t opcode;
 };
 
 struct dicey_default_object {
     const char *path;
-    const char **traits;
+    const char *const *traits;
 };
 
 struct dicey_default_trait {

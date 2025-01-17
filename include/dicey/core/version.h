@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2024 Zuru Tech HK Limited, All rights reserved.
+ * Copyright (c) 2024-2025 Zuru Tech HK Limited, All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -33,7 +33,7 @@ extern "C" {
  *        adding new features.
  */
 #define DICEY_PROTO_MAJOR 1
-#define DICEY_PROTO_REVISION 0
+#define DICEY_PROTO_REVISION 1
 #define DICEY_PROTO_STRING #DICEY_PROTO_MAJOR "r" #DICEY_PROTO_REVISION
 
 /**
@@ -58,8 +58,8 @@ DICEY_EXPORT int dicey_version_cmp(struct dicey_version a, struct dicey_version 
  * compatibility
  */
 #define DICEY_LIB_VERSION_MAJOR 0
-#define DICEY_LIB_VERSION_MINOR 3
-#define DICEY_LIB_VERSION_PATCH 9
+#define DICEY_LIB_VERSION_MINOR 4
+#define DICEY_LIB_VERSION_PATCH 0
 #define DICEY_LIB_VERSION_STRING #DICEY_LIB_VERSION_MAJOR "." #DICEY_LIB_VERSION_MINOR "." #DICEY_LIB_VERSION_PATCH
 
 #define DICEY_LIB_VER_INT 0x00000309

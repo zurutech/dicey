@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2024 Zuru Tech HK Limited, All rights reserved.
+ * Copyright (c) 2024-2025 Zuru Tech HK Limited, All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,6 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
+#define _XOPEN_SOURCE 700
 
 #include <assert.h>
 #include <stdarg.h>
@@ -41,34 +43,6 @@
 #define METATRAIT_FORMAT DICEY_REGISTRY_TRAITS_PATH "/%s"
 
 static_assert(sizeof(NULL) == sizeof(void *), "NULL is not a pointer");
-
-static const char *metatrait_name_for(struct dicey_registry *const registry, const char *const trait_name) {
-    assert(registry && trait_name);
-
-    const int will_write = snprintf(NULL, 0, METATRAIT_FORMAT, trait_name);
-    if (will_write < 0) {
-        return NULL; // probably very bad
-    }
-
-    const size_t needed = (size_t) will_write + 1U;
-
-    char *buffer = registry->_buffer.data;
-
-    if (registry->_buffer.len < needed) {
-        buffer = realloc(buffer, needed);
-        if (!buffer) {
-            return NULL;
-        }
-
-        registry->_buffer = dicey_view_mut_from(buffer, needed);
-    }
-
-    if (snprintf(buffer, needed, METATRAIT_FORMAT, trait_name) < will_write) {
-        return NULL; // probably very bad
-    }
-
-    return buffer;
-}
 
 static void object_free(void *const ptr) {
     struct dicey_object *const object = ptr;
@@ -224,7 +198,7 @@ static enum dicey_error registry_add_trait(
     struct dicey_trait *const trait
 ) {
     // path of the metaobject that represents this trait under /dicey/registry
-    const char *const metapath = metatrait_name_for(registry, trait_name);
+    const char *const metapath = dicey_registry_format_metaname(registry, METATRAIT_FORMAT, trait_name);
     if (!metapath) {
         return TRACE(DICEY_ENOMEM);
     }
@@ -245,6 +219,71 @@ static enum dicey_error registry_add_trait(
 
     // also add the associated metaobject for this trait
     return dicey_registry_add_object_with(registry, metapath, DICEY_TRAIT_TRAIT_NAME, NULL);
+}
+
+char *dicey_metaname_format(const char *const fmt, ...) {
+    assert(fmt);
+
+    va_list ap;
+    va_start(ap, fmt);
+
+    char *const result = dicey_metaname_vformat_to(NULL, fmt, ap);
+
+    va_end(ap);
+
+    return result;
+}
+
+char *dicey_metaname_format_to(struct dicey_view_mut *const buffer, const char *const fmt, ...) {
+    assert(buffer && fmt);
+
+    va_list ap;
+    va_start(ap, fmt);
+
+    char *const result = dicey_metaname_vformat_to(buffer, fmt, ap);
+
+    va_end(ap);
+
+    return result;
+}
+
+char *dicey_metaname_vformat_to(struct dicey_view_mut *const buffer_view, const char *const fmt, va_list ap) {
+    assert(buffer_view && fmt);
+
+    va_list ap_copy;
+    va_copy(ap_copy, ap);
+
+    char *buffer = buffer_view ? buffer_view->data : NULL;
+
+    const int will_write = vsnprintf(NULL, 0, fmt, ap_copy);
+    if (will_write < 0) {
+        buffer = NULL;
+
+        goto quit;
+    }
+
+    const size_t needed = (size_t) will_write + 1U;
+
+    if (!buffer_view || buffer_view->len < needed) {
+        buffer = realloc(buffer, needed);
+        if (!buffer) {
+            return NULL;
+        }
+
+        if (buffer_view) {
+            *buffer_view = dicey_view_mut_from(buffer, needed);
+        }
+    }
+
+    if (vsnprintf(buffer, needed, fmt, ap) < will_write) {
+        buffer = NULL;
+    }
+
+quit:
+    va_end(ap_copy);
+    va_end(ap);
+
+    return buffer;
 }
 
 bool dicey_object_implements(const struct dicey_object *const object, const char *const trait) {
@@ -555,6 +594,19 @@ enum dicey_error dicey_registry_delete_object(struct dicey_registry *const regis
     assert(registry && name);
 
     return registry_del_object(registry, name);
+}
+
+const char *dicey_registry_format_metaname(struct dicey_registry *registry, const char *const fmt, ...) {
+    assert(registry && fmt);
+
+    va_list ap;
+    va_start(ap, fmt);
+
+    const char *const result = dicey_metaname_vformat_to(&registry->_buffer, fmt, ap);
+
+    va_end(ap);
+
+    return result;
 }
 
 const struct dicey_element *dicey_registry_get_element(

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2024 Zuru Tech HK Limited, All rights reserved.
+ * Copyright (c) 2024-2025 Zuru Tech HK Limited, All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,7 +26,7 @@
 
 #include "pending-reqs.h"
 
-#if defined(_MSC_VER)
+#if defined(DICEY_CC_IS_MSVC)
 #pragma warning(disable : 4200)
 #endif
 
@@ -164,7 +164,7 @@ static ptrdiff_t pending_requests_make_room(struct dicey_pending_requests **reqs
 
         reqs->cap = new_cap;
 
-        // reset the indeces - we are operating on a new circular memory block
+        // reset the indices - we are operating on a new circular memory block
         reqs->start = 0;
         reqs->end = reqs->len;
 
@@ -222,7 +222,7 @@ static struct dicey_pending_requests *pending_requests_new(const uint32_t last_s
 static bool room_available(const struct dicey_pending_requests *const reqs) {
     // the structure has room available if:
     // - it has a capacity (i.e. it's not empty)
-    // - the start and end indeces are different (and if cap is not 0, it means we've ran the circular buffer back to
+    // - the start and end indices are different (and if cap is not 0, it means we've ran the circular buffer back to
     // the start)
     return reqs->cap && reqs->start != reqs->end;
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2024 Zuru Tech HK Limited, All rights reserved.
+ * Copyright (c) 2024-2025 Zuru Tech HK Limited, All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -33,8 +33,6 @@
 
 #include "../../registry-internal.h"
 
-#include "introspection.h"
-
 #include "introspection-internal.h"
 
 static enum dicey_error craft_bool_response(
@@ -64,7 +62,12 @@ static enum dicey_error craft_bool_response(
         goto fail;
     }
 
-    return dicey_message_builder_build(&builder, dest);
+    err = dicey_message_builder_build(&builder, dest);
+    if (err) {
+        goto fail;
+    }
+
+    return DICEY_OK;
 
 fail:
     dicey_message_builder_discard(&builder);
@@ -139,7 +142,7 @@ static enum dicey_error populate_element_struct(
             &ro_builder,
             (struct dicey_arg) {
                 .type = DICEY_TYPE_BOOL,
-                .boolean = element->readonly,
+                .boolean = element->flags & DICEY_ELEMENT_READONLY,
             }
         );
 
@@ -209,6 +212,10 @@ static enum dicey_error populate_trait_element_list(
     const char *elem_name = NULL;
     struct dicey_element elem = { 0 };
     while (dicey_trait_iter_next(&iter, &elem_name, &elem)) {
+        if (elem.flags & DICEY_ELEMENT_INTERNAL) {
+            continue; // skip internal elements
+        }
+
         struct dicey_value_builder trait_elem_builder = { 0 };
         err = dicey_value_builder_next(value, &trait_elem_builder);
 
@@ -392,7 +399,7 @@ enum dicey_error introspection_craft_pathlist(
             &element,
             (struct dicey_arg) {
                 .type = DICEY_TYPE_PATH,
-                .str = path,
+                .path = path,
             }
         );
 
@@ -411,7 +418,12 @@ enum dicey_error introspection_craft_pathlist(
         goto fail;
     }
 
-    return dicey_message_builder_build(&builder, dest);
+    err = dicey_message_builder_build(&builder, dest);
+    if (err) {
+        goto fail;
+    }
+
+    return DICEY_OK;
 
 fail:
     dicey_message_builder_discard(&builder);
@@ -438,12 +450,12 @@ enum dicey_error introspection_craft_traitlist(
     struct dicey_value_builder value_builder = { 0 };
     err = dicey_message_builder_value_start(&builder, &value_builder);
     if (err) {
-        return err;
+        goto fail;
     }
 
     err = dicey_value_builder_array_start(&value_builder, DICEY_TYPE_STR);
     if (err) {
-        return err;
+        goto fail;
     }
 
     const char *trait_name = NULL;
@@ -453,7 +465,7 @@ enum dicey_error introspection_craft_traitlist(
         struct dicey_value_builder trait_builder = { 0 };
         err = dicey_value_builder_next(&value_builder, &trait_builder);
         if (err) {
-            return err;
+            goto fail;
         }
 
         err = dicey_value_builder_set(
@@ -465,21 +477,31 @@ enum dicey_error introspection_craft_traitlist(
         );
 
         if (err) {
-            return err;
+            goto fail;
         }
     }
 
     err = dicey_value_builder_array_end(&value_builder);
     if (err) {
-        return err;
+        goto fail;
     }
 
     err = dicey_message_builder_value_end(&builder, &value_builder);
     if (err) {
-        return err;
+        goto fail;
     }
 
-    return dicey_message_builder_build(&builder, dest);
+    err = dicey_message_builder_build(&builder, dest);
+    if (err) {
+        goto fail;
+    }
+
+    return DICEY_OK;
+
+fail:
+    dicey_message_builder_discard(&builder);
+
+    return err;
 }
 
 enum dicey_error introspection_dump_object(
@@ -498,26 +520,36 @@ enum dicey_error introspection_dump_object(
     enum dicey_error err =
         introspection_init_builder(&builder, path, DICEY_INTROSPECTION_TRAIT_NAME, DICEY_INTROSPECTION_DATA_PROP_NAME);
     if (err) {
-        return err;
+        goto fail;
     }
 
     struct dicey_value_builder value_builder = { 0 };
     err = dicey_message_builder_value_start(&builder, &value_builder);
     if (err) {
-        return err;
+        goto fail;
     }
 
     err = populate_object_traitlist(registry, obj->traits, &value_builder);
     if (err) {
-        return err;
+        goto fail;
     }
 
     err = dicey_message_builder_value_end(&builder, &value_builder);
     if (err) {
-        return err;
+        goto fail;
     }
 
-    return dicey_message_builder_build(&builder, dest);
+    err = dicey_message_builder_build(&builder, dest);
+    if (err) {
+        goto fail;
+    }
+
+    return DICEY_OK;
+
+fail:
+    dicey_message_builder_discard(&builder);
+
+    return err;
 }
 
 enum dicey_error introspection_dump_xml(
@@ -544,13 +576,13 @@ enum dicey_error introspection_dump_xml(
     struct dicey_message_builder builder = { 0 };
     err = introspection_init_builder(&builder, path, DICEY_INTROSPECTION_TRAIT_NAME, DICEY_INTROSPECTION_XML_PROP_NAME);
     if (err) {
-        return err;
+        goto fail;
     }
 
     struct dicey_value_builder value_builder = { 0 };
     err = dicey_message_builder_value_start(&builder, &value_builder);
     if (err) {
-        return err;
+        goto fail;
     }
 
     err = dicey_value_builder_set(
@@ -564,13 +596,23 @@ enum dicey_error introspection_dump_xml(
     );
 
     if (err) {
-        return err;
+        goto fail;
     }
 
     err = dicey_message_builder_value_end(&builder, &value_builder);
     if (err) {
-        return err;
+        goto fail;
     }
 
-    return dicey_message_builder_build(&builder, dest);
+    err = dicey_message_builder_build(&builder, dest);
+    if (err) {
+        goto fail;
+    }
+
+    return DICEY_OK;
+
+fail:
+    dicey_message_builder_discard(&builder);
+
+    return err;
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2024 Zuru Tech HK Limited, All rights reserved.
+ * Copyright (c) 2024-2025 Zuru Tech HK Limited, All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,13 +17,20 @@
 #if !defined(HFKNEIUTND_ASPRINTF_H)
 #define HFKNEIUTND_ASPRINTF_H
 
-#if defined(__unix__) || defined(__unix) || defined(unix) || (defined(__APPLE__) && defined(__MACH__))
+#include "util.h"
+
+#include "dicey_config.h"
+
+#if defined(DICEY_IS_UNIX)
 #define _GNU_SOURCE
 #include <stdio.h>
 #else
+
 #include <stdarg.h>
 
-int asprintf(char **const s, const char *const fmt, ...);
+#define DICEY_BUILD_ASPRINTF
+
+int asprintf(char **const s, const char *const fmt, ...) DICEY_FORMAT(2, 3);
 int vasprintf(char **const s, const char *const fmt, va_list ap);
 #endif
 

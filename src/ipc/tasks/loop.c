@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2024 Zuru Tech HK Limited, All rights reserved.
+ * Copyright (c) 2024-2025 Zuru Tech HK Limited, All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+#define _XOPEN_SOURCE 700
+
 #include <assert.h>
 #include <stdarg.h>
 #include <stdatomic.h>
@@ -26,8 +28,10 @@
 
 #include <dicey/core/errors.h>
 
+#include "sup/util.h"
+#include "sup/uvtools.h"
+
 #include "ipc/queue.h"
-#include "ipc/uvtools.h"
 
 #include "list.h"
 #include "loop.h"
@@ -83,7 +87,7 @@ static void complete_task(
     free(task);
 
     const bool success = dicey_task_list_erase(tloop->pending_tasks, id);
-    (void) success;
+    DICEY_UNUSED(success);
 
     assert(success || id < 0); // if id is negative, it was never added to the list
 }
@@ -419,9 +423,8 @@ deinit_jobs_async:
 deinit_loop:
     {
         const int uverr = uv_loop_close(loop);
+        DICEY_UNUSED(uverr);
         assert(uverr != UV_EBUSY);
-
-        (void) uverr;
     }
 
     return err;
@@ -456,9 +459,8 @@ static void loop_thread(void *const arg) {
 clear_all:
     {
         const int uverr = uv_loop_close(&loop);
+        DICEY_UNUSED(uverr);
         assert(uverr != UV_EBUSY);
-
-        (void) uverr;
     }
 
     if (tloop) {
@@ -486,7 +488,7 @@ static struct dicey_task_error *task_error_vnew(const enum dicey_error error, co
     }
 
     err->error = error;
-    (void) vsnprintf(err->message, len + 1, fmt, ap);
+    DICEY_UNUSED(vsnprintf(err->message, len + 1, fmt, ap));
 
     return err;
 }
@@ -593,7 +595,7 @@ void *dicey_task_loop_get_context(const struct dicey_task_loop *const tloop) {
     return tloop ? tloop->ctx : NULL;
 }
 
-uv_loop_t *dicey_task_loop_get_raw_handle(struct dicey_task_loop *const tloop) {
+uv_loop_t *dicey_task_loop_get_uv_handle(struct dicey_task_loop *const tloop) {
     return tloop ? tloop->loop : NULL;
 }
 
@@ -699,16 +701,16 @@ enum dicey_error dicey_task_loop_submit(struct dicey_task_loop *const tloop, str
     return DICEY_OK;
 }
 
-struct dicey_task_result dicey_task_no_work(
+struct dicey_task_result dicey_task_noop(
     struct dicey_task_loop *const tloop,
     const int64_t id,
     void *const ctx,
     void *const input
 ) {
-    (void) tloop;
-    (void) id;
-    (void) ctx;
-    (void) input;
+    DICEY_UNUSED(tloop);
+    DICEY_UNUSED(id);
+    DICEY_UNUSED(ctx);
+    DICEY_UNUSED(input);
 
     return dicey_task_continue();
 }

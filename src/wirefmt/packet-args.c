@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2024 Zuru Tech HK Limited, All rights reserved.
+ * Copyright (c) 2024-2025 Zuru Tech HK Limited, All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -129,6 +129,21 @@ void dicey_arg_free_contents(const struct dicey_arg *const arg) {
         dicey_arg_free(arg->pair.first);
         dicey_arg_free(arg->pair.second);
     }
+}
+
+void dicey_arg_free_list(const struct dicey_arg *const arglist, const size_t nitems) {
+    if (!arglist || !nitems) {
+        return;
+    }
+
+    const struct dicey_arg *const end = arglist + nitems;
+    for (const struct dicey_arg *it = arglist; it != end; ++it) {
+        dicey_arg_free_contents(it);
+    }
+
+    // these are guaranteed to come from malloc - so I have no problems casting them back to mutable.
+    // free is just a bad API
+    free((void *) arglist);
 }
 
 void dicey_arg_get_list(

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2024 Zuru Tech HK Limited, All rights reserved.
+ * Copyright (c) 2024-2025 Zuru Tech HK Limited, All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -130,7 +130,7 @@ static enum dicey_op json_to_op(const cJSON *const item) {
     const char *const value = cJSON_GetStringValue(item);
     if (value) {
         const enum dicey_op values[] = {
-            DICEY_OP_GET, DICEY_OP_SET, DICEY_OP_EXEC, DICEY_OP_EVENT, DICEY_OP_RESPONSE,
+            DICEY_OP_GET, DICEY_OP_SET, DICEY_OP_EXEC, DICEY_OP_SIGNAL, DICEY_OP_RESPONSE,
         };
 
         const enum dicey_op *const end = values + sizeof values / sizeof *values;
@@ -364,7 +364,12 @@ static enum dicey_error json_to_message(struct dicey_packet *const dest, const c
         }
     }
 
-    return dicey_message_builder_build(&msgbuild, dest);
+    err = dicey_message_builder_build(&msgbuild, dest);
+    if (err) {
+        goto fail;
+    }
+
+    return DICEY_OK;
 
 fail:
     dicey_message_builder_discard(&msgbuild);

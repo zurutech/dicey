@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2024 Zuru Tech HK Limited, All rights reserved.
+ * Copyright (c) 2024-2025 Zuru Tech HK Limited, All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -28,6 +28,7 @@ static const struct dicey_error_def error_info[] = {
     ERROR_INFO_FOR(DICEY_EAGAIN, "TryAgain", "not enough data"),
     ERROR_INFO_FOR(DICEY_ENOENT, "FileNotFound", "no such file or directory"),
     ERROR_INFO_FOR(DICEY_ENOMEM, "OutOfMemory", "out of memory"),
+    ERROR_INFO_FOR(DICEY_ENOTDIR, "NotADirectory", "not a directory"),
     ERROR_INFO_FOR(DICEY_EINVAL, "InvalidData", "invalid argument"),
     ERROR_INFO_FOR(DICEY_ENODATA, "NoDataAvailable", "no data available"),
     ERROR_INFO_FOR(DICEY_EBADMSG, "BadMessage", "bad message"),
@@ -40,6 +41,8 @@ static const struct dicey_error_def error_info[] = {
     ERROR_INFO_FOR(DICEY_ECONNRESET, "ConnectionReset", "connection reset by peer"),
     ERROR_INFO_FOR(DICEY_EEXIST, "ObjectExists", "objects or file already exists"),
     ERROR_INFO_FOR(DICEY_EADDRINUSE, "AddressInUse", "address already in use"),
+    ERROR_INFO_FOR(DICEY_EACCES, "PermissionDenied", "permission denied"),
+    ERROR_INFO_FOR(DICEY_EBADF, "BadFileDescriptor", "bad file descriptor"),
     ERROR_INFO_FOR(DICEY_EPATH_TOO_LONG, "PathTooLong", "path too long"),
     ERROR_INFO_FOR(DICEY_ETUPLE_TOO_LONG, "TupleTooLong", "tuple too long"),
     ERROR_INFO_FOR(DICEY_EARRAY_TOO_LONG, "ArrayTooLong", "array too long"),
@@ -59,6 +62,7 @@ static const struct dicey_error_def error_info[] = {
     ERROR_INFO_FOR(DICEY_ESEQNUM_MISMATCH, "SequenceNumberMismatch", "sequence number mismatch"),
     ERROR_INFO_FOR(DICEY_EUUID_NOT_VALID, "UUIDNotValid", "UUID not valid"),
     ERROR_INFO_FOR(DICEY_EUV_UNKNOWN, "UnknownUVError", "unknown libuv error"),
+    ERROR_INFO_FOR(DICEY_EPLUGIN_INVALID_NAME, "InvalidPluginName", "invalid plugin name"),
 };
 
 const struct dicey_error_def *dicey_error_info(const enum dicey_error errnum) {
@@ -77,6 +81,7 @@ bool dicey_error_is_valid(enum dicey_error errnum) {
     case DICEY_OK:
     case DICEY_EAGAIN:
     case DICEY_ENOENT:
+    case DICEY_ENOTDIR:
     case DICEY_ENOMEM:
     case DICEY_EINVAL:
     case DICEY_ENODATA:
@@ -90,6 +95,8 @@ bool dicey_error_is_valid(enum dicey_error errnum) {
     case DICEY_ECONNRESET:
     case DICEY_EEXIST:
     case DICEY_EADDRINUSE:
+    case DICEY_EACCES:
+    case DICEY_EBADF:
     case DICEY_EPATH_TOO_LONG:
     case DICEY_ETUPLE_TOO_LONG:
     case DICEY_EARRAY_TOO_LONG:
@@ -108,6 +115,7 @@ bool dicey_error_is_valid(enum dicey_error errnum) {
     case DICEY_ESEQNUM_MISMATCH:
     case DICEY_EUUID_NOT_VALID:
     case DICEY_EUV_UNKNOWN:
+    case DICEY_EPLUGIN_INVALID_NAME:
         return true;
 
     default:

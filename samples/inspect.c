@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2024 Zuru Tech HK Limited, All rights reserved.
+ * Copyright (c) 2024-2025 Zuru Tech HK Limited, All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,10 +16,7 @@
 
 // thank you MS, but just no
 #define _CRT_SECURE_NO_WARNINGS 1
-#if defined(_MSC_VER)
-#pragma warning(disable : 4200) // borked C11 flex array
-#pragma warning(disable : 4996) // strdup
-#endif
+#define _XOPEN_SOURCE 700
 
 #include <assert.h>
 #include <inttypes.h>
@@ -31,18 +28,25 @@
 #include <stdlib.h>
 #include <string.h>
 
-#if defined(_WIN32)
+#include <dicey/dicey.h>
+
+#if defined(DICEY_IS_WINDOWS)
 #define WIN32_LEAN_AND_MEAN 1
 #include <windows.h>
 #endif
 
 #include <uv.h>
 
-#include <dicey/dicey.h>
-
 #include <util/dumper.h>
 #include <util/getopt.h>
 #include <util/packet-dump.h>
+
+#include "dicey_config.h"
+
+#if defined(DICEY_CC_IS_MSVC_LIKE)
+#pragma warning(disable : 4200) // borked C11 flex array
+#pragma warning(disable : 4996) // strdup
+#endif
 
 #define DEFAULT_TIMEOUT 3000U // 3 seconds
 
@@ -396,7 +400,7 @@ static int do_op(const struct inspect_args *const args) {
         &client,
         &(struct dicey_client_args) {
             .inspect_func = &inspector,
-            .on_event = &on_client_event,
+            .on_signal = &on_client_event,
         }
     );
 
@@ -569,7 +573,7 @@ int main(const int argc, char *const *argv) {
         return EXIT_FAILURE;
     }
 
-#if defined(_WIN32)
+#if defined(DICEY_IS_WINDOWS)
     if (args.output == stdout) {
         SetConsoleOutputCP(CP_UTF8);
     }

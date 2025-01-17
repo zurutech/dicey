@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2024 Zuru Tech HK Limited, All rights reserved.
+ * Copyright (c) 2024-2025 Zuru Tech HK Limited, All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -35,42 +35,48 @@ enum dicey_error {
     DICEY_EAGAIN = -0x0101,
 
     DICEY_ENOENT = -0x0102,       /**< No such file or directory. */
-    DICEY_ENOMEM = -0x0103,       /**< Out of memory. */
-    DICEY_EINVAL = -0x0104,       /**< Invalid argument(s). */
-    DICEY_ENODATA = -0x0105,      /**< No data available. */
-    DICEY_EBADMSG = -0x0106,      /**< Bad message format. */
-    DICEY_EOVERFLOW = -0x0107,    /**< Value or buffer overflow. */
-    DICEY_ECONNREFUSED = -0x0108, /**< Connection refused. */
-    DICEY_ETIMEDOUT = -0x0109,    /**< Operation timed out. */
-    DICEY_ECANCELLED = -0x010A,   /**< Operation cancelled. */
-    DICEY_EALREADY = -0x010B,     /**< Operation already in progress. */
-    DICEY_EPIPE = -0x010C,        /**< Broken pipe. */
-    DICEY_ECONNRESET = -0x010D,   /**< Connection reset. */
-    DICEY_EEXIST = -0x010E,       /**< Object exists. */
-    DICEY_EADDRINUSE = -0x010F,   /**< Address in use. */
+    DICEY_ENOTDIR = -0x0103,      /**< Not a directory. */
+    DICEY_ENOMEM = -0x0104,       /**< Out of memory. */
+    DICEY_EINVAL = -0x0105,       /**< Invalid argument(s). */
+    DICEY_ENODATA = -0x0106,      /**< No data available. */
+    DICEY_EBADMSG = -0x0107,      /**< Bad message format. */
+    DICEY_EOVERFLOW = -0x0108,    /**< Value or buffer overflow. */
+    DICEY_ECONNREFUSED = -0x0109, /**< Connection refused. */
+    DICEY_ETIMEDOUT = -0x010A,    /**< Operation timed out. */
+    DICEY_ECANCELLED = -0x010B,   /**< Operation cancelled. */
+    DICEY_EALREADY = -0x010C,     /**< Operation already in progress. */
+    DICEY_EPIPE = -0x010D,        /**< Broken pipe. */
+    DICEY_ECONNRESET = -0x010E,   /**< Connection reset. */
+    DICEY_EEXIST = -0x010F,       /**< Object exists. */
+    DICEY_EADDRINUSE = -0x0110,   /**< Address in use. */
+    DICEY_EACCES = -0x0111,       /**< Permission denied. */
+    DICEY_EBADF = -0x0112,        /**< Bad file descriptor. */
 
-    DICEY_EPATH_TOO_LONG = -0x0210,  /**< A path is too long. */
-    DICEY_ETUPLE_TOO_LONG = -0x0211, /**< Tuple too long. (currently unused) */
-    DICEY_EARRAY_TOO_LONG = -0x0212, /**< Array too long. (currently unused) */
+    DICEY_EPATH_TOO_LONG = -0x0213,  /**< A path is too long. */
+    DICEY_ETUPLE_TOO_LONG = -0x0214, /**< Tuple too long. (currently unused) */
+    DICEY_EARRAY_TOO_LONG = -0x0215, /**< Array too long. (currently unused) */
 
-    DICEY_EVALUE_TYPE_MISMATCH = -0x0313, /**< Value type mismatch. */
+    DICEY_EVALUE_TYPE_MISMATCH = -0x0316, /**< Value type mismatch. */
 
-    DICEY_ENOT_SUPPORTED = -0x0414,       /**< Operation not supported. */
-    DICEY_ECLIENT_TOO_OLD = -0x0415,      /**< Client is too old. */
-    DICEY_ESERVER_TOO_OLD = -0x0416,      /**< Client is too old. */
-    DICEY_EPATH_DELETED = -0x0417,        /**< Path has been deleted. */
-    DICEY_EPATH_NOT_FOUND = -0x0418,      /**< Path not found. */
-    DICEY_EPATH_MALFORMED = -0x0419,      /**< Path is malformed */
-    DICEY_ETRAIT_NOT_FOUND = -0x041A,     /**< Trait not found. */
-    DICEY_EELEMENT_NOT_FOUND = -0x041B,   /**< Element not found. */
-    DICEY_ESIGNATURE_MALFORMED = -0x041C, /**< Signature is malformed. */
-    DICEY_ESIGNATURE_MISMATCH = -0x041D,  /**< Signature is mismatched. */
-    DICEY_EPROPERTY_READ_ONLY = -0x041E,  /**< Property is read-only. */
-    DICEY_EPEER_NOT_FOUND = -0x041F,      /**< Peer not found. */
-    DICEY_ESEQNUM_MISMATCH = -0x0420,     /**< Sequence number mismatch. */
-    DICEY_EUUID_NOT_VALID = -0x0421,      /**< UUID is not valid. */
+    DICEY_ENOT_SUPPORTED = -0x0417,       /**< Operation not supported. */
+    DICEY_ECLIENT_TOO_OLD = -0x0418,      /**< Client is too old. */
+    DICEY_ESERVER_TOO_OLD = -0x0419,      /**< Client is too old. */
+    DICEY_EPATH_DELETED = -0x041A,        /**< Path has been deleted. */
+    DICEY_EPATH_NOT_FOUND = -0x041B,      /**< Path not found. */
+    DICEY_EPATH_MALFORMED = -0x041C,      /**< Path is malformed */
+    DICEY_ETRAIT_NOT_FOUND = -0x041D,     /**< Trait not found. */
+    DICEY_EELEMENT_NOT_FOUND = -0x041E,   /**< Element not found. */
+    DICEY_ESIGNATURE_MALFORMED = -0x041F, /**< Signature is malformed. */
+    DICEY_ESIGNATURE_MISMATCH = -0x0420,  /**< Signature is mismatched. */
+    DICEY_EPROPERTY_READ_ONLY = -0x0421,  /**< Property is read-only. */
+    DICEY_EPEER_NOT_FOUND = -0x0422,      /**< Peer not found. */
+    DICEY_ESEQNUM_MISMATCH = -0x0423,     /**< Sequence number mismatch. */
+    DICEY_EUUID_NOT_VALID = -0x0424,      /**< UUID is not valid. */
 
-    DICEY_EUV_UNKNOWN = -0x0522 /**< Unknown libuv error. */
+    DICEY_EUV_UNKNOWN = -0x0525, /**< Unknown libuv error. */
+
+    // Plugin errors are only valid if plugins are enabled
+    DICEY_EPLUGIN_INVALID_NAME = -0xFE26, /**< Invalid plugin name. */
 };
 
 /**

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2024 Zuru Tech HK Limited, All rights reserved.
+ * Copyright (c) 2024-2025 Zuru Tech HK Limited, All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,6 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
+#define _XOPEN_SOURCE 700
 
 #include <assert.h>
 #include <stdbool.h>
@@ -29,6 +31,7 @@
 #include <dicey/ipc/traits.h>
 
 #include "sup/trace.h"
+#include "sup/util.h"
 
 #include "ipc/server/builtins/builtins.h"
 #include "ipc/server/client-data.h"
@@ -60,14 +63,14 @@ static const struct dicey_default_element introspection_elements[] = {
      .name = DICEY_INTROSPECTION_DATA_PROP_NAME,
      .type = DICEY_ELEMENT_TYPE_PROPERTY,
      .signature = DICEY_INTROSPECTION_DATA_PROP_SIG,
-     .readonly = true,
+     .flags = DICEY_ELEMENT_READONLY,
      .opcode = INTROSPECTION_OP_GET_DATA,
      },
     {
      .name = DICEY_INTROSPECTION_XML_PROP_NAME,
      .type = DICEY_ELEMENT_TYPE_PROPERTY,
      .signature = DICEY_INTROSPECTION_XML_PROP_SIG,
-     .readonly = true,
+     .flags = DICEY_ELEMENT_READONLY,
      .opcode = INTROSPECTION_OP_GET_XML,
      },
 };
@@ -77,14 +80,14 @@ static const struct dicey_default_element registry_elements[] = {
      .name = DICEY_REGISTRY_OBJECTS_PROP_NAME,
      .type = DICEY_ELEMENT_TYPE_PROPERTY,
      .signature = DICEY_REGISTRY_OBJECTS_PROP_SIG,
-     .readonly = true,
+     .flags = DICEY_ELEMENT_READONLY,
      .opcode = INTROSPECTION_OP_REGISTRY_GET_OBJS,
      },
     {
      .name = DICEY_REGISTRY_TRAITS_PROP_NAME,
      .type = DICEY_ELEMENT_TYPE_PROPERTY,
      .signature = DICEY_REGISTRY_TRAITS_PROP_SIG,
-     .readonly = true,
+     .flags = DICEY_ELEMENT_READONLY,
      .opcode = INTROSPECTION_OP_REGISTRY_GET_TRAITS,
      },
     {
@@ -112,21 +115,21 @@ static const struct dicey_default_element trait_elements[] = {
      .name = DICEY_TRAIT_OPERATIONS_PROP_NAME,
      .type = DICEY_ELEMENT_TYPE_PROPERTY,
      .signature = DICEY_TRAIT_OPERATIONS_PROP_SIG,
-     .readonly = true,
+     .flags = DICEY_ELEMENT_READONLY,
      .opcode = INTROSPECTION_OP_TRAIT_GET_OPERATIONS,
      },
     {
      .name = DICEY_TRAIT_PROPERTIES_PROP_NAME,
      .type = DICEY_ELEMENT_TYPE_PROPERTY,
      .signature = DICEY_TRAIT_PROPERTIES_PROP_SIG,
-     .readonly = true,
+     .flags = DICEY_ELEMENT_READONLY,
      .opcode = INTROSPECTION_OP_TRAIT_GET_PROPERTIES,
      },
     {
      .name = DICEY_TRAIT_SIGNALS_PROP_NAME,
      .type = DICEY_ELEMENT_TYPE_PROPERTY,
      .signature = DICEY_TRAIT_SIGNALS_PROP_SIG,
-     .readonly = true,
+     .flags = DICEY_ELEMENT_READONLY,
      .opcode = INTROSPECTION_OP_TRAIT_GET_SIGNALS,
      },
 };
@@ -134,7 +137,7 @@ static const struct dicey_default_element trait_elements[] = {
 static const struct dicey_default_object introspection_objects[] = {
     {
      .path = DICEY_REGISTRY_PATH,
-     .traits = (const char *[]) { DICEY_REGISTRY_TRAIT_NAME, NULL },
+     .traits = (const char *const[]) { DICEY_REGISTRY_TRAIT_NAME, NULL },
      },
 };
 
@@ -226,18 +229,14 @@ static enum dicey_error value_get_element_info(
 
 static enum dicey_error perform_introspection_op(
     struct dicey_builtin_context *const context,
-    const uint8_t opcode,
-    struct dicey_client_data *const client,
-    const char *const path,
-    const struct dicey_element_entry *const entry,
-    const struct dicey_value *const value,
+    struct dicey_builtin_request *const request,
     struct dicey_packet *const response
 ) {
-    (void) client;
-    (void) entry;
-    (void) path;
+    assert(dicey_builtin_context_is_valid(context) && dicey_builtin_request_is_valid(request) && response);
 
-    assert(context && path && entry && entry->element && response);
+    const uint8_t opcode = request->opcode;
+    const char *const path = request->path;
+    const struct dicey_value *const value = request->value;
 
     struct dicey_registry *const registry = context->registry;
 
@@ -337,6 +336,17 @@ static enum dicey_error perform_introspection_op(
     }
 }
 
+static ptrdiff_t builtin_handler(
+    struct dicey_builtin_context *const context,
+    struct dicey_builtin_request *const request,
+    struct dicey_packet *const response
+) {
+    const enum dicey_error err = perform_introspection_op(context, request, response);
+
+    // introspection operations don't alter the client state
+    return err ? err : CLIENT_DATA_STATE_RUNNING;
+}
+
 const struct dicey_registry_builtin_set dicey_registry_introspection_builtins = {
     .objects = introspection_objects,
     .nobjects = DICEY_LENOF(introspection_objects),
@@ -344,5 +354,5 @@ const struct dicey_registry_builtin_set dicey_registry_introspection_builtins = 
     .traits = introspection_traits,
     .ntraits = DICEY_LENOF(introspection_traits),
 
-    .handler = &perform_introspection_op,
+    .handler = &builtin_handler,
 };

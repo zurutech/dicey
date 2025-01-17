@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2024 Zuru Tech HK Limited, All rights reserved.
+ * Copyright (c) 2024-2025 Zuru Tech HK Limited, All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,7 +24,7 @@
 
 // Note: MSVC supports C11 now, but they clearly forgot to unflag flexible array members as an extension
 // This pragma is here to teach MSVC to know its place
-#if defined(_MSC_VER)
+#if defined(DICEY_CC_IS_MSVC)
 #pragma warning(disable : 4200)
 #endif
 

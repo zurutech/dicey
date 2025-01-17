@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2024 Zuru Tech HK Limited, All rights reserved.
+ * Copyright (c) 2024-2025 Zuru Tech HK Limited, All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -29,6 +29,7 @@
 #include <dicey/ipc/traits.h>
 
 #include "sup/trace.h"
+#include "sup/util.h"
 
 #include "introspection-internal.h"
 
@@ -91,7 +92,7 @@ static enum dicey_error elems_dump_xml(const struct dicey_hashtable *const elems
             return TRACE(DICEY_ENOMEM);
         }
 
-        if (elem->type == DICEY_ELEMENT_TYPE_PROPERTY && elem->readonly) {
+        if (elem->type == DICEY_ELEMENT_TYPE_PROPERTY && elem->flags & DICEY_ELEMENT_READONLY) {
             if (!xmlNewProp(enode, READ_ONLY_ATT, BAD_CAST "true")) {
                 return TRACE(DICEY_ENOMEM);
             }
@@ -118,7 +119,7 @@ static enum dicey_error object_dump_xml(
         return TRACE(DICEY_ENOMEM);
     }
 
-    (void) xmlDocSetRootElement(doc, obj_node);
+    DICEY_UNUSED(xmlDocSetRootElement(doc, obj_node));
 
     xmlNode *const docPI = xmlNewDocPI(doc, XML_MODEL_PI, XML_MODEL_XSD_CONTENT);
     if (!docPI) {

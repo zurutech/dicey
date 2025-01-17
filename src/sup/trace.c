@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2024 Zuru Tech HK Limited, All rights reserved.
+ * Copyright (c) 2024-2025 Zuru Tech HK Limited, All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,7 +14,16 @@
  * limitations under the License.
  */
 
+#include "dicey_config.h"
+
+#if defined(DICEY_IS_DARWIN)
+// Apple headers are a mess. By including this before defining _XOPEN_SOURCE or _POSIX_SOURCE, the headers correctly
+// define the necessary FreeBSD types.
+#include <sys/types.h>
+#endif
+
 #define _CRT_SECURE_NO_WARNINGS 1
+#define _XOPEN_SOURCE 700
 
 #include <stdbool.h>
 
@@ -26,7 +35,14 @@
 
 #if !defined(NDEBUG)
 
-#if defined(_WIN32)
+#if defined __has_include
+#if __has_include(<execinfo.h>)
+#include <execinfo.h>
+#define HAS_EXECINFO 1
+#endif
+#endif
+
+#if defined(DICEY_IS_WINDOWS)
 #define DICEY_TRACE_ENABLED 1
 
 #include <stdio.h>
@@ -102,7 +118,7 @@ static void print_trace(const enum dicey_error errnum) {
     }
 }
 
-#elif (defined(__unix__) || defined(__unix) || (defined(__APPLE__) && defined(__MACH__))) && !defined(__CYGWIN__)
+#elif defined(DICEY_IS_UNIX) && HAS_EXECINFO
 #define DICEY_TRACE_ENABLED 1
 
 #include <signal.h>
@@ -110,9 +126,7 @@ static void print_trace(const enum dicey_error errnum) {
 
 #include <unistd.h>
 
-#include <execinfo.h>
-
-#if defined(__linux__)
+#if defined(DICEY_IS_LINUX)
 
 #include <ctype.h>
 #include <string.h>
@@ -150,7 +164,7 @@ static bool is_debugger_present(void) {
 
     return false;
 }
-#elif defined(__APPLE__) && defined(__MACH__)
+#elif defined(DICEY_IS_DARWIN)
 
 #include <assert.h>
 
@@ -187,7 +201,7 @@ void trigger_breakpoint(void) {
 }
 
 static void print_trace(const enum dicey_error errnum) {
-    void *buffer[32];
+    void *buffer[32] = { 0 };
     const int nptrs = backtrace(buffer, sizeof buffer / sizeof *buffer);
 
     fprintf(stderr, ">>DICEY_TRACE<< error: %s\n", dicey_error_msg(errnum));
@@ -195,8 +209,11 @@ static void print_trace(const enum dicey_error errnum) {
 }
 
 #else
+
+#include "util.h"
+
 static inline void print_trace(const enum dicey_error errnum) {
-    (void) errnum;
+    DICEY_UNUSED(errnum);
 }
 #endif
 

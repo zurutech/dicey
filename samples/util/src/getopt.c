@@ -34,9 +34,10 @@
  * SUCH DAMAGE.
  */
 
+#include <dicey/dicey.h>
 #include <util/getopt.h>
 
-#if defined(_WIN32)
+#if !defined(DICEY_IS_UNIX)
 
 #include <stdio.h>
 #include <stdlib.h>

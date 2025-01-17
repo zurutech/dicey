@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2024 Zuru Tech HK Limited, All rights reserved.
+ * Copyright (c) 2024-2025 Zuru Tech HK Limited, All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,7 +23,7 @@
 #include "trace.h"
 #include "util.h"
 
-#if defined(_MSC_VER)
+#if defined(DICEY_CC_IS_MSVC)
 
 #define CHECKED_SUM_IMPL(NAME, T)                                                                                      \
     bool dutl_internal_##NAME##_add(T *const res, const T a, const T b) {                                              \

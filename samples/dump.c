@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2024 Zuru Tech HK Limited, All rights reserved.
+ * Copyright (c) 2024-2025 Zuru Tech HK Limited, All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,6 +16,7 @@
 
 // thank you MS, but just no
 #define _CRT_SECURE_NO_WARNINGS 1
+#define _XOPEN_SOURCE 700
 
 #include <stdbool.h>
 #include <stdint.h>
@@ -27,7 +28,7 @@
 
 #include "util/dumper.h"
 
-#if defined(__unix__) || defined(__APPLE__)
+#if defined(DICEY_IS_UNIX)
 #include <unistd.h>
 #define STDOUT_IS_PIPED() (!isatty(fileno(stdout)))
 #else

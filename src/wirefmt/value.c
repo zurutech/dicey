@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2024 Zuru Tech HK Limited, All rights reserved.
+ * Copyright (c) 2024-2025 Zuru Tech HK Limited, All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,6 +22,8 @@
 
 #include <dicey/core/data-info.h>
 #include <dicey/core/errors.h>
+#include <dicey/core/message.h>
+#include <dicey/core/packet.h>
 #include <dicey/core/type.h>
 #include <dicey/core/value.h>
 #include <dicey/core/views.h>
@@ -89,6 +91,59 @@ int dicey_list_type(const struct dicey_list *const list) {
     assert(list);
 
     return list->_type;
+}
+
+const struct dicey_value *dicey_owning_value_borrow(const struct dicey_owning_value *value) {
+    return dicey_owning_value_is_valid(value) ? &value->_value : NULL;
+}
+
+void dicey_owning_value_deinit(struct dicey_owning_value *const value) {
+    if (dicey_owning_value_is_valid(value)) {
+        dicey_packet_deinit(&value->_owner);
+
+        *value = (struct dicey_owning_value) { 0 };
+    }
+}
+
+void dicey_owning_value_from_parts(
+    struct dicey_owning_value *dest,
+    struct dicey_packet owner,
+    struct dicey_value *wanted_bit
+) {
+    assert(dest && wanted_bit && dicey_packet_is_valid(owner));
+
+    *dest = (struct dicey_owning_value) {
+        ._owner = owner,
+        ._value = *wanted_bit,
+    };
+}
+
+bool dicey_owning_value_is_valid(const struct dicey_owning_value *const value) {
+    return value && dicey_packet_is_valid(value->_owner);
+}
+
+enum dicey_error dicey_packet_into_value(struct dicey_packet *const packet, struct dicey_owning_value *const dest) {
+    assert(packet && dest);
+
+    if (!dicey_packet_is_valid(*packet)) {
+        return TRACE(DICEY_EINVAL);
+    }
+
+    struct dicey_message msg = { 0 };
+    enum dicey_error err = dicey_packet_as_message(*packet, &msg);
+    if (err) {
+        return err;
+    }
+
+    dicey_owning_value_from_parts(dest, *packet, &msg.value);
+
+    return DICEY_OK;
+}
+
+int dicey_selector_cmp(const struct dicey_selector a, const struct dicey_selector b) {
+    const int res = strcmp(a.trait, b.trait);
+
+    return res ? res : strcmp(a.elem, b.elem);
 }
 
 bool dicey_selector_is_valid(const struct dicey_selector selector) {

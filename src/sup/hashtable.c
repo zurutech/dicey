@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2024 Zuru Tech HK Limited, All rights reserved.
+ * Copyright (c) 2024-2025 Zuru Tech HK Limited, All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,6 +15,7 @@
  */
 
 #define _CRT_SECURE_NO_WARNINGS 1
+#define _XOPEN_SOURCE 700
 
 #include <assert.h>
 #include <stdbool.h>
@@ -25,7 +26,9 @@
 
 #include <dicey/core/hashtable.h>
 
-#if defined(_MSC_VER)
+#include "dicey_config.h"
+
+#if defined(DICEY_CC_IS_MSVC_LIKE)
 #pragma warning(disable : 4200) // borked C11 flex array
 #pragma warning(disable : 4996) // strdup
 #endif

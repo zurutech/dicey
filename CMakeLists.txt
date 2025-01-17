@@ -1,4 +1,4 @@
-# Copyright (c) 2014-2024 Zuru Tech HK Limited, All rights reserved.
+# Copyright (c) 2024-2025 Zuru Tech HK Limited, All rights reserved.
 # 
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -14,7 +14,7 @@
 
 cmake_minimum_required(VERSION 3.26.0)
 
-project(dicey VERSION 0.3.9 LANGUAGES C)
+project(dicey VERSION 0.4.0 LANGUAGES C)
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 include(JoinPaths)
@@ -24,11 +24,10 @@ if (NOT CMAKE_C_BYTE_ORDER STREQUAL "LITTLE_ENDIAN")
 endif()
 
 set(DICEY_ROOT ${CMAKE_CURRENT_LIST_DIR})
+string(TOUPPER ${CMAKE_SYSTEM_NAME} DICEY_OS)
+string(TOUPPER ${CMAKE_C_COMPILER_ID} DICEY_COMPILER)
 
 include(GenerateExportHeader)
-
-option(BUILD_DOC "Build documentation" OFF)
-option(BUILD_SAMPLES "Build samples" ON)
 
 if (CMAKE_CROSSCOMPILING AND NOT CMAKE_SYSROOT)
     set(RAW_CROSS ON)
@@ -39,12 +38,33 @@ set(CMAKE_C_STANDARD 17)
 
 set(CMAKE_C_STANDARD_REQUIRED ON)
 
+if (CMAKE_SYSROOT)
+    # ignore the host package config directories if there's a sysroot
+    if (NOT DEFINED ENV{PKG_CONFIG_DIR})
+        set(ENV{PKG_CONFIG_DIR} "")
+    endif()
+
+    if (NOT DEFINED ENV{PKG_CONFIG_LIBDIR})
+        set(ENV{PKG_CONFIG_LIBDIR} "${CMAKE_SYSROOT}/usr/lib/pkgconfig:${CMAKE_SYSROOT}/usr/share/pkgconfig")
+    endif()
+
+    if (NOT DEFINED ENV{PKG_CONFIG_SYSROOT_DIR})
+        set(ENV{PKG_CONFIG_SYSROOT_DIR} ${CMAKE_SYSROOT})
+    endif()
+endif()
+
+option(BUILD_DOC "Build documentation" OFF)
+option(BUILD_SAMPLES "Build samples" ON)
 option(BUILD_SHARED_LIBS "Build using shared libraries" ON)
 option(BUILD_LIBXML2 "Always build libxml2 from source" OFF)
 option(BUILD_UV "Always build libuv from source" OFF)
 option(GENERATE_EXPORTS "Generate exports for PkgConfig and CMake (for systemwide installation)" OFF)
-
+option(PLUGIN_SUPPORT "Enable plugin support" OFF)
 option(USE_VENDORED_LIBS "Use vendored libraries (implies BUILD_LIBXML2 and BUILD_UV)" OFF)
+
+if (PLUGIN_SUPPORT)
+    set (DICEY_HAS_PLUGINS 1)
+endif()
 
 if (USE_VENDORED_LIBS)
     set(BUILD_LIBXML2 ON)
@@ -72,8 +92,22 @@ if (MSVC)
             message(FATAL_ERROR "MSVC is too old - no C11 atomics support")
         endif()
     endif()
+elseif(CMAKE_C_SIMULATE_ID STREQUAL "MSVC" AND CMAKE_C_COMPILER_FRONTEND_VARIANT STREQUAL "GNU")
+    # note: clang with the GNU frontend on Windows doesn't enable all those pesky C/C++ extensions that Windows uses
+    # in its headers. This is an ugly whack-a-mole game, so we just don't enable anything with Clang GNU style on 
+    # MSVC. Clang on MinGW, Clang-cl will use -Werror instead.
+    set(DICEY_CC_IS_GNU_STYLE_CLANG_ON_MSVC ON)
 else()
-    target_compile_options(${PROJECT_NAME} PRIVATE -Wall -Wextra -pedantic -Werror)
+    list(APPEND IGNORED_WARNINGS
+        -Wno-gnu-statement-expression # these are useful for container_of and the like
+    )
+
+    target_compile_options(${PROJECT_NAME} PRIVATE -Wall -Wextra -pedantic -Werror ${IGNORED_WARNINGS})
+endif()
+
+# On MinGW or Clang there are wonky warnings around libuv that cause pedantic and Werror to fail randomly.
+if (MINGW OR (MSVC AND CMAKE_C_COMPILER_ID STREQUAL "Clang"))
+    target_compile_options(${PROJECT_NAME} PRIVATE -Wno-missing-braces)
 endif()
 
 if (NOT BUILD_UV)
@@ -99,7 +133,7 @@ if (NOT UV_FOUND)
     FetchContent_Declare(
         libuv
         GIT_REPOSITORY https://github.com/libuv/libuv.git
-        GIT_TAG        v1.48.0
+        GIT_TAG        v1.50.0
     )
 
     FetchContent_MakeAvailable(libuv)
@@ -133,7 +167,7 @@ if (NOT LibXml2_FOUND)
     FetchContent_Declare(
         libxml2
         GIT_REPOSITORY https://gitlab.gnome.org/GNOME/libxml2.git
-        GIT_TAG        v2.13.1
+        GIT_TAG        v2.13.5
     )
 
     FetchContent_MakeAvailable(libxml2)
@@ -153,6 +187,15 @@ endif()
 
 generate_export_header(${PROJECT_NAME})
 
+set(CONFIG_HEADER_NAME "dicey_config.h")
+set(CONFIG_HEADER "${PROJECT_BINARY_DIR}/${CONFIG_HEADER_NAME}")
+
+# generate config.h
+configure_file(
+    "${PROJECT_SOURCE_DIR}/cmake/${CONFIG_HEADER_NAME}.in"
+    "${CONFIG_HEADER}"
+)
+
 set(PUBLIC_HEADERS
     "include/dicey/dicey.h"
 
@@ -165,6 +208,7 @@ set(PUBLIC_HEADERS
     "include/dicey/core/errors.h"
     "include/dicey/core/hashset.h"
     "include/dicey/core/hashtable.h"
+    "include/dicey/core/message.h"
     "include/dicey/core/packet.h"
     "include/dicey/core/type.h"
     "include/dicey/core/typedescr.h"
@@ -177,6 +221,7 @@ set(PUBLIC_HEADERS
     "include/dicey/ipc/builtins.h"
     "include/dicey/ipc/client.h"
     "include/dicey/ipc/registry.h"
+    "include/dicey/ipc/server-api.h"
     "include/dicey/ipc/server.h"
     "include/dicey/ipc/traits.h"
 
@@ -191,20 +236,21 @@ set(CORE_SOURCES
     src/version.c
 
     # wirefmt    
-    src/wirefmt/builders.c 
+    src/wirefmt/builders.c
     src/wirefmt/packet-args.c
     src/wirefmt/packet-args.h
     src/wirefmt/packet.c
+    src/wirefmt/typedescr.c
     src/wirefmt/uuid.c
     src/wirefmt/value-validate.c
     src/wirefmt/value.c
+    src/wirefmt/value-internal.h
 
     # wirefmt/dtf
     src/wirefmt/dtf/dtf.h
     src/wirefmt/dtf/payload.c
     src/wirefmt/dtf/payload.h
     src/wirefmt/dtf/to.h
-    src/wirefmt/typedescr.c
     src/wirefmt/dtf/value-probe.c
     src/wirefmt/dtf/value-write.c
     src/wirefmt/dtf/value.h
@@ -212,7 +258,8 @@ set(CORE_SOURCES
     src/wirefmt/dtf/writer.h
     
     # sup    
-    src/sup/assume.h
+    src/sup/asprintf.c
+    src/sup/asprintf.h
     src/sup/hashset.c
     src/sup/hashtable.c
     src/sup/trace.c
@@ -221,6 +268,8 @@ set(CORE_SOURCES
     src/sup/unsafe.h
     src/sup/util.c
     src/sup/util.h
+    src/sup/uvtools.c
+    src/sup/uvtools.h
     src/sup/view-ops.c
     src/sup/view-ops.h
 
@@ -232,11 +281,10 @@ set(CORE_SOURCES
     src/ipc/elemdescr.h
     src/ipc/queue.c
     src/ipc/queue.h
-    src/ipc/uvtools.c
-    src/ipc/uvtools.h
     
     # ipc/client
     src/ipc/client/client.c
+    src/ipc/client/client-internal.h
     src/ipc/client/waiting-list.c
     src/ipc/client/waiting-list.h
     
@@ -248,6 +296,11 @@ set(CORE_SOURCES
     src/ipc/server/registry.c
     src/ipc/server/registry-internal.h
     src/ipc/server/server.c
+    src/ipc/server/server-clients.c
+    src/ipc/server/server-clients.h
+    src/ipc/server/server-internal.h
+    src/ipc/server/server-loopreq.c
+    src/ipc/server/server-loopreq.h
     src/ipc/server/shared-packet.c
     src/ipc/server/shared-packet.h
     src/ipc/server/traits.c
@@ -278,8 +331,27 @@ set(CORE_SOURCES
     src/ipc/tasks/loop.h
 )
 
-if (WIN32)
-    list(APPEND CORE_SOURCES src/sup/asprintf.c)
+set(PLUGIN_SOURCES
+    src/ipc/plugin-common.c
+    src/ipc/plugin-common.h
+
+    src/ipc/client/plugins.c
+
+    src/ipc/server/plugins.c
+    src/ipc/server/plugins-work.c
+    src/ipc/server/plugins-internal.h
+
+    src/ipc/server/builtins/plugins/plugins.c
+    src/ipc/server/builtins/plugins/plugins.h
+)
+
+if (PLUGIN_SUPPORT)
+    list(APPEND PUBLIC_HEADERS
+        "include/dicey/ipc/builtins/plugins.h"
+        "include/dicey/ipc/plugins.h"
+    )
+
+    list(APPEND CORE_SOURCES ${PLUGIN_SOURCES})
 endif()
 
 target_sources(
@@ -302,8 +374,14 @@ target_include_directories(${PROJECT_NAME}
 )
     
 set_target_properties(${PROJECT_NAME} PROPERTIES POSITION_INDEPENDENT_CODE ${BUILD_SHARED_LIBS})
+set_target_properties(${PROJECT_NAME} PROPERTIES C_VISIBILITY_PRESET hidden)
 
 if(UNIX)
+    if (GNU OR Clang)
+        set_target_properties(${PROJECT_NAME} PROPERTIES CMAKE_C_EXTENSIONS ON)
+        set_target_properties(${PROJECT_NAME} PROPERTIES CMAKE_VISIBILITY_INLINES_HIDDEN ON)
+    endif()
+
     include(GNUInstallDirs)
 else()
     if (WIN32)
@@ -320,6 +398,7 @@ endif()
 set(targets_export_name dicey-targets)
 install(TARGETS dicey EXPORT ${targets_export_name} FILE_SET headers) 
 install(FILES "${PROJECT_BINARY_DIR}/${PROJECT_NAME}_export.h" DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+install(FILES "${PROJECT_BINARY_DIR}/${PROJECT_NAME}_config.h" DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
 
 # this probably only works on Linux/BSD with systemwide libraries - which is what's useful for 99% of the time
 if (GENERATE_EXPORTS)

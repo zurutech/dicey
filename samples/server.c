@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2024 Zuru Tech HK Limited, All rights reserved.
+ * Copyright (c) 2024-2025 Zuru Tech HK Limited, All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,10 +14,9 @@
  * limitations under the License.
  */
 
-#include "dicey/ipc/server.h"
-#include "dicey/core/builders.h"
-#include "dicey/core/packet.h"
 #define _CRT_NONSTDC_NO_DEPRECATE 1
+#define _XOPEN_SOURCE 700
+
 #include <assert.h>
 #include <inttypes.h>
 #include <stdarg.h>
@@ -34,13 +33,14 @@
 #include <util/dumper.h>
 #include <util/getopt.h>
 #include <util/packet-dump.h>
+#include <util/strext.h>
 
 #include "sval.h"
 #include "timer.h"
 
-#if defined(__linux__) || defined(_WIN32)
+#if defined(DICEY_IS_LINUX) || defined(DICEY_IS_WINDOWS)
 #define PIPE_NEEDS_CLEANUP false
-#if defined(_WIN32)
+#if defined(DICEY_IS_WINDOWS)
 #define PIPE_NAME "\\\\.\\pipe\\uvsock"
 #else
 #define PIPE_NAME "@/tmp/.uvsock"
@@ -83,7 +83,7 @@
 static struct dicey_server *global_server = NULL;
 static bool print_logs = false;
 
-int out(const char *fmt, ...) {
+static int out(const char *fmt, ...) {
     if (!print_logs) {
         return 0;
     }
@@ -105,7 +105,35 @@ static inline void dump_packet(const struct dicey_packet packet) {
     }
 }
 
-#if defined(_WIN32)
+#if DICEY_HAS_PLUGINS
+
+#include "dummy_plugin.h"
+
+static _Atomic bool dummy_running = false;
+
+static enum dicey_error quit_dummy(struct dicey_server *const server) {
+    assert(server);
+
+    if (dummy_running) {
+        int64_t res = 0;
+
+        // this is not great, we should store the name the plugin returns somewhere instead. Still this is just a
+        // testing example
+        return dicey_server_plugin_quit_and_wait(server, DUMMY_PLUGIN_NAME, &res);
+    }
+
+    return DICEY_OK;
+}
+
+#endif
+
+static enum dicey_error shutdown_server(struct dicey_server *const server) {
+    assert(server);
+
+    return dicey_server_stop(server);
+}
+
+#if defined(DICEY_IS_WINDOWS)
 
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
@@ -114,7 +142,7 @@ static BOOL quit_server(_In_ const DWORD dwCtrlType) {
     (void) dwCtrlType;
 
     if (global_server) {
-        const enum dicey_error err = dicey_server_stop(global_server);
+        const enum dicey_error err = shutdown_server(global_server);
         assert(!err);
         (void) err;
     }
@@ -126,7 +154,7 @@ static bool register_break_hook(void) {
     return SetConsoleCtrlHandler(&quit_server, TRUE);
 }
 
-#elif defined(__unix__) || defined(__unix) || defined(unix) || (defined(__APPLE__) && defined(__MACH__))
+#elif defined(DICEY_IS_UNIX)
 
 #include <unistd.h>
 
@@ -134,7 +162,7 @@ static void quit_server(const int sig) {
     (void) sig;
 
     if (global_server) {
-        const enum dicey_error err = dicey_server_stop(global_server);
+        const enum dicey_error err = shutdown_server(global_server);
         assert(!err);
         (void) err;
     }
@@ -150,6 +178,13 @@ static bool register_break_hook(void) {
 }
 
 #endif
+
+struct server_ctx {
+    struct dicey_hashtable *hash;
+
+    uv_sem_t startup_sem;
+    enum dicey_error startup_err;
+};
 
 struct test_element {
     enum dicey_element_type type;
@@ -382,7 +417,12 @@ static enum dicey_error craft_dummy_points(struct dicey_packet *const dest, cons
         goto fail;
     }
 
-    return dicey_message_builder_build(&builder, dest);
+    err = dicey_message_builder_build(&builder, dest);
+    if (err) {
+        goto fail;
+    }
+
+    return DICEY_OK;
 
 fail:
     dicey_message_builder_discard(&builder);
@@ -393,55 +433,26 @@ fail:
 static enum dicey_error craft_timer_event(struct dicey_packet *const dest, const uv_timeval64_t tv) {
     assert(dest);
 
-    struct dicey_message_builder builder = { 0 };
-    enum dicey_error err = dicey_message_builder_init(&builder);
-    if (err) {
-        goto fail;
-    }
-
-    err = dicey_message_builder_begin(&builder, DICEY_OP_EVENT);
-    if (err) {
-        goto fail;
-    }
-
-    err = dicey_message_builder_set_path(&builder, TEST_TIMER_PATH);
-    if (err) {
-        goto fail;
-    }
-
-    err = dicey_message_builder_set_selector(
-        &builder,
+    return dicey_packet_message(
+        dest,
+        0U,
+        DICEY_OP_SIGNAL,
+        TEST_TIMER_PATH,
         (struct dicey_selector) {
             .trait = TEST_TIMER_TRAIT,
             .elem = TEST_TIMER_TIMERFIRED_ELEMENT,
+        },
+        (struct dicey_arg) {
+            .type = DICEY_TYPE_TUPLE,
+            .tuple = {
+                .nitems = 2U,
+                .elems = (struct dicey_arg[]) {
+                    { .type = DICEY_TYPE_INT64, .i64 = tv.tv_sec },
+                    { .type = DICEY_TYPE_INT32, .i32 = tv.tv_usec },
+                },
+            },
         }
     );
-
-    if (err) {
-        goto fail;
-    }
-
-    err = dicey_message_builder_set_value(&builder, (struct dicey_arg) {
-        .type = DICEY_TYPE_TUPLE,
-        .tuple = {
-            .nitems = 2U,
-            .elems = (struct dicey_arg[]) {
-                { .type = DICEY_TYPE_INT64, .i64 = tv.tv_sec },
-                { .type = DICEY_TYPE_INT32, .i32 = tv.tv_usec },
-            },
-        },
-    });
-
-    if (err) {
-        goto fail;
-    }
-
-    return dicey_message_builder_build(&builder, dest);
-
-fail:
-    dicey_message_builder_discard(&builder);
-
-    return err;
 }
 
 bool timeval_is_zero(const uv_timeval64_t tv) {
@@ -452,7 +463,7 @@ intmax_t timeval_cmp(const uv_timeval64_t a, const uv_timeval64_t b) {
     return a.tv_sec == b.tv_sec ? a.tv_usec - b.tv_usec : a.tv_sec - b.tv_sec;
 }
 
-void timer_thread_fn(void *arg) {
+void timer_thread_fn(void *const arg) {
     struct timer_state *const state = arg;
 
     uv_timeval64_t now = { 0 };
@@ -573,8 +584,11 @@ static enum dicey_error registry_fill(struct dicey_registry *const registry) {
             const enum dicey_error err = dicey_trait_add_element(
                 trait,
                 element->name,
-                (struct dicey_element
-                ) { .type = element->type, .signature = element->signature, .readonly = element->readonly }
+                (struct dicey_element) {
+                    .type = element->type,
+                    .signature = element->signature,
+                    .flags = element->readonly ? DICEY_ELEMENT_READONLY : 0,
+                }
             );
 
             if (err) {
@@ -882,7 +896,7 @@ static enum dicey_error on_test_add(
     }
 
     return send_reply(
-        server, cln, seq, req->path, req->selector, (struct dicey_arg) { .type = DICEY_TYPE_PATH, .str = str_buffer }
+        server, cln, seq, req->path, req->selector, (struct dicey_arg) { .type = DICEY_TYPE_PATH, .path = str_buffer }
     );
 }
 
@@ -1004,6 +1018,154 @@ static enum dicey_error on_timer_start(
     return send_reply(server, cln, seq, req->path, req->selector, (struct dicey_arg) { .type = DICEY_TYPE_UNIT });
 }
 
+#if DICEY_HAS_PLUGINS
+
+#if defined(DICEY_IS_WINDOWS)
+#define DUMMY_PLUGIN "dummy_plugin.exe"
+#define SEPARATOR '\\'
+#else
+#define DUMMY_PLUGIN "dummy_plugin"
+#define SEPARATOR '/'
+#endif
+
+// big enough for all paths, probably
+#define PATHBUF 4096U
+
+static void on_plugin_event(struct dicey_server *const server, const struct dicey_plugin_event event) {
+    (void) server;
+
+    out("info: plugin event \"%s\": {name = \"%s\", path = \"%s\"}\n",
+        dicey_plugin_event_kind_to_string(event.kind),
+        event.info.name ? event.info.name : "N/A (not handshaked yet)",
+        event.info.path);
+
+    if (event.info.name && !strcmp(event.info.name, DUMMY_PLUGIN_NAME)) {
+        switch (event.kind) {
+        case DICEY_PLUGIN_EVENT_READY:
+            dummy_running = true;
+            break;
+
+        case DICEY_PLUGIN_EVENT_FAILED:
+        case DICEY_PLUGIN_EVENT_QUIT:
+            dummy_running = false;
+            break;
+
+        default:
+            break;
+        }
+    }
+}
+
+static char *exedir(char *const dest, size_t *const size) {
+    assert(dest && size && *size);
+
+    char exepath[PATHBUF] = { 0 };
+    size_t psize = PATHBUF;
+
+    if (uv_exepath(exepath, &psize) < 0) {
+        return NULL;
+    }
+
+    char *last_sep = strrchr(exepath, SEPARATOR);
+    if (!last_sep) {
+        return NULL;
+    }
+
+    *last_sep = '\0';
+
+    const size_t dsize = strlen(exepath);
+
+    if (dsize + 1 >= *size) {
+        return NULL;
+    }
+
+    *size = dsize;
+
+    return memcpy(dest, exepath, dsize + 1); // copy null pointer
+}
+
+char *plugin_path(char *const dest, size_t *const size) {
+    assert(dest && size && *size);
+
+    char dirbuf[PATHBUF] = { 0 };
+    size_t dsize = PATHBUF;
+
+    char *const dir = exedir(dirbuf, &dsize);
+    if (!dir) {
+        return NULL;
+    }
+
+    const size_t req_size = dsize + 1 + sizeof DUMMY_PLUGIN; // dirpath + separator + plugin name + null terminator
+    if (req_size >= *size) {
+        return NULL;
+    }
+
+    *size = req_size;
+    (void) snprintf(dest, req_size, "%s%c" DUMMY_PLUGIN, dir, SEPARATOR);
+
+    return dest;
+}
+
+enum dicey_error send_work_test(struct dicey_server *const server) {
+    assert(server);
+
+    const double a = 42.2, b = -7.6;
+
+    struct dicey_owning_value response = { 0 };
+
+    enum dicey_error err = dicey_server_plugin_send_work_and_wait(
+        server,
+        DUMMY_PLUGIN_NAME, // again, hard coded value, not great
+        (struct dicey_arg) {
+            .type = DICEY_TYPE_PAIR,
+            .pair = {
+                .first = &(struct dicey_arg) { .type = DICEY_TYPE_FLOAT, .floating = a },
+                .second = &(struct dicey_arg) { .type = DICEY_TYPE_FLOAT, .floating = b },
+            },
+        },
+        &response
+    );
+
+    if (err) {
+        return err;
+    }
+
+    const struct dicey_value *const value = dicey_owning_value_borrow(&response);
+    if (!value) {
+        return DICEY_EINVAL;
+    }
+
+    if (dicey_value_get_type(value) != DICEY_TYPE_FLOAT) {
+        return DICEY_EINVAL;
+    }
+
+    double result = 0.0;
+    err = dicey_value_get_float(value, &result);
+    if (err) {
+        abort(); // should never happen
+    }
+
+    out("info: plugin says that %f * %f is %f\n", a, b, result);
+
+    return DICEY_OK;
+}
+
+enum dicey_error spawn_dummy_plugin(struct dicey_server *const server) {
+    assert(server);
+
+    char pathbuf[PATHBUF] = { 0 };
+    size_t pathsize = PATHBUF;
+
+    char *const path = plugin_path(pathbuf, &pathsize);
+    if (!path) {
+        return DICEY_EINVAL;
+    }
+
+    return dicey_server_spawn_plugin_and_wait(server, path, NULL);
+}
+
+#endif // DICEY_HAS_PLUGINS
+
 static void on_request_received(
     struct dicey_server *const server,
     const struct dicey_client_info *const cln,
@@ -1060,6 +1222,19 @@ static void on_request_received(
     dicey_packet_deinit(&packet);
 }
 
+void on_startup_done(struct dicey_server *const server, enum dicey_error err) {
+    assert(server);
+
+    out("info: server %s\n", err ? "failed to start" : "started");
+
+    struct server_ctx *const ctx = dicey_server_get_context(server);
+    assert(ctx);
+
+    ctx->startup_err = err;
+
+    uv_sem_post(&ctx->startup_sem);
+}
+
 #if PIPE_NEEDS_CLEANUP
 static enum dicey_error remove_socket_if_present(void) {
     const int err = uv_fs_unlink(NULL, &(uv_fs_t) { 0 }, PIPE_NAME, NULL);
@@ -1084,8 +1259,68 @@ static void print_help(const char *const progname, FILE *const out) {
     fprintf(out, HELP_MSG, progname);
 }
 
-int main(const int argc, char *const argv[]) {
-    (void) argc;
+struct thread_args {
+    struct dicey_server *server;
+    struct dicey_addr addr;
+};
+
+static void server_thread(void *arg) {
+    struct thread_args *const args = arg;
+
+    // ignore the error here - we'll get it from the callback
+    (void) dicey_server_start(global_server, args->addr);
+}
+
+static enum dicey_error spawn_server_thread(uv_thread_t *const tid, struct thread_args *const args) {
+    assert(tid && args && args->server && args->addr.addr);
+
+    struct dicey_server *const server = args->server;
+
+    struct server_ctx *const ctx = dicey_server_get_context(server);
+    assert(ctx);
+
+    int uverr = uv_sem_init(&ctx->startup_sem, 0);
+    if (uverr) {
+        return DICEY_EUV_UNKNOWN;
+    }
+
+    uverr = uv_thread_create(tid, &server_thread, args);
+    if (uverr) {
+        uv_sem_destroy(&ctx->startup_sem);
+
+        return DICEY_EUV_UNKNOWN;
+    }
+
+    uv_sem_wait(&ctx->startup_sem);
+    uv_sem_destroy(&ctx->startup_sem);
+
+#if DICEY_HAS_PLUGINS
+    enum dicey_error err = spawn_dummy_plugin(server);
+    if (err) {
+        return err;
+    }
+
+    err = send_work_test(server);
+    if (err) {
+        return err;
+    }
+
+    err = quit_dummy(server);
+    if (err) {
+        return err;
+    }
+#endif
+
+    uverr = uv_thread_join(tid);
+    if (uverr) {
+        return DICEY_EUV_UNKNOWN;
+    }
+
+    return ctx->startup_err;
+}
+
+int main(const int argc, char *argv[]) {
+    uv_setup_args(argc, argv);
 
     const char *const progname = argv[0];
 
@@ -1123,17 +1358,19 @@ int main(const int argc, char *const argv[]) {
         return EXIT_FAILURE;
     }
 
-    struct dicey_hashtable **ctx = NULL;
+    struct server_ctx ctx = { 0 };
 
     struct timer_state tstate = { 0 };
 
     enum dicey_error err = dicey_server_new(
         &global_server,
         &(struct dicey_server_args) {
-            .on_connect = &on_client_connect,
-            .on_disconnect = &on_client_disconnect,
-            .on_error = &on_client_error,
-            .on_request = &on_request_received,
+            .on_connect = &on_client_connect, .on_disconnect = &on_client_disconnect, .on_error = &on_client_error,
+            .on_request = &on_request_received, .on_startup = &on_startup_done,
+
+#if DICEY_HAS_PLUGINS // this is so ugly
+            .on_plugin_event = &on_plugin_event,
+#endif
         }
     );
 
@@ -1173,24 +1410,17 @@ int main(const int argc, char *const argv[]) {
 
     out("starting Dicey sample server on " PIPE_NAME "...\n");
 
-    ctx = malloc(sizeof *ctx);
-    if (!ctx) {
-        fprintf(stderr, "error: malloc failed\n");
-
-        goto quit;
-    }
-
     // start and register the timer thread
     timer_state_init(&tstate, global_server);
 
-    *ctx = dicey_hashtable_new();
-    if (!*ctx) {
+    ctx.hash = dicey_hashtable_new();
+    if (!ctx.hash) {
         fprintf(stderr, "error: hashtable_new failed\n");
 
         goto quit;
     }
 
-    if (dicey_hashtable_set(ctx, TIMER_STATE_KEY, &tstate, NULL) == DICEY_HASH_SET_FAILED) {
+    if (dicey_hashtable_set(&ctx.hash, TIMER_STATE_KEY, &tstate, NULL) == DICEY_HASH_SET_FAILED) {
         err = DICEY_ENOMEM;
 
         fprintf(stderr, "error: hashtable_set failed\n");
@@ -1198,11 +1428,14 @@ int main(const int argc, char *const argv[]) {
         goto quit;
     }
 
-    dicey_server_set_context(global_server, ctx);
+    dicey_server_set_context(global_server, &ctx);
 
-    err = dicey_server_start(global_server, addr);
+    uv_thread_t tid = { 0 };
+    struct thread_args targs = { .server = global_server, .addr = addr };
+
+    err = spawn_server_thread(&tid, &targs);
     if (err) {
-        fprintf(stderr, "dicey_server_start: %s\n", dicey_error_msg(err));
+        fprintf(stderr, "error: %s\n", dicey_error_msg(err));
 
         goto quit;
     }
@@ -1210,14 +1443,13 @@ int main(const int argc, char *const argv[]) {
     uv_fs_unlink(NULL, &(uv_fs_t) { 0 }, PIPE_NAME, NULL);
 
 quit:
-    if (ctx) {
+    if (ctx.hash) {
         timer_state_deinit(&tstate);
 
-        (void) dicey_hashtable_remove(*ctx, "$timer.state");
+        // remove the only statically allocated key in the hash
+        (void) dicey_hashtable_remove(ctx.hash, TIMER_STATE_KEY);
 
-        dicey_hashtable_delete(*ctx, &free);
-
-        free(ctx);
+        dicey_hashtable_delete(ctx.hash, &free);
     }
 
     dicey_server_delete(global_server);

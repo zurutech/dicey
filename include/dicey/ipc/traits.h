@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2024 Zuru Tech HK Limited, All rights reserved.
+ * Copyright (c) 2024-2025 Zuru Tech HK Limited, All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -49,6 +49,15 @@ enum dicey_element_type {
 DICEY_EXPORT const char *dicey_element_type_name(enum dicey_element_type type);
 
 /**
+ * @brief Flags that can be set on an element.
+ */
+enum dicey_element_flags {
+    DICEY_ELEMENT_READONLY = 1, /**< Whether a property is read-only or not. Has no effect on operations or signals */
+    DICEY_ELEMENT_INTERNAL =
+        2, /**< Whether an element is internal or not. Internal elements are not exposed to clients */
+};
+
+/**
  * @brief Structure that describes an element (operation, property, or signal) inside a trait.
  */
 struct dicey_element {
@@ -56,7 +65,7 @@ struct dicey_element {
 
     const char *signature; /**< The signature of the element */
 
-    bool readonly; /**< Whether a property is read-only or not. Has no effect on operations or signals. */
+    int flags; /**< element flags, see dicey_element_flags */
 
     uintptr_t _tag; /**< Internal tag used to store element metadata. Do not use, do not set */
 };

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2024 Zuru Tech HK Limited, All rights reserved.
+ * Copyright (c) 2024-2025 Zuru Tech HK Limited, All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,9 +17,15 @@
 #if !defined(XVAUPCELRC_STREXT_H)
 #define XVAUPCELRC_STREXT_H
 
+// always include string.h - on POSIX, it will be needed for strndup
 #include <string.h>
 
-#if defined(_MSC_VER) && __STDC_VERSION__ < 202311L
+#include <dicey/dicey.h>
+
+#if defined(DICEY_IS_WINDOWS) && __STDC_VERSION__ < 202311L
+
+#include <stddef.h>
+#include <stdlib.h>
 
 static inline char *strndup(const char *const str, const size_t maxlen) {
     const size_t len = strnlen(str, maxlen);
@@ -33,6 +39,6 @@ static inline char *strndup(const char *const str, const size_t maxlen) {
     return ret;
 }
 
-#endif // _MSC_VER && __STDC_VERSION__ < 202311L
+#endif // DICEY_CC_IS_MSVC && __STDC_VERSION__ < 202311L
 
 #endif // XVAUPCELRC_STREXT_H

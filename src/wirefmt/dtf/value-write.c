@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2024 Zuru Tech HK Limited, All rights reserved.
+ * Copyright (c) 2024-2025 Zuru Tech HK Limited, All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -332,7 +332,7 @@ static ptrdiff_t item_write(
 
     // paths do not allow NULL, so we can't safely use str_write here
     case DICEY_TYPE_PATH:
-        content_bytes = dtf_bytes_writer_write_zstring(dest, item->str);
+        content_bytes = dtf_bytes_writer_write_zstring(dest, item->path);
         break;
 
     case DICEY_TYPE_SELECTOR:

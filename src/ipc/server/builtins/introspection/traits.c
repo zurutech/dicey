@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2024 Zuru Tech HK Limited, All rights reserved.
+ * Copyright (c) 2024-2025 Zuru Tech HK Limited, All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -109,7 +109,7 @@ static enum dicey_error populate_element_entry(
             &readonly_builder,
             (struct dicey_arg) {
                 .type = DICEY_TYPE_BOOL,
-                .boolean = elem->readonly,
+                .boolean = elem->flags & DICEY_ELEMENT_READONLY,
             }
         );
 
@@ -144,12 +144,12 @@ enum dicey_error introspection_craft_filtered_elemlist(
     struct dicey_value_builder value_builder = { 0 };
     err = dicey_message_builder_value_start(&builder, &value_builder);
     if (err) {
-        return err;
+        goto fail;
     }
 
     err = dicey_value_builder_array_start(&value_builder, DICEY_TYPE_TUPLE);
     if (err) {
-        return err;
+        goto fail;
     }
 
     struct dicey_trait_iter iter = dicey_trait_iter_start(trait);
@@ -161,26 +161,34 @@ enum dicey_error introspection_craft_filtered_elemlist(
 
         err = dicey_value_builder_next(&value_builder, &elem_builder);
         if (err) {
-            return err;
+            goto fail;
         }
 
         if (elem.type == op_kind) {
             err = populate_element_entry(element_name, &elem, &elem_builder);
             if (err) {
-                return err;
+                goto fail;
             }
         }
     }
 
     err = dicey_value_builder_array_end(&value_builder);
     if (err) {
-        return err;
+        goto fail;
     }
 
     err = dicey_message_builder_value_end(&builder, &value_builder);
     if (err) {
-        return err;
+        goto fail;
     }
 
-    return dicey_message_builder_build(&builder, dest);
+    err = dicey_message_builder_build(&builder, dest);
+    if (err) {
+        goto fail;
+    }
+
+fail:
+    dicey_message_builder_discard(&builder);
+
+    return err;
 }

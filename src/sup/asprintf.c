@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2024 Zuru Tech HK Limited, All rights reserved.
+ * Copyright (c) 2024-2025 Zuru Tech HK Limited, All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,12 +14,14 @@
  * limitations under the License.
  */
 
+#include "asprintf.h"
+
+#if defined(DICEY_BUILD_ASPRINTF)
+
 #include <stdarg.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
-
-#include "asprintf.h"
 
 int asprintf(char **const dest, const char *const fmt, ...) {
     va_list args;
@@ -51,3 +53,5 @@ int vasprintf(char **const dest, const char *const fmt, va_list args) {
 
     return -1;
 }
+
+#endif // DICEY_BUILD_ASPRINTF

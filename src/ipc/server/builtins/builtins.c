@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2024 Zuru Tech HK Limited, All rights reserved.
+ * Copyright (c) 2024-2025 Zuru Tech HK Limited, All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,16 +14,28 @@
  * limitations under the License.
  */
 
+#define _XOPEN_SOURCE 700
+
+#include "dicey_config.h"
+
 #include <assert.h>
 
 #include <dicey/core/errors.h>
+#include <dicey/core/packet.h>
 #include <dicey/ipc/registry.h>
 #include <dicey/ipc/traits.h>
 
 #include "sup/trace.h"
+#include "sup/util.h"
 
 #include "introspection/introspection.h"
 #include "server/server.h"
+
+#if DICEY_HAS_PLUGINS
+
+#include "plugins/plugins.h"
+
+#endif // DICEY_HAS_PLUGINS
 
 #include "builtins.h"
 
@@ -34,7 +46,14 @@
 
 static const struct dicey_registry_builtin_set *default_builtins[] = {
     &dicey_registry_introspection_builtins,
+
+#if DICEY_HAS_PLUGINS
+    // note: plugin traits must be registered before the server traits, because the server is a PluginManager
+    &dicey_registry_plugins_builtins,
+#endif // DICEY_HAS_PLUGINS
+
     &dicey_registry_server_builtins,
+
 };
 
 static enum dicey_error populate_objects(
@@ -42,7 +61,7 @@ static enum dicey_error populate_objects(
     const struct dicey_default_object *const objects,
     size_t nobjects
 ) {
-    assert(registry && objects);
+    assert(registry);
 
     const struct dicey_default_object *const end = objects + nobjects;
     for (const struct dicey_default_object *obj_def = objects; obj_def < end; ++obj_def) {
@@ -83,7 +102,7 @@ static enum dicey_error populate_traits(
                 (struct dicey_element) {
                     .type = elem_def->type,
                     .signature = elem_def->signature,
-                    .readonly = elem_def->readonly,
+                    .flags = elem_def->flags,
                     // use tag to identify that this is a builtin operation with a specific opcode
                     ._tag = TAGGED(tag, elem_def->opcode),
                 }
@@ -118,6 +137,15 @@ static enum dicey_error populate_registry_with(
     }
 
     return populate_objects(registry, set->objects, set->nobjects);
+}
+
+bool dicey_builtin_context_is_valid(const struct dicey_builtin_context *const ctx) {
+    return ctx && ctx->registry && ctx->scratchpad;
+}
+
+bool dicey_builtin_request_is_valid(const struct dicey_builtin_request *const request) {
+    return request && request->client && request->path && request->entry && request->source &&
+           dicey_packet_is_valid(*request->source) && request->value;
 }
 
 bool dicey_registry_get_builtin_info_for(

@@ -1,4 +1,4 @@
-# Copyright (c) 2014-2024 Zuru Tech HK Limited, All rights reserved.
+# Copyright (c) 2024-2025 Zuru Tech HK Limited, All rights reserved.
 # 
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -102,13 +102,13 @@ class Operation(_Enum):
     GET = dicey_op.DICEY_OP_GET
     SET = dicey_op.DICEY_OP_SET
     EXEC = dicey_op.DICEY_OP_EXEC
-    EVENT = dicey_op.DICEY_OP_EVENT
+    SIGNAL = dicey_op.DICEY_OP_SIGNAL
     RESPONSE = dicey_op.DICEY_OP_RESPONSE
 
 GET = Operation.GET
 SET = Operation.SET
 EXEC = Operation.EXEC
-EVENT = Operation.EVENT
+SIGNAL = Operation.SIGNAL
 RESPONSE = Operation.RESPONSE
 
 @_dataclass

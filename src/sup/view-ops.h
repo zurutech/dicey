@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2024 Zuru Tech HK Limited, All rights reserved.
+ * Copyright (c) 2024-2025 Zuru Tech HK Limited, All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -47,6 +47,7 @@ static inline bool dicey_view_is_empty(const struct dicey_view view) {
 }
 
 ptrdiff_t dicey_view_read(struct dicey_view *view, struct dicey_view_mut dest);
+ptrdiff_t dicey_view_read_ptr(struct dicey_view *view, void *ptr, size_t nbytes);
 ptrdiff_t dicey_view_take(struct dicey_view *view, ptrdiff_t nbytes, struct dicey_view *slice);
 
 ptrdiff_t dicey_view_mut_advance(struct dicey_view_mut *view, ptrdiff_t offset);
@@ -65,6 +66,7 @@ static inline bool dicey_view_mut_is_empty(const struct dicey_view_mut view) {
 }
 
 ptrdiff_t dicey_view_mut_write(struct dicey_view_mut *dest, struct dicey_view view);
+ptrdiff_t dicey_view_mut_write_ptr(struct dicey_view_mut *dest, const void *ptr, size_t nbytes);
 ptrdiff_t dicey_view_mut_write_chunks(struct dicey_view_mut *dest, const struct dicey_view *chunks, size_t nchunks);
 ptrdiff_t dicey_view_mut_write_zstring(struct dicey_view_mut *dest, const char *str);
 

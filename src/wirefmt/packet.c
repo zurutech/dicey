@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2024 Zuru Tech HK Limited, All rights reserved.
+ * Copyright (c) 2024-2025 Zuru Tech HK Limited, All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -58,7 +58,7 @@ static enum dicey_op msgkind_from_dtf(const ptrdiff_t kind) {
         return DICEY_OP_EXEC;
 
     case DTF_PAYLOAD_EVENT:
-        return DICEY_OP_EVENT;
+        return DICEY_OP_SIGNAL;
 
     case DTF_PAYLOAD_RESPONSE:
         return DICEY_OP_RESPONSE;
@@ -249,7 +249,7 @@ bool dicey_op_is_valid(const enum dicey_op type) {
     case DICEY_OP_GET:
     case DICEY_OP_SET:
     case DICEY_OP_EXEC:
-    case DICEY_OP_EVENT:
+    case DICEY_OP_SIGNAL:
     case DICEY_OP_RESPONSE:
         return true;
     }
@@ -262,7 +262,7 @@ bool dicey_op_requires_payload(const enum dicey_op kind) {
 
     case DICEY_OP_SET:
     case DICEY_OP_EXEC:
-    case DICEY_OP_EVENT:
+    case DICEY_OP_SIGNAL:
     case DICEY_OP_RESPONSE:
         return true;
     }
@@ -283,8 +283,8 @@ const char *dicey_op_to_string(const enum dicey_op type) {
     case DICEY_OP_EXEC:
         return "EXEC";
 
-    case DICEY_OP_EVENT:
-        return "EVENT";
+    case DICEY_OP_SIGNAL:
+        return "SIGNAL";
 
     case DICEY_OP_RESPONSE:
         return "RESPONSE";
@@ -492,10 +492,9 @@ void dicey_packet_deinit(struct dicey_packet *const packet) {
 enum dicey_error dicey_packet_dump(const struct dicey_packet packet, void **const data, size_t *const nbytes) {
     assert(dicey_packet_is_valid(packet) && data && *data && nbytes);
 
-    struct dicey_view src = { .data = packet.payload, .len = packet.nbytes };
-    struct dicey_view_mut dest = { .data = *data, .len = *nbytes };
+    struct dicey_view_mut dest = dicey_view_mut_from(*data, *nbytes);
 
-    const ptrdiff_t dump_err = dicey_view_mut_write(&dest, src);
+    const ptrdiff_t dump_err = dicey_view_mut_write_ptr(&dest, packet.payload, packet.nbytes);
     if (dump_err < 0) {
         return dump_err;
     }
