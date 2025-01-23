@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+#include "sup/view-ops.h"
 #define _CRT_NONSTDC_NO_DEPRECATE 1
 #define _XOPEN_SOURCE 700
 
@@ -1130,18 +1131,13 @@ static enum dicey_error loop_request_del_object(
 ) {
     DICEY_UNUSED(client);
 
-    const char *path = NULL;
-
-    memcpy(&path, payload, sizeof path);
+    const char *path = payload;
     assert(path);
 
     enum dicey_error err = DICEY_OK;
     if (server) {
         err = remove_object(server, path);
     }
-
-    // free the name we strdup'd earlier
-    free((char *) path);
 
     return err;
 }
@@ -1665,15 +1661,9 @@ enum dicey_error dicey_server_delete_object(struct dicey_server *const server, c
 
     case SERVER_STATE_RUNNING:
         {
-            struct dicey_server_loop_request *const req = DICEY_SERVER_LOOP_REQ_NEW(const char *);
+            const size_t path_size = dutl_zstring_size(path);
+            struct dicey_server_loop_request *const req = DICEY_SERVER_LOOP_REQ_NEW_WITH_BYTES(path_size);
             if (!req) {
-                return TRACE(DICEY_ENOMEM);
-            }
-
-            char *const path_copy = strdup(path); // the path is NOT owned by the request
-            if (!path_copy) {
-                free(req);
-
                 return TRACE(DICEY_ENOMEM);
             }
 
@@ -1682,7 +1672,15 @@ enum dicey_error dicey_server_delete_object(struct dicey_server *const server, c
                 .target = DICEY_SERVER_LOOP_REQ_NO_TARGET,
             };
 
-            DICEY_SERVER_LOOP_SET_PAYLOAD(req, const char *, path_copy);
+            struct dicey_view_mut payload = DICEY_SERVER_LOOP_REQ_GET_PAYLOAD_AS_VIEW_MUT(*req, path_size);
+            const ptrdiff_t result = dicey_view_mut_write_zstring(&payload, path);
+            if (result < 0) {
+                free(req);
+
+                return (enum dicey_error) result;
+            }
+
+            assert((size_t) result == path_size);
 
             return dicey_server_submit_request(server, req);
         }
