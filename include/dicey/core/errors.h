@@ -76,7 +76,7 @@ enum dicey_error {
     DICEY_EUV_UNKNOWN = -0x0525, /**< Unknown libuv error. */
 
     // Plugin errors are only valid if plugins are enabled
-    DICEY_EPLUGIN_INVALID_NAME = -0xFE26, /**< Invalid plugin name. */
+    DICEY_EPLUGIN_INVALID_NAME = -0x7E26, /**< Invalid plugin name. */
 };
 
 /**
