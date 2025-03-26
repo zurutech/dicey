@@ -11,6 +11,12 @@
 
 #define DICEY_CC_IS_${DICEY_COMPILER} 1
 
+#if defined(DICEY_CC_IS_APPLECLANG)
+#define DICEY_CC_IS_CLANG 1
+#elif defined(DICEY_CC_IS_CLANG)
+#define DICEY_CC_IS_LLVMCLANG 1
+#endif
+
 // very safe assumption: clang pretends to be gcc everywhere except windows
 #if defined(DICEY_CC_IS_CLANG) && !defined(DICEY_IS_WINDOWS)
 #define DICEY_CC_IS_GNU 1
