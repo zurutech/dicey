@@ -385,28 +385,23 @@ static void dump_value(struct util_dumper *const dumper, const struct dicey_valu
     }
 }
 
-static void dump_message(struct util_dumper *const dumper, const struct dicey_packet packet) {
-    assert(dumper);
-
-    struct dicey_message message = { 0 };
-    const enum dicey_error err = dicey_packet_as_message(packet, &message);
-    assert(!err);
-    (void) err; // silence unused warning
+static void dump_message(struct util_dumper *const dumper, const struct dicey_message *const message) {
+    assert(dumper && message);
 
     util_dumper_printlnf(dumper, "message {");
 
     util_dumper_pad(dumper);
 
-    util_dumper_printlnf(dumper, "kind = %s", dicey_op_to_string(message.type));
-    util_dumper_printlnf(dumper, "path = \"%s\"", message.path);
+    util_dumper_printlnf(dumper, "kind = %s", dicey_op_to_string(message->type));
+    util_dumper_printlnf(dumper, "path = \"%s\"", message->path);
 
     util_dumper_printf(dumper, "selector = ");
-    dump_selector(dumper, message.selector);
+    dump_selector(dumper, message->selector);
     util_dumper_newline(dumper);
 
-    if (dicey_op_requires_payload(message.type)) {
+    if (dicey_op_requires_payload(message->type)) {
         util_dumper_printf(dumper, "value = ");
-        dump_value(dumper, &message.value);
+        dump_value(dumper, &message->value);
         util_dumper_newline(dumper);
     }
 
@@ -418,7 +413,7 @@ void util_dumper_dump_packet(struct util_dumper *const dumper, const struct dice
     assert(dumper && dicey_packet_is_valid(packet));
 
     uint32_t seq = 0U;
-    const enum dicey_error err = dicey_packet_get_seq(packet, &seq);
+    enum dicey_error err = dicey_packet_get_seq(packet, &seq);
     assert(!err);
     (void) err; // silence unused warning
 
@@ -438,12 +433,38 @@ void util_dumper_dump_packet(struct util_dumper *const dumper, const struct dice
         break;
 
     case DICEY_PACKET_KIND_MESSAGE:
-        dump_message(dumper, packet);
-        break;
+        {
+            struct dicey_message message = { 0 };
+            err = dicey_packet_as_message(packet, &message);
+            assert(!err);
+            (void) err; // silence unused warning
+
+            dump_message(dumper, &message);
+
+            break;
+        }
     }
 }
 
-void util_dumper_dump_value(struct util_dumper *dumper, const struct dicey_value *value) {
+void util_dumper_dump_request(struct util_dumper *const dumper, const struct dicey_request *const req) {
+    assert(dumper && req);
+
+    const struct dicey_client_info *const cln = dicey_request_get_client_info(req);
+    assert(cln);
+
+    util_dumper_printf(dumper, "request { client_id = %zu, seq = %" PRIu32 ", ", cln->id, dicey_request_get_seq(req));
+
+    const struct dicey_message *const msg = dicey_request_get_message(req);
+    assert(msg);
+
+    util_dumper_printf(dumper, "message = ");
+    dump_message(dumper, msg);
+
+    util_dumper_printf(dumper, " }");
+    util_dumper_newline(dumper);
+}
+
+void util_dumper_dump_value(struct util_dumper *const dumper, const struct dicey_value *const value) {
     assert(dumper && value);
 
     dump_value(dumper, value);

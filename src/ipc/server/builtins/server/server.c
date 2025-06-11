@@ -21,6 +21,7 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include <dicey/core/builders.h>
 #include <dicey/core/errors.h>
@@ -112,10 +113,11 @@ static enum dicey_error extract_path_sel(
     return DICEY_OK;
 }
 
-static enum dicey_error unit_message_for(
+static enum dicey_error message_for(
     struct dicey_packet *const dest,
     const char *const path,
-    const struct dicey_selector sel
+    const struct dicey_selector sel,
+    const struct dicey_arg value
 ) {
     assert(dest && path && dicey_selector_is_valid(sel));
 
@@ -141,7 +143,7 @@ static enum dicey_error unit_message_for(
         goto fail;
     }
 
-    err = dicey_message_builder_set_value(&builder, (struct dicey_arg) { .type = DICEY_TYPE_UNIT });
+    err = dicey_message_builder_set_value(&builder, value);
     if (err) {
         goto fail;
     }
@@ -159,6 +161,38 @@ fail:
     return err;
 }
 
+static enum dicey_error string_message_for(
+    struct dicey_packet *const dest,
+    const char *const path,
+    const struct dicey_selector sel,
+    const char *const value
+) {
+    return message_for(
+        dest,
+        path,
+        sel,
+        (struct dicey_arg) {
+            .type = DICEY_TYPE_STR,
+            .str = value,
+        }
+    );
+}
+
+static enum dicey_error unit_message_for(
+    struct dicey_packet *const dest,
+    const char *const path,
+    const struct dicey_selector sel
+) {
+    return message_for(
+        dest,
+        path,
+        sel,
+        (struct dicey_arg) {
+            .type = DICEY_TYPE_UNIT,
+        }
+    );
+}
+
 static enum dicey_error handle_server_operation(
     struct dicey_builtin_context *ctx,
     struct dicey_builtin_request *const req,
@@ -174,11 +208,15 @@ static enum dicey_error handle_server_operation(
         return err;
     }
 
-    const struct dicey_element *elem = dicey_registry_get_element(ctx->registry, path, sel.trait, sel.elem);
+    struct dicey_object_element_entry entry = { 0 };
+    const bool found = dicey_registry_get_element_entry(ctx->registry, path, sel.trait, sel.elem, &entry);
 
-    if (!elem) {
+    if (!found) {
         return TRACE(DICEY_EELEMENT_NOT_FOUND);
     }
+
+    const struct dicey_element *const elem = entry.element;
+    assert(elem);
 
     if (elem->type != DICEY_ELEMENT_TYPE_SIGNAL) {
         return TRACE(DICEY_EINVAL);
@@ -188,33 +226,37 @@ static enum dicey_error handle_server_operation(
     struct dicey_view_mut *const scratchpad = ctx->scratchpad;
     assert(scratchpad);
 
-    const char *const elemdescr = dicey_element_descriptor_format_to(scratchpad, path, sel);
+    const char *const elemdescr = dicey_element_descriptor_format_to(scratchpad, entry.main_path, sel);
     if (!elemdescr) {
         return TRACE(DICEY_ENOMEM);
     }
 
     switch (req->opcode) {
     case SERVER_OP_EVENT_SUBSCRIBE:
-        err = dicey_client_data_subscribe(req->client, elemdescr);
-        break;
+        {
+            err = dicey_client_data_subscribe(req->client, elemdescr);
+
+            if (err) {
+                return err;
+            }
+
+            const bool targets_alias = strcmp(entry.main_path, path) != 0;
+
+            return targets_alias ? string_message_for(response, path, sel, entry.main_path)
+                                 : unit_message_for(response, path, sel);
+        }
 
     case SERVER_OP_EVENT_UNSUBSCRIBE:
         // do not trace the result of this operation, the ENOENT should be reported to the client without blocking
         // the server
         err = dicey_client_data_unsubscribe(req->client, elemdescr) ? DICEY_OK : DICEY_ENOENT;
 
-        break;
+        return err ? err : unit_message_for(response, path, sel);
 
     default:
         assert(false);
         return TRACE(DICEY_EINVAL);
     }
-
-    if (err) {
-        return err;
-    }
-
-    return unit_message_for(response, path, sel);
 }
 
 static ptrdiff_t builtin_handler(

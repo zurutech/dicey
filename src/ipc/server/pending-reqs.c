@@ -37,15 +37,15 @@ struct dicey_pending_requests {
     uint32_t last_seq;
 
     size_t start, end, len, cap;
-    struct dicey_pending_request reqs[];
+    struct dicey_request reqs[];
 };
 
 static size_t index_of(const struct dicey_pending_requests *const reqs, const size_t i) {
     return (reqs->start + i) % reqs->cap;
 }
 
-static bool is_hole(const struct dicey_pending_request *const req) {
-    return !req->path; // just any value - if the path is NULL, the request is empty
+static bool is_hole(const struct dicey_request *const req) {
+    return !req->message.path; // just any value - if the path is NULL, the request is empty
 }
 
 static size_t next_index(const struct dicey_pending_requests *const reqs, const size_t i) {
@@ -63,13 +63,11 @@ static void pending_request_invalidate(struct dicey_pending_requests *const reqs
 
     const size_t i = index_of(reqs, m);
 
-    struct dicey_pending_request *const req = &reqs->reqs[i];
+    struct dicey_request *const req = &reqs->reqs[i];
 
     assert(!is_hole(req));
 
-    req->op = DICEY_OP_INVALID;
-    req->path = NULL;
-    req->sel = (struct dicey_selector) { 0 };
+    req->message = (struct dicey_message) { 0 };
 
     // leave the seq be, it's useful for binary search
 
@@ -82,8 +80,8 @@ static void pending_request_invalidate(struct dicey_pending_requests *const reqs
     --reqs->len;
 }
 
-static bool pending_request_is_valid(const struct dicey_pending_request *const req) {
-    return req && req->op != DICEY_OP_INVALID && req->path && dicey_selector_is_valid(req->sel);
+static bool pending_request_is_valid(const struct dicey_request *const req) {
+    return req && req->op != DICEY_OP_INVALID && req->message.path && dicey_selector_is_valid(req->message.selector);
 }
 
 static size_t total_len(const struct dicey_pending_requests *const reqs) {
@@ -94,14 +92,14 @@ static size_t total_len(const struct dicey_pending_requests *const reqs) {
     return reqs->end >= reqs->start ? diff : reqs->cap - diff;
 }
 
-static struct dicey_pending_request *request_at(struct dicey_pending_requests *const reqs, const size_t i) {
+static struct dicey_request *request_at(struct dicey_pending_requests *const reqs, const size_t i) {
     assert(reqs);
 
     return &reqs->reqs[index_of(reqs, i)];
 }
 
 struct search_result {
-    struct dicey_pending_request *value;
+    struct dicey_request *value;
     size_t index;
 };
 
@@ -119,7 +117,7 @@ static struct search_result search_seq(struct dicey_pending_requests *const reqs
     while (l <= r) {
         size_t m = (l + r) / 2;
 
-        struct dicey_pending_request *const req = request_at(reqs, m);
+        struct dicey_request *const req = request_at(reqs, m);
         assert(req); // the value _must_ be valid, it comes from the list and we know m is in range
 
         if (req->packet_seq < seq) {
@@ -184,7 +182,7 @@ static ptrdiff_t pending_requests_make_room(struct dicey_pending_requests **reqs
     // in-place
     size_t i = old_reqs->start, o = reqs->start;
     do {
-        const struct dicey_pending_request *const req = &old_reqs->reqs[i];
+        const struct dicey_request *const req = &old_reqs->reqs[i];
         if (!is_hole(req)) {
             reqs->reqs[o] = *req;
 
@@ -242,16 +240,16 @@ static bool validate_seqnum(const struct dicey_pending_requests *const reqs, con
     return true;
 }
 
-enum dicey_error dicey_pending_requests_add(
+struct dicey_pending_request_result dicey_pending_requests_add(
     struct dicey_pending_requests **const reqs_ptr,
-    const struct dicey_pending_request *const req
+    const struct dicey_request *const req
 ) {
     assert(reqs_ptr && pending_request_is_valid(req));
 
     struct dicey_pending_requests *reqs = *reqs_ptr;
 
     if (!validate_seqnum(reqs, req->packet_seq)) {
-        return TRACE(DICEY_ESEQNUM_MISMATCH);
+        return (struct dicey_pending_request_result) { .error = TRACE(DICEY_ESEQNUM_MISMATCH) };
     }
 
     if (reqs) {
@@ -261,7 +259,7 @@ enum dicey_error dicey_pending_requests_add(
         if (!room_available(reqs)) {
             const ptrdiff_t res = pending_requests_make_room(&reqs);
             if (res < 0) {
-                return (enum dicey_error) res;
+                return (struct dicey_pending_request_result) { .error = (enum dicey_error) res };
             }
 
             // if this is true, the pointer has been reallocated. Clean up the old memory and update the pointer
@@ -272,22 +270,23 @@ enum dicey_error dicey_pending_requests_add(
     } else {
         *reqs_ptr = reqs = pending_requests_new(req->packet_seq);
         if (!reqs) {
-            return TRACE(DICEY_ENOMEM);
+            return (struct dicey_pending_request_result) { .error = TRACE(DICEY_ENOMEM) };
         }
     }
 
-    reqs->reqs[reqs->end] = *req;
+    struct dicey_request *const dest = &reqs->reqs[reqs->end];
+    *dest = *req;
     reqs->end = next_index(reqs, reqs->end);
 
     ++reqs->len;
 
-    return DICEY_OK;
+    return (struct dicey_pending_request_result) { .value = dest };
 }
 
 enum dicey_error dicey_pending_requests_complete(
     struct dicey_pending_requests *const reqs,
     const uint32_t seq,
-    struct dicey_pending_request *const req
+    struct dicey_request *const req
 ) {
     if (!reqs || !reqs->len) {
         return TRACE(DICEY_ENOENT);
@@ -307,10 +306,7 @@ enum dicey_error dicey_pending_requests_complete(
     return DICEY_OK;
 }
 
-const struct dicey_pending_request *dicey_pending_requests_get(
-    struct dicey_pending_requests *const reqs,
-    const uint32_t seq
-) {
+const struct dicey_request *dicey_pending_requests_get(struct dicey_pending_requests *const reqs, const uint32_t seq) {
     if (!reqs || !reqs->len) {
         return false;
     }
@@ -334,7 +330,7 @@ void dicey_pending_requests_prune(
     }
 
     for (size_t i = reqs->start; i != reqs->end; i = next_index(reqs, i)) {
-        struct dicey_pending_request *const req = &reqs->reqs[i];
+        struct dicey_request *const req = &reqs->reqs[i];
         assert(req);
 
         if (is_hole(req)) {

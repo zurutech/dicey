@@ -86,6 +86,37 @@ struct dicey_message {
 };
 
 /**
+ * @brief Checks if a message matches a given path, trait, and element.
+ * @param msg The message to check.
+ * @param path The path to match.
+ * @param trait The trait to match.
+ * @param elem The element to match.
+ * @return `true` if the message matches, `false` otherwise.
+ */
+DICEY_EXPORT bool dicey_message_matches_element(
+    const struct dicey_message *msg,
+    const char *path,
+    const char *trait,
+    const char *elem
+);
+
+/**
+ * @brief Checks if a message has a path that starts from a given root, and if trait and element match with the message
+ *        selector.
+ * @param msg The message to check.
+ * @param root The root to match.
+ * @param trait The trait to match.
+ * @param elem The element to match.
+ * @return `true` if the message matches, `false` otherwise.
+ */
+DICEY_EXPORT bool dicey_message_matches_element_under_root(
+    const struct dicey_message *msg,
+    const char *root,
+    const char *trait,
+    const char *elem
+);
+
+/**
  * @brief Changes the message header of a packet of type MESSAGE.
  * @note  This function is usually used to forward a packet as it is, keeping the value unchanged.
  * @param dest The destination packet.

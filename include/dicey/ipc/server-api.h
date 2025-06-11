@@ -20,11 +20,14 @@
 #include <stdbool.h>
 #include <stddef.h>
 
+#include "../core/builders.h"
 #include "../core/errors.h"
+#include "../core/message.h"
 #include "../core/packet.h"
 
 #include "address.h"
 #include "registry.h"
+#include "request.h"
 #include "server.h"
 
 #include "dicey_config.h"
@@ -86,19 +89,12 @@ typedef void dicey_server_on_error_fn(
 
 /**
  * @brief Callback type for when a request is received from a client.
- * @param server The server instance that received the request.
- * @param cln    The info of the client that sent the request.
- * @param seq    The sequence number associated with the request. The user must respond with the same sequence number,
- *               or the client will fail to match the response back to the request.
- * @param packet The packet containing the request data. The ownership of this packet is transferred to the callback,
- *               which must free it when done.
+ * @param server  The server instance that received the request.
+ * @param cln     The info of the client that sent the request.
+ * @param request The request that was received. User code will be able to reply and handle the request via this
+ * structure. The request object is valid until the request is replied to or cancelled.
  */
-typedef void dicey_server_on_request_fn(
-    struct dicey_server *server,
-    const struct dicey_client_info *cln,
-    uint32_t seq,
-    struct dicey_packet packet
-);
+typedef void dicey_server_on_request_fn(struct dicey_server *server, struct dicey_request *request);
 
 /**
  * @brief Callback type that is called when the server either starts up successfully or fails to start up.
@@ -234,32 +230,32 @@ DICEY_EXPORT struct dicey_registry *dicey_server_get_registry(struct dicey_serve
 DICEY_EXPORT enum dicey_error dicey_server_kick(struct dicey_server *server, size_t id);
 
 /**
- * @brief Raises an event, notifying all clients subscribed to it. This function is asynchronous and won't wait for the
- *        event to actually be sent.
- * @param server The server to raise the event from.
- * @param event  The event to raise. The ownership of the packet is transferred to the server, which will free it when
- *               done. This packet must be an event packet.
+ * @brief Raises a signal, notifying all clients subscribed to it. This function is asynchronous and won't wait for the
+ *        signal to actually be sent.
+ * @param server The server to raise the signal from.
+ * @param packet The signal to raise. The ownership of the packet is transferred to the server, which will free it when
+ *               done. This packet must be a signal packet.
  * @return       Error code. The possible values are several and include:
- *               - OK: the event was successfully raised
+ *               - OK: the signal was successfully raised
  *               - ENOMEM: memory allocation failed
- *               - EINVAL: the packet is invalid (e.g. it is not an event)
- *               - EELEMENT_NOT_FOUND: the event's element is not found
+ *               - EINVAL: the packet is invalid (e.g. it is not a signal)
+ *               - EELEMENT_NOT_FOUND: the signal's element is not found
  */
 DICEY_EXPORT enum dicey_error dicey_server_raise(struct dicey_server *server, struct dicey_packet packet);
 
 /*
- * @brief Raises an event, notifying all clients subscribed to it. This function is synchronous and will block until the
- *        event is actually sent.
+ * @brief Raises a signal, notifying all clients subscribed to it. This function is synchronous and will block until the
+ *        signal is actually sent.
  * @note  Even if this function returns, there is no guarantee that the clients actually received anything. This
  * function only guarantees that the `write()` syscall is actually performed and that it succeeded.
- * @param server The server to raise the event from.
- * @param event  The event to raise. The ownership of the packet is transferred to the server, which will free it when
- *               done. This packet must be an event packet.
+ * @param server The server to raise the signal from.
+ * @param packet The signal to raise. The ownership of the packet is transferred to the server, which will free it when
+ *               done. This packet must be a signal packet.
  * @return       Error code. The possible values are several and include:
- *               - OK: the event was successfully raised
+ *               - OK: the signal was successfully raised
  *               - ENOMEM: memory allocation failed
- *               - EINVAL: the packet is invalid (e.g. it is not an event)
- *               - EELEMENT_NOT_FOUND: the event's element is not found
+ *               - EINVAL: the packet is invalid (e.g. it is not a signal)
+ *               - EELEMENT_NOT_FOUND: the signal's element is not found
  */
 DICEY_EXPORT enum dicey_error dicey_server_raise_and_wait(struct dicey_server *server, struct dicey_packet packet);
 

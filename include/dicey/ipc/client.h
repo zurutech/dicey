@@ -119,7 +119,7 @@ typedef void dicey_client_on_reply_fn(
 typedef void dicey_client_on_sub_unsub_done_fn(struct dicey_client *client, void *ctx, enum dicey_error status);
 
 /**
- * @brief Represents a callback function that is called whenever a client receives a Dicey Message containing an Event.
+ * @brief Represents a callback function that is called whenever a client receives a Dicey Message containing a signal.
  * @param client The client this callback is associated with.
  * @param ctx    The global context of `client`, as obtained via `dicey_client_get_context()`. This is provided for
  * convenience.

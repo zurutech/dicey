@@ -383,7 +383,7 @@ enum dicey_error introspection_craft_pathlist(
 
     // TODO: implement an actual API to iterate over the registry's paths. We can do this here because this is a private
     // registry function
-    struct dicey_hashtable_iter iter = dicey_hashtable_iter_start(registry->_paths);
+    struct dicey_hashtable_iter iter = dicey_hashtable_iter_start(registry->paths);
 
     const char *path = NULL;
     while (dicey_hashtable_iter_next(&iter, &path, NULL)) {
@@ -437,7 +437,7 @@ enum dicey_error introspection_craft_traitlist(
 ) {
     assert(registry && dest);
 
-    struct dicey_hashtable_iter iter = dicey_hashtable_iter_start(registry->_traits);
+    struct dicey_hashtable_iter iter = dicey_hashtable_iter_start(registry->traits);
 
     struct dicey_message_builder builder = { 0 };
     enum dicey_error err = introspection_init_builder(

@@ -21,37 +21,69 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include <dicey/core/builders.h>
 #include <dicey/core/errors.h>
 #include <dicey/core/message.h>
 #include <dicey/core/packet.h>
 
-struct dicey_pending_request {
-    uint32_t packet_seq;
+#include <dicey/ipc/request.h>
+#include <dicey/ipc/server-api.h>
+#include <dicey/ipc/server.h>
 
-    enum dicey_op op;
+enum dicey_request_state {
+    DICEY_REQUEST_STATE_PENDING,      // the request is pending
+    DICEY_REQUEST_STATE_CONSTRUCTING, // the request is being constructed
+    DICEY_REQUEST_STATE_COMPLETED,    // the request is ready to be sent
 
-    const char *path;
-    struct dicey_selector sel;
-
-    const char *signature;
+    DICEY_REQUEST_STATE_ABORTED, // the request failed to be constructed or couldn't be sent
 };
 
-typedef bool dicey_pending_request_prune_fn(const struct dicey_pending_request *req, void *ctx);
+struct dicey_request {
+    uint32_t packet_seq;
+    enum dicey_op op;
+
+    struct dicey_client_info cln;
+
+    enum dicey_request_state state; // the current state of the request
+    struct dicey_packet packet;     // the request packet
+    const char *real_path; // the real path target by packet (only differs from message.path if the target is an alias)
+    struct dicey_message message;              // the packet above, extracted as a message (except the path)
+    struct dicey_message_builder resp_builder; // the response builder
+
+    const char *signature;
+
+    struct dicey_server *server; // the server that this request comes from
+};
+
+void dicey_request_deinit(struct dicey_request *req);
+
+enum dicey_error dicey_server_request_for(
+    struct dicey_server *server,
+    struct dicey_client_info *cln,
+    struct dicey_packet packet,
+    struct dicey_request *dest
+);
+
+typedef bool dicey_pending_request_prune_fn(const struct dicey_request *req, void *ctx);
 
 struct dicey_pending_requests;
+struct dicey_pending_request_result {
+    enum dicey_error error;
+    struct dicey_request *value;
+};
 
-enum dicey_error dicey_pending_requests_add(
+struct dicey_pending_request_result dicey_pending_requests_add(
     struct dicey_pending_requests **reqs_ptr,
-    const struct dicey_pending_request *req
+    const struct dicey_request *req
 );
 
 enum dicey_error dicey_pending_requests_complete(
     struct dicey_pending_requests *reqs,
     uint32_t seq,
-    struct dicey_pending_request *req
+    struct dicey_request *req
 );
 
-const struct dicey_pending_request *dicey_pending_requests_get(struct dicey_pending_requests *reqs, uint32_t seq);
+const struct dicey_request *dicey_pending_requests_get(struct dicey_pending_requests *reqs, uint32_t seq);
 bool dicey_pending_requests_is_pending(struct dicey_pending_requests *reqs, uint32_t seq);
 void dicey_pending_requests_prune(
     struct dicey_pending_requests *reqs,

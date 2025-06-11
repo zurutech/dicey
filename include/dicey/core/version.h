@@ -47,6 +47,12 @@ struct dicey_version {
 #define DICEY_PROTO_VERSION_CURRENT                                                                                    \
     ((struct dicey_version) { .major = DICEY_PROTO_MAJOR, .revision = DICEY_PROTO_REVISION })
 
+/**
+ * @brief Compares two version structures.
+ * @param a The first version structure.
+ * @param b The second version structure.
+ * @return < 0 if a < b, 0 if a == b, > 0 if a > b.
+ */
 DICEY_EXPORT int dicey_version_cmp(struct dicey_version a, struct dicey_version b);
 
 /**

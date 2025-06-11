@@ -13,7 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include "sup/view-ops.h"
 #define _CRT_NONSTDC_NO_DEPRECATE 1
 #define _XOPEN_SOURCE 700
 
@@ -37,6 +36,7 @@
 #include <dicey/core/value.h>
 #include <dicey/ipc/address.h>
 #include <dicey/ipc/registry.h>
+#include <dicey/ipc/request.h>
 #include <dicey/ipc/server-api.h>
 #include <dicey/ipc/server.h>
 #include <dicey/ipc/traits.h>
@@ -357,7 +357,12 @@ static enum dicey_error client_send_response(
 ) {
     assert(server && client && msg);
 
+    // TODO: simplify this code, which is a bit redundant with `dicey_request`
+
     enum dicey_error err = DICEY_OK;
+
+    // match the packet back with the request
+    struct dicey_request req = { 0 };
 
     if (msg->type != DICEY_OP_RESPONSE) {
         dicey_packet_deinit(&packet);
@@ -373,9 +378,6 @@ static enum dicey_error client_send_response(
     if (err) {
         goto quit;
     }
-
-    // match the packet back with the request
-    struct dicey_pending_request req = { 0 };
 
     err = dicey_pending_requests_complete(client->pending, seq, &req);
     if (err) {
@@ -402,6 +404,8 @@ static enum dicey_error client_send_response(
     );
 
 quit:
+    dicey_request_deinit(&req); // always cleanup, this is noop if the request is empty
+
     if (err) {
         dicey_packet_deinit(&packet);
     }
@@ -583,14 +587,22 @@ struct prune_ctx {
     const char *path_to_prune;
 };
 
-static bool request_targets_path(const struct dicey_pending_request *const req, void *const ctx) {
-    assert(req && ctx);
-
+static bool request_should_prune_if_matching(const struct dicey_request *const req, void *const ctx) {
     const struct prune_ctx *const pctx = ctx;
 
-    if (!strcmp(req->path, pctx->path_to_prune)) {
+    assert(req && pctx && pctx->server);
+
+    const char *const main_path = dicey_registry_get_main_path(&pctx->server->registry, pctx->path_to_prune);
+    assert(main_path); // the object must exist, we should have catched it earlier
+
+    // check if the request is for the object we are removing
+    if (!strcmp(main_path, req->real_path)) {
+        const struct dicey_message *const msg = dicey_request_get_message(req);
+        assert(msg);
+
         struct outbound_packet packet = { .kind = DICEY_OP_RESPONSE };
-        enum dicey_error err = make_error(&packet.single, req->packet_seq, req->path, req->sel, DICEY_EPATH_DELETED);
+        enum dicey_error err =
+            make_error(&packet.single, req->packet_seq, msg->path, msg->selector, DICEY_EPATH_DELETED);
         if (!err) {
             // if err is true, the client will timeout, but we are clearly OOM, so we can't do anything about it
 
@@ -625,7 +637,7 @@ static enum dicey_error remove_object(struct dicey_server *server, const char *c
             .path_to_prune = path,
         };
 
-        dicey_pending_requests_prune(client->pending, &request_targets_path, &ctx);
+        dicey_pending_requests_prune(client->pending, &request_should_prune_if_matching, &ctx);
     }
 
     return dicey_registry_delete_object(&server->registry, path);
@@ -760,9 +772,9 @@ static ptrdiff_t client_got_message(struct dicey_client_data *const client, stru
         return repl_err ? repl_err : CLIENT_DATA_STATE_RUNNING;
     }
 
-    struct dicey_element_entry elem_entry = { 0 };
+    struct dicey_object_element_entry object_entry = { 0 };
 
-    if (!dicey_registry_get_element_entry_from_sel(&server->registry, message.path, message.selector, &elem_entry)) {
+    if (!dicey_registry_get_element_entry_from_sel(&server->registry, message.path, message.selector, &object_entry)) {
         // not a fatal error: skip the seq and send an error response
         const enum dicey_error skip_err = dicey_pending_request_skip(&client->pending, seq);
         if (skip_err) {
@@ -780,7 +792,7 @@ static ptrdiff_t client_got_message(struct dicey_client_data *const client, stru
         return repl_err ? repl_err : CLIENT_DATA_STATE_RUNNING;
     }
 
-    const enum dicey_error op_err = is_message_acceptable_for(*elem_entry.element, &message);
+    const enum dicey_error op_err = is_message_acceptable_for(*object_entry.element, &message);
     if (op_err) {
         // not a fatal error: skip the seq and send an error response
         const enum dicey_error skip_err = dicey_pending_request_skip(&client->pending, seq);
@@ -799,8 +811,10 @@ static ptrdiff_t client_got_message(struct dicey_client_data *const client, stru
         return repl_err ? repl_err : CLIENT_DATA_STATE_RUNNING;
     }
 
+    const struct dicey_element_entry elem_entry = dicey_object_element_entry_to_element_entry(&object_entry);
+
     struct dicey_registry_builtin_info binfo = { 0 };
-    if (dicey_registry_get_builtin_info_for(&elem_entry, &binfo)) {
+    if (dicey_registry_get_builtin_info_for(elem_entry, &binfo)) {
         assert(binfo.handler);
 
         // we hit on a builtin
@@ -869,26 +883,44 @@ static ptrdiff_t client_got_message(struct dicey_client_data *const client, stru
     }
 
     if (server->on_request) {
-        const enum dicey_error accept_err = dicey_pending_requests_add(
-            &client->pending,
-            &(struct dicey_pending_request) {
-                .packet_seq = seq,
-                .op = message.type,
-                .path = obj_entry.path, // lifetime tied to the object
-                .sel = elem_entry.sel,  // lifetime tied to the trait
-                .signature = elem_entry.element->signature,
-            }
-        );
+        struct dicey_request request = { 0 };
 
-        if (accept_err) {
+        const enum dicey_error err = dicey_server_request_for(server, &client->info, packet, &request);
+        if (err) {
             dicey_packet_deinit(&packet);
 
-            // the client has violated the protocol somehow and will be promply kicked out
-            return accept_err;
+            return err;
         }
 
-        // move ownership of the packet to the callback
-        server->on_request(server, &client->info, seq, packet);
+        const struct dicey_pending_request_result accept_res = dicey_pending_requests_add(&client->pending, &request);
+        if (accept_res.error) {
+            dicey_request_deinit(&request);
+
+            // the client has violated the protocol somehow and will be promply kicked out
+            return accept_res.error;
+        }
+
+        // request has been copied to the pending requests struct. Use accept_res.value to access it from now on
+        struct dicey_request *const pending_req = accept_res.value;
+        assert(pending_req);
+
+        server->on_request(server, pending_req);
+
+        // The user code has control over the lifecycle of the request. This means that it has to consume it, either
+        // by sending a response or by attempting to use it and trigger a failure.
+        // This if handles the latter case; the user attempted to construct a response, but it failed for any reason, so
+        // we're pruning the request and sending an error response to the client (best effort)
+        if (pending_req->state == DICEY_REQUEST_STATE_ABORTED) {
+            // reply to the server with a generic error. Can't do much if this also fails
+
+            (void) server_report_error(server, client, packet, DICEY_EAGAIN);
+
+            // get rid of the request. We don't need to get it retrieved, we already have it
+            // Again, if this fails, we can't do much about it
+            (void) dicey_pending_requests_complete(client->pending, seq, NULL);
+
+            dicey_request_deinit(&request);
+        }
     } else {
         dicey_packet_deinit(&packet);
     }
@@ -896,7 +928,7 @@ static ptrdiff_t client_got_message(struct dicey_client_data *const client, stru
     return CLIENT_DATA_STATE_RUNNING;
 }
 
-static enum dicey_error client_got_packet(struct dicey_client_data *client, struct dicey_packet packet) {
+static enum dicey_error client_got_packet(struct dicey_client_data *const client, struct dicey_packet packet) {
     assert(client && dicey_packet_is_valid(packet));
 
     ptrdiff_t err = DICEY_OK;

@@ -221,6 +221,7 @@ set(PUBLIC_HEADERS
     "include/dicey/ipc/builtins.h"
     "include/dicey/ipc/client.h"
     "include/dicey/ipc/registry.h"
+    "include/dicey/ipc/request.h"
     "include/dicey/ipc/server-api.h"
     "include/dicey/ipc/server.h"
     "include/dicey/ipc/traits.h"
@@ -237,6 +238,7 @@ set(CORE_SOURCES
 
     # wirefmt    
     src/wirefmt/builders.c
+    src/wirefmt/message.c
     src/wirefmt/packet-args.c
     src/wirefmt/packet-args.h
     src/wirefmt/packet.c
@@ -295,6 +297,7 @@ set(CORE_SOURCES
     src/ipc/server/pending-reqs.h
     src/ipc/server/registry.c
     src/ipc/server/registry-internal.h
+    src/ipc/server/request.c
     src/ipc/server/server.c
     src/ipc/server/server-clients.c
     src/ipc/server/server-clients.h

@@ -28,6 +28,7 @@
 #include <dicey/ipc/registry.h>
 #include <dicey/ipc/traits.h>
 
+#include "ipc/server/registry-internal.h"
 #include "sup/trace.h"
 #include "sup/util.h"
 
@@ -184,17 +185,17 @@ enum dicey_error introspection_object_populate_xml(
 ) {
     assert(path && obj && dest);
 
-    if (!obj->_cached_xml) {
+    if (!obj->cached_xml) {
         xmlChar *xml = NULL;
         const enum dicey_error err = object_dump_xml(registry, path, obj, &xml);
         if (err) {
             return err;
         }
 
-        obj->_cached_xml = xml;
+        obj->cached_xml = xml;
     }
 
-    *dest = obj->_cached_xml;
+    *dest = obj->cached_xml;
 
     return DICEY_OK;
 }

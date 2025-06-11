@@ -58,6 +58,11 @@ enum dicey_plugin_event_kind {
                                         event */
 };
 
+/**
+ * @brief Converts a plugin event kind to a string.
+ * @param kind The plugin event kind to convert.
+ * @return A string representation of the plugin event kind. Statically allocated, do not free.
+ */
 DICEY_EXPORT const char *dicey_plugin_event_kind_to_string(enum dicey_plugin_event_kind kind);
 
 /**

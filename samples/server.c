@@ -98,10 +98,10 @@ static int out(const char *fmt, ...) {
     return ret;
 }
 
-static inline void dump_packet(const struct dicey_packet packet) {
+static inline void dump_request(const struct dicey_request *const request) {
     if (print_logs) {
         struct util_dumper dumper = util_dumper_for(stdout);
-        util_dumper_dump_packet(&dumper, packet);
+        util_dumper_dump_request(&dumper, request);
     }
 }
 
@@ -544,25 +544,6 @@ void timer_state_fire_after(struct timer_state *const state, const int32_t s) {
     uv_mutex_unlock(&state->mux);
 }
 
-static bool matches_elem(
-    const struct dicey_message *const msg,
-    const char *const path,
-    const char *const trait,
-    const char *const elem
-) {
-    return !strcmp(msg->path, path) && !strcmp(msg->selector.trait, trait) && !strcmp(msg->selector.elem, elem);
-}
-
-static bool matches_elem_under_root(
-    const struct dicey_message *const msg,
-    const char *const root,
-    const char *const trait,
-    const char *const elem
-) {
-    return !strncmp(msg->path, root, strlen(root)) && !strcmp(msg->selector.trait, trait) &&
-           !strcmp(msg->selector.elem, elem);
-}
-
 static enum dicey_error registry_fill(struct dicey_registry *const registry) {
     assert(registry);
 
@@ -731,25 +712,14 @@ static enum dicey_error on_dummy_points_req(struct dicey_server *const server, c
     return DICEY_OK;
 }
 
-static enum dicey_error on_echo_req(
-    struct dicey_server *const server,
-    const struct dicey_client_info *const cln,
-    const uint32_t seq,
-    struct dicey_packet packet,
-    const struct dicey_message *const req
-) {
-    assert(server && cln && dicey_packet_is_valid(packet) && req && req->type == DICEY_OP_EXEC);
+static enum dicey_error on_echo_req(struct dicey_server *const server, struct dicey_request *const req) {
+    assert(server && req);
 
-    struct dicey_packet fixed = { 0 };
+    const struct dicey_message *const msg = dicey_request_get_message(req);
+    assert(msg && msg->type == DICEY_OP_EXEC);
 
     // rewrite the message as a response
-    const enum dicey_error err =
-        dicey_packet_forward_message(&fixed, packet, seq, DICEY_OP_RESPONSE, req->path, req->selector);
-    if (err) {
-        return err;
-    }
-
-    return dicey_server_send_response(server, cln->id, fixed);
+    return dicey_request_reply_with_existing(req, &msg->value);
 }
 
 static enum dicey_error on_sval_req(
@@ -1166,60 +1136,56 @@ enum dicey_error spawn_dummy_plugin(struct dicey_server *const server) {
 
 #endif // DICEY_HAS_PLUGINS
 
-static void on_request_received(
-    struct dicey_server *const server,
-    const struct dicey_client_info *const cln,
-    const uint32_t seq,
-    struct dicey_packet packet
-) {
-    struct dicey_message msg = { 0 };
-    enum dicey_error err = dicey_packet_as_message(packet, &msg);
-    if (err) {
-        fprintf(stderr, "error: malformed message: %s\n", dicey_error_msg(err));
-        return;
-    }
+static void on_request_received(struct dicey_server *const server, struct dicey_request *const request) {
+    assert(server && request);
+
+    const struct dicey_client_info *const cln = dicey_request_get_client_info(request);
+    const int32_t seq = dicey_request_get_seq(request);
+    const struct dicey_message *const msg = dicey_request_get_message(request);
+    assert(msg && cln);
 
     out("info: received request #%" PRIu32 " from client %zu for `%s#%s:%s`\n",
         seq,
         cln->id,
-        msg.path,
-        msg.selector.trait,
-        msg.selector.elem);
+        msg->path,
+        msg->selector.trait,
+        msg->selector.elem);
 
-    dump_packet(packet);
+    dump_request(request);
 
-    if (matches_elem(&msg, DUMMY_PATH, DUMMY_TRAIT, DUMMY_POINTS_ELEMENT)) {
+    enum dicey_error err = DICEY_OK;
+
+    if (dicey_message_matches_element(msg, DUMMY_PATH, DUMMY_TRAIT, DUMMY_POINTS_ELEMENT)) {
         err = on_dummy_points_req(server, cln->id, seq);
 
         if (err) {
             fprintf(stderr, "error: %s\n", dicey_error_msg(err));
         }
-    } else if (matches_elem(&msg, SVAL_PATH, SVAL_TRAIT, SVAL_PROP)) {
-        err = on_sval_req(server, cln, seq, &msg);
+    } else if (dicey_message_matches_element(msg, SVAL_PATH, SVAL_TRAIT, SVAL_PROP)) {
+        err = on_sval_req(server, cln, seq, msg);
         if (err) {
             fprintf(stderr, "error: %s\n", dicey_error_msg(err));
         }
-    } else if (matches_elem(&msg, SELF_PATH, SELF_TRAIT, HALT_ELEMENT)) {
-        err = send_reply(server, cln, seq, msg.path, msg.selector, (struct dicey_arg) { .type = DICEY_TYPE_UNIT });
+    } else if (dicey_message_matches_element(msg, SELF_PATH, SELF_TRAIT, HALT_ELEMENT)) {
+        err = send_reply(server, cln, seq, msg->path, msg->selector, (struct dicey_arg) { .type = DICEY_TYPE_UNIT });
         if (err) {
             fprintf(stderr, "error: %s\n", dicey_error_msg(err));
         }
 
         dicey_server_stop(server);
-    } else if (matches_elem(&msg, ECHO_PATH, ECHO_TRAIT, ECHO_ECHO_ELEMENT)) {
-        err = on_echo_req(server, cln, seq, packet, &msg);
-    } else if (matches_elem(&msg, TEST_MGR_PATH, TEST_MGR_TRAIT, TEST_MGR_ADD_ELEMENT)) {
-        err = on_test_add(server, cln, seq, &msg);
-    } else if (matches_elem(&msg, TEST_MGR_PATH, TEST_MGR_TRAIT, TEST_MGR_DEL_ELEMENT)) {
-        err = on_test_del(server, cln, seq, &msg);
-    } else if (matches_elem_under_root(&msg, TEST_OBJ_PATH_BASE, TEST_OBJ_TRAIT, TEST_OBJ_NAME_ELEMENT)) {
-        err = on_test_obj_name(server, cln, seq, &msg);
-    } else if (matches_elem(&msg, TEST_TIMER_PATH, TEST_TIMER_TRAIT, TEST_TIMER_START_ELEMENT)) {
-        err = on_timer_start(server, cln, seq, &msg);
+    } else if (dicey_message_matches_element(msg, ECHO_PATH, ECHO_TRAIT, ECHO_ECHO_ELEMENT)) {
+        err = on_echo_req(server, request);
+    } else if (dicey_message_matches_element(msg, TEST_MGR_PATH, TEST_MGR_TRAIT, TEST_MGR_ADD_ELEMENT)) {
+        err = on_test_add(server, cln, seq, msg);
+    } else if (dicey_message_matches_element(msg, TEST_MGR_PATH, TEST_MGR_TRAIT, TEST_MGR_DEL_ELEMENT)) {
+        err = on_test_del(server, cln, seq, msg);
+    } else if (dicey_message_matches_element_under_root(
+                   msg, TEST_OBJ_PATH_BASE, TEST_OBJ_TRAIT, TEST_OBJ_NAME_ELEMENT
+               )) {
+        err = on_test_obj_name(server, cln, seq, msg);
+    } else if (dicey_message_matches_element(msg, TEST_TIMER_PATH, TEST_TIMER_TRAIT, TEST_TIMER_START_ELEMENT)) {
+        err = on_timer_start(server, cln, seq, msg);
     }
-
-    // this function receives a copy of the packet that must be freed
-    dicey_packet_deinit(&packet);
 }
 
 void on_startup_done(struct dicey_server *const server, enum dicey_error err) {

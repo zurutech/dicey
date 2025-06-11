@@ -147,10 +147,8 @@ enum dicey_error dicey_client_data_subscribe(struct dicey_client_data *const cli
         return TRACE(DICEY_ENOMEM);
 
     case DICEY_HASH_SET_ADDED:
+    case DICEY_HASH_SET_UPDATED: // we're lenient here, we don't care if the client is already subscribed
         return DICEY_OK;
-
-    case DICEY_HASH_SET_UPDATED:
-        return DICEY_EEXIST; // do not trace EEXIST - it is a possible condition
 
     default:
         abort(); // unreachable

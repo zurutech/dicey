@@ -182,7 +182,7 @@ static struct table_entry *hash_get_entry_for_set(
 }
 
 static struct table_entry *hash_get_entry(struct dicey_hashtable *const ht, const char *const key) {
-    return hash_get_entry_for_set(ht, key, NULL, NULL);
+    return ht ? hash_get_entry_for_set(ht, key, NULL, NULL) : NULL; // handle empty table
 }
 
 static struct dicey_hashtable *hash_new(const int32_t *const primes_list, const size_t extra_cap) {

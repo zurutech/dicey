@@ -19,7 +19,9 @@
 
 #include <stddef.h>
 
+#include <dicey/core/errors.h>
 #include <dicey/core/packet.h>
+#include <dicey/core/value.h>
 
 /**
  * @brief Duplicates a dicey_arg structure.
@@ -36,6 +38,10 @@ struct dicey_arg *dicey_arg_dup(struct dicey_arg *dest, const struct dicey_arg *
 void dicey_arg_free(const struct dicey_arg *arg);
 void dicey_arg_free_contents(const struct dicey_arg *arg);
 void dicey_arg_free_list(const struct dicey_arg *arglist, size_t nitems);
+
+// very niche function, crafts a dicey_arg from an existing dicey_value.
+// The arg must be deallocated with dicey_arg_free_contents().
+enum dicey_error dicey_arg_from_borrowed_value(struct dicey_arg *dest_ptr, const struct dicey_value *value);
 
 void dicey_arg_get_list(const struct dicey_arg *arg, const struct dicey_arg **list, const struct dicey_arg **end);
 

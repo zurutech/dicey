@@ -18,10 +18,15 @@
 #include <complex.h>
 #include <stdbool.h>
 #include <stddef.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 
 #include <dicey/core/builders.h>
+#include <dicey/core/type.h>
+#include <dicey/core/value.h>
+
+#include "sup/trace.h"
 
 #include "packet-args.h"
 
@@ -45,6 +50,100 @@ static bool arglist_copy(
     *dest = list_dup;
 
     return true;
+}
+
+static enum dicey_error value_list_to_arg(
+    const struct dicey_list list,
+    struct dicey_arg *const dest,
+    const enum dicey_type type
+) {
+    assert(dest);
+    assert(type == DICEY_TYPE_ARRAY || type == DICEY_TYPE_TUPLE);
+
+    dest->type = type;
+
+    size_t cap = 8U;
+    uint16_t len = 0U;
+
+    struct dicey_arg *elems = calloc(cap, sizeof(*elems));
+    if (!elems) {
+        return TRACE(DICEY_ENOMEM);
+    }
+
+    struct dicey_iterator iter = dicey_list_iter(&list);
+    struct dicey_value value = { 0 };
+
+    while (dicey_iterator_next(&iter, &value)) {
+        if (len == UINT16_MAX) {
+            dicey_arg_free_list(elems, len);
+
+            return TRACE(DICEY_EOVERFLOW); // too many items
+        }
+
+        if (len == cap) {
+            cap *= 2;
+
+            struct dicey_arg *const new_elems = realloc(elems, cap * sizeof *new_elems);
+            if (!new_elems) {
+                dicey_arg_free_list(elems, len);
+
+                return TRACE(DICEY_ENOMEM);
+            }
+
+            elems = new_elems;
+        }
+
+        const enum dicey_error err = dicey_arg_from_borrowed_value(&elems[len], &value);
+        if (err) {
+            dicey_arg_free_list(elems, len);
+
+            return err;
+        }
+
+        ++len;
+    }
+
+    if (type == DICEY_TYPE_ARRAY) {
+        dest->array.type = (enum dicey_type) dicey_list_type(&list);
+        dest->array.elems = elems;
+        dest->array.nitems = len;
+    } else {
+        dest->tuple.elems = elems;
+        dest->tuple.nitems = len;
+    }
+
+    return DICEY_OK;
+}
+
+static enum dicey_error value_pair_to_arg(struct dicey_arg *const dest, const struct dicey_pair pair) {
+    struct dicey_arg *const first = calloc(1, sizeof(*first));
+    if (!first) {
+        return TRACE(DICEY_ENOMEM);
+    }
+
+    const enum dicey_error first_err = dicey_arg_from_borrowed_value(first, &pair.first);
+    if (first_err) {
+        free(first);
+        return first_err;
+    }
+
+    struct dicey_arg *const second = calloc(1, sizeof(*second));
+    if (!second) {
+        dicey_arg_free(first);
+        return TRACE(DICEY_ENOMEM);
+    }
+
+    const enum dicey_error second_err = dicey_arg_from_borrowed_value(second, &pair.second);
+    if (second_err) {
+        dicey_arg_free(first);
+        free(second);
+        return second_err;
+    }
+
+    dest->pair.first = first;
+    dest->pair.second = second;
+
+    return DICEY_OK;
 }
 
 struct dicey_arg *dicey_arg_dup(struct dicey_arg *dest, const struct dicey_arg *src) {
@@ -144,6 +243,128 @@ void dicey_arg_free_list(const struct dicey_arg *const arglist, const size_t nit
     // these are guaranteed to come from malloc - so I have no problems casting them back to mutable.
     // free is just a bad API
     free((void *) arglist);
+}
+
+enum dicey_error dicey_arg_from_borrowed_value(struct dicey_arg *const dest, const struct dicey_value *const value) {
+    assert(dest && value);
+
+    dest->type = dicey_value_get_type(value);
+
+    switch (dest->type) {
+    case DICEY_TYPE_INVALID:
+        return TRACE(DICEY_EINVAL);
+
+    case DICEY_TYPE_UNIT:
+        return DICEY_OK;
+
+    case DICEY_TYPE_BOOL:
+        {
+            bool bool_value = false;
+
+            const enum dicey_error err = dicey_value_get_bool(value, &bool_value);
+            if (err) {
+                return err;
+            }
+
+            dest->boolean = (dicey_bool) bool_value;
+
+            return DICEY_OK;
+        }
+
+    case DICEY_TYPE_BYTE:
+        return dicey_value_get_byte(value, &dest->byte);
+
+    case DICEY_TYPE_FLOAT:
+        return dicey_value_get_float(value, &dest->floating);
+
+    case DICEY_TYPE_INT16:
+        return dicey_value_get_i16(value, &dest->i16);
+
+    case DICEY_TYPE_INT32:
+        return dicey_value_get_i32(value, &dest->i32);
+
+    case DICEY_TYPE_INT64:
+        return dicey_value_get_i64(value, &dest->i64);
+
+    case DICEY_TYPE_UINT16:
+        return dicey_value_get_u16(value, &dest->u16);
+
+    case DICEY_TYPE_UINT32:
+        return dicey_value_get_u32(value, &dest->u32);
+
+    case DICEY_TYPE_UINT64:
+        return dicey_value_get_u64(value, &dest->u64);
+
+    case DICEY_TYPE_ARRAY:
+    case DICEY_TYPE_TUPLE:
+        {
+            struct dicey_list list = { 0 };
+            const enum dicey_error err = dicey_value_get_list(value, &list);
+            if (err) {
+                return err;
+            }
+
+            return value_list_to_arg(list, dest, dest->type);
+        }
+
+    case DICEY_TYPE_PAIR:
+        {
+            struct dicey_pair pair = { 0 };
+            const enum dicey_error err = dicey_value_get_pair(value, &pair);
+            if (err) {
+                return err;
+            }
+
+            return value_pair_to_arg(dest, pair);
+        }
+
+    case DICEY_TYPE_BYTES:
+        {
+            const uint8_t *data = NULL;
+            size_t len = 0;
+            const enum dicey_error err = dicey_value_get_bytes(value, &data, &len);
+            if (err) {
+                return err;
+            }
+
+            if (len > UINT32_MAX) {
+                return TRACE(DICEY_EOVERFLOW);
+            }
+
+            dest->bytes = (struct dicey_bytes_arg) { .data = data, .len = (uint32_t) len };
+
+            return DICEY_OK;
+        }
+
+    case DICEY_TYPE_STR:
+        return dicey_value_get_str(value, &dest->str);
+
+    case DICEY_TYPE_UUID:
+        return dicey_value_get_uuid(value, &dest->uuid);
+
+    case DICEY_TYPE_PATH:
+        return dicey_value_get_path(value, &dest->path);
+
+    case DICEY_TYPE_SELECTOR:
+        return dicey_value_get_selector(value, &dest->selector);
+
+    case DICEY_TYPE_ERROR:
+        {
+            struct dicey_errmsg errmsg = { 0 };
+            const enum dicey_error err = dicey_value_get_error(value, &errmsg);
+            if (err) {
+                return err;
+            }
+
+            dest->error = (struct dicey_error_arg) { .code = errmsg.code, .message = errmsg.message };
+
+            return DICEY_OK;
+        }
+
+    default:
+        // this should never happen, but just in case
+        return TRACE(DICEY_EINVAL);
+    }
 }
 
 void dicey_arg_get_list(
