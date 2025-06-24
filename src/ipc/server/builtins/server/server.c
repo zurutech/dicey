@@ -161,7 +161,7 @@ fail:
     return err;
 }
 
-static enum dicey_error string_message_for(
+static enum dicey_error path_message_for(
     struct dicey_packet *const dest,
     const char *const path,
     const struct dicey_selector sel,
@@ -172,8 +172,8 @@ static enum dicey_error string_message_for(
         path,
         sel,
         (struct dicey_arg) {
-            .type = DICEY_TYPE_STR,
-            .str = value,
+            .type = DICEY_TYPE_PATH,
+            .path = value,
         }
     );
 }
@@ -242,7 +242,7 @@ static enum dicey_error handle_server_operation(
 
             const bool targets_alias = strcmp(entry.main_path, path) != 0;
 
-            return targets_alias ? string_message_for(response, path, sel, entry.main_path)
+            return targets_alias ? path_message_for(response, path, sel, entry.main_path)
                                  : unit_message_for(response, path, sel);
         }
 

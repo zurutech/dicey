@@ -288,7 +288,7 @@ char *dicey_metaname_vformat_to(struct dicey_view_mut *const buffer_view, const 
     if (!buffer_view || buffer_view->len < needed) {
         buffer = realloc(buffer, needed);
         if (!buffer) {
-            return NULL;
+            goto quit; // OOM
         }
 
         if (buffer_view) {
@@ -651,7 +651,7 @@ enum dicey_error dicey_registry_alias_object(
 
     // not very efficient, we fetch the stuff again to get the string key owned by the registry
     struct dicey_object_entry alias_entry = { 0 };
-    err = dicey_registry_get_object_entry(registry, path, &alias_entry);
+    err = dicey_registry_get_object_entry(registry, path, &alias_entry) ? DICEY_OK : DICEY_EPATH_NOT_FOUND;
     assert(!err && alias_entry.object == object && !strcmp(alias_entry.path, path));
 
     // register the alias in the object's aliases

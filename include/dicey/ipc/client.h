@@ -69,6 +69,29 @@ struct dicey_client_event {
 struct dicey_client;
 
 /**
+ * @brief Represents the result of a subscription operation on a client.
+ * @note  This structure must be initialised with `dicey_client_subscribe_result_deinit()` after use to free any
+ * resources it may hold.
+ */
+struct dicey_client_subscribe_result {
+    enum dicey_error
+        err; /**< The error code of the subscription operation. If the operation was successful, this is `DICEY_OK`. */
+
+    /**
+     *  If the subscription targeted an alias, this will be the real path that the client will receive signals from.
+     *  This string is heap allocated and must be freed if taken ownership of. Users can "steal" this string by
+     *  setting `real_path` to NULL, which will prevent `dicey_client_subscribe_result_deinit()` from freeing it.
+     */
+    const char *real_path;
+};
+
+/**
+ * @brief Deinitialises a `dicey_client_subscribe_result` structure.
+ * @param result The result to deinitialise.
+ */
+DICEY_EXPORT void dicey_client_subscribe_result_deinit(struct dicey_client_subscribe_result *result);
+
+/**
  * @brief Represents a callback function that is called when a client connects to a server.
  * @param client The client this callback is associated with.
  * @param ctx    The context associated to this function (usually passed through `dicey_client_connect_async()`).
@@ -113,19 +136,36 @@ typedef void dicey_client_on_reply_fn(
  * @param client The client this callback is associated with.
  * @param ctx    The context associated to this function (usually passed through `dicey_client_subscribe_to_async()` or
  *               `dicey_client_unsubscribe_from_async()`).
+ * @param result The result of the subscription or unsubscription. If the operation was successful, `err` is `DICEY_OK`.
+ *               If `real_path` is not NULL, it means the path that the client specified was an alias pointing to
+ *               an object registered under `real_path`. All signals will be received on `real_path` instead of the
+ *               original path.
+ */
+typedef void dicey_client_on_sub_done_fn(
+    struct dicey_client *client,
+    void *ctx,
+    struct dicey_client_subscribe_result result
+);
+
+/**
+ * @brief Represents a callback function that is called whenever a client finishes subscribing or unsubscribing to a
+ *        signal.
+ * @param client The client this callback is associated with.
+ * @param ctx    The context associated to this function (usually passed through `dicey_client_subscribe_to_async()` or
+ *               `dicey_client_unsubscribe_from_async()`).
  * @param status The status of the subscription/unsubscription - either `DICEY_OK` or an error describing why the
  *               operation failed.
  */
-typedef void dicey_client_on_sub_unsub_done_fn(struct dicey_client *client, void *ctx, enum dicey_error status);
+typedef void dicey_client_on_unsub_done_fn(struct dicey_client *client, void *ctx, enum dicey_error status);
 
 /**
  * @brief Represents a callback function that is called whenever a client receives a Dicey Message containing a signal.
- * @param client The client this callback is associated with.
- * @param ctx    The global context of `client`, as obtained via `dicey_client_get_context()`. This is provided for
+ * @param client  The client this callback is associated with.
+ * @param ctx     The global context of `client`, as obtained via `dicey_client_get_context()`. This is provided for
  * convenience.
- * @param packet The event packet that was received. This is guaranteed to be a valid message containing an event.
- *               The event handler can take ownership of the packet by zeroing it out. This will prevent the client
- *               from freeing it.
+ * @param packet  The event packet that was received. This is guaranteed to be a valid message containing an event.
+ *                The event handler can take ownership of the packet by zeroing it out. This will prevent the client
+ *                from freeing it.
  */
 typedef void dicey_client_signal_fn(struct dicey_client *client, void *ctx, struct dicey_packet *packet);
 
@@ -619,6 +659,9 @@ DICEY_EXPORT void *dicey_client_set_context(struct dicey_client *client, void *d
 /**
  * @brief Subscribes to a signal identified by a given path and selector. Blocks until the subscription is complete or
  * an error occurs.
+ * @note  If the path is an alias, the client will subscribe to the signal on the object that the alias points to.
+ *        Any signal  will be sent from the path that the alias points to, not the alias itself; use the `aliases`
+ *        parameter of the signal handler to determine whether the signal was sent from an alias or not.
  * @param client The client that will subscribe to the signal.
  * @param path   The path of the object hosting the signal.
  * @param sel    The selector pointing to the signal element.
@@ -630,7 +673,7 @@ DICEY_EXPORT void *dicey_client_set_context(struct dicey_client *client, void *d
  *               - EPEER_NOT_FOUND: the server is not up
  *               - ETIMEDOUT: the request timed out
  */
-DICEY_EXPORT enum dicey_error dicey_client_subscribe_to(
+DICEY_EXPORT struct dicey_client_subscribe_result dicey_client_subscribe_to(
     struct dicey_client *client,
     const char *path,
     struct dicey_selector sel,
@@ -657,7 +700,7 @@ DICEY_EXPORT enum dicey_error dicey_client_subscribe_to_async(
     struct dicey_client *client,
     const char *path,
     struct dicey_selector sel,
-    dicey_client_on_sub_unsub_done_fn *cb,
+    dicey_client_on_sub_done_fn *cb,
     void *data,
     uint32_t timeout
 );
@@ -702,7 +745,7 @@ DICEY_EXPORT enum dicey_error dicey_client_unsubscribe_from_async(
     struct dicey_client *client,
     const char *path,
     struct dicey_selector sel,
-    dicey_client_on_sub_unsub_done_fn *cb,
+    dicey_client_on_unsub_done_fn *cb,
     void *data,
     uint32_t timeout
 );

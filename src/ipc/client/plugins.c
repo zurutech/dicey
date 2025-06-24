@@ -192,8 +192,13 @@ static enum dicey_error start_work(
     // similar get the mutex before we do, causing the client loop to stall forever. Checking the quitting flag here is
     // a simple way to avoid problems
 
+    enum dicey_error err = DICEY_OK;
+
     if (plugin->quitting) {
         uv_mutex_unlock(&plugin->list_lock);
+
+        err = TRACE(DICEY_EINVAL);
+
         goto fail;
     }
 
@@ -201,17 +206,19 @@ static enum dicey_error start_work(
     uv_mutex_unlock(&plugin->list_lock);
 
     if (!stored_ctx) {
+        err = TRACE(DICEY_EINVAL); // this should never happen, but if it does, we can't do anything about it
+
         goto fail;
     }
 
     plugin->on_work_received(ctx, &ctx->payload);
 
-    return true;
+    return DICEY_OK;
 
 fail:
     plugin_work_ctx_free(ctx);
 
-    return false;
+    return err;
 }
 
 static enum dicey_error handle_command(

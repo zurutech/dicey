@@ -140,18 +140,20 @@ static int do_op(const char *const addr, const int32_t value) {
         return err;
     }
 
-    err = dicey_client_subscribe_to(
+    struct dicey_client_subscribe_result res = dicey_client_subscribe_to(
         client,
         TEST_TIMER_PATH,
         (struct dicey_selector) { .trait = TEST_TIMER_TRAIT, .elem = TEST_TIMER_TIMERFIRED_ELEMENT },
         3000
     ); // 3 seconds
-    if (err) {
+    if (res.err) {
         dicey_client_disconnect(client);
         dicey_client_delete(client);
 
         return err;
     }
+
+    dicey_client_subscribe_result_deinit(&res);
 
     struct dicey_packet response = { 0 };
     err = dicey_client_exec(
