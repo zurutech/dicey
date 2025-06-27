@@ -318,6 +318,8 @@ enum dicey_error dicey_server_request_for(
     dest->signature = elem->signature;
     dest->server = server;
 
+    return DICEY_OK;
+
 deinit_all:
     dicey_message_builder_discard(&dest->resp_builder);
 
