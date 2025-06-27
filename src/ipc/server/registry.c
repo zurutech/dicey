@@ -206,8 +206,20 @@ static enum dicey_error registry_add_object(
         break;
 
     case DICEY_HASH_SET_ADDED:
-        assert(!old_value);
-        break;
+        {
+            assert(!old_value);
+
+            // fetch the entry for the object we just added, in order to get a path owned by the hashtable
+            struct dicey_object_entry entry = { 0 };
+            const enum dicey_error err = registry_get_object_entry(registry, &entry, path);
+            DICEY_UNUSED(err);
+            assert(!err); // we just added the object, so it should always exist
+
+            // set the main path of the object to the one we just added
+            object->main_path = entry.path;
+
+            break;
+        }
     }
 
     return DICEY_OK;
