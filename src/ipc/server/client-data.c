@@ -88,18 +88,12 @@ struct dicey_client_data *dicey_client_data_init(
 ) {
     assert(client && parent);
 
-    struct dicey_hashset *const subscriptions = dicey_hashset_new();
-    if (!subscriptions) {
-        return NULL;
-    }
-
     *client = (struct dicey_client_data) {
         .info = {
             .id = id,
         },
 
         .parent = parent,
-        .subscriptions = subscriptions,
     };
 
     return client;

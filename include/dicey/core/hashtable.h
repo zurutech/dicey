@@ -39,12 +39,6 @@ struct dicey_hashtable_entry {
 };
 
 /**
- * @brief Creates a new hashtable.
- * @return A pointer to the new hashtable, or NULL if memory allocation fails.
- */
-DICEY_EXPORT struct dicey_hashtable *dicey_hashtable_new(void);
-
-/**
  * @brief A function that frees the memory of a value in a hashtable.
  * @param value The value to free. Only NULL when NULL is a valid value in the hashtable.
  */
@@ -122,7 +116,7 @@ enum dicey_hash_set_result {
 
 /**
  * @brief Sets a key-value pair in a hashtable.
- * @param table A pointer to the hashtable.
+ * @param table A pointer to the hashtable. If *table is NULL, a new hashtable will be created.
  * @param key The key to set.
  * @param value The value to set.
  * @param old_value A pointer to a variable that will receive the old value if the key already exists.

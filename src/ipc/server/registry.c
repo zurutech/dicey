@@ -58,8 +58,6 @@ static void object_free(void *const ptr) {
 }
 
 static struct dicey_object *object_new_with(struct dicey_hashset *traits) {
-    assert(traits);
-
     struct dicey_object *const object = malloc(sizeof *object);
     if (!object) {
         return NULL;
@@ -80,19 +78,7 @@ static struct dicey_object *object_new_with(struct dicey_hashset *traits) {
 }
 
 static struct dicey_object *object_new(void) {
-    struct dicey_hashset *const traits = dicey_hashset_new();
-    if (!traits) {
-        return NULL;
-    }
-
-    struct dicey_object *const object = object_new_with(traits);
-    if (!object) {
-        dicey_hashset_delete(traits);
-
-        return NULL;
-    }
-
-    return object;
+    return object_new_with(NULL);
 }
 
 static void trait_free(void *const trait_ptr) {
@@ -163,7 +149,7 @@ static enum dicey_error registry_get_object_entry(
     struct dicey_object_entry *dest,
     const char *const path
 ) {
-    assert(registry && registry->paths && dest && path);
+    assert(registry && dest && path);
 
     if (!path_is_valid(path)) {
         return TRACE(DICEY_EPATH_MALFORMED);
@@ -371,23 +357,7 @@ void dicey_registry_deinit(struct dicey_registry *const registry) {
 enum dicey_error dicey_registry_init(struct dicey_registry *const registry) {
     assert(registry);
 
-    struct dicey_hashtable *const paths = dicey_hashtable_new();
-    if (!paths) {
-        return TRACE(DICEY_ENOMEM);
-    }
-
-    struct dicey_hashtable *const traits = dicey_hashtable_new();
-    if (!traits) {
-        dicey_hashtable_delete(paths, &object_free);
-
-        return TRACE(DICEY_ENOMEM);
-    }
-
-    *registry = (struct dicey_registry) {
-        .paths = paths,
-        .traits = traits,
-        .buffer = dicey_view_mut_from(NULL, 0),
-    };
+    *registry = (struct dicey_registry) { 0 };
 
     const enum dicey_error err = dicey_registry_populate_builtins(registry);
     if (err) {

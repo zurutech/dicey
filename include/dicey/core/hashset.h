@@ -30,12 +30,6 @@ struct dicey_hashset_iter {
 };
 
 /**
- * @brief Creates a new hashset.
- * @return A pointer to the new hashset, or NULL if memory allocation fails.
- */
-DICEY_EXPORT struct dicey_hashset *dicey_hashset_new(void);
-
-/**
  * @brief Deletes a hashset and frees its memory.
  * @param table The hashset to delete.
  */

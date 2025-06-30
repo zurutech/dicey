@@ -1594,13 +1594,9 @@ enum dicey_error dicey_server_add_object_with(struct dicey_server *const server,
     assert(server && path);
     va_list args;
 
-    struct dicey_hashset *traits = dicey_hashset_new();
-    if (!traits) {
-        return TRACE(DICEY_ENOMEM);
-    }
-
     va_start(args, path);
 
+    struct dicey_hashset *traits = NULL;
     enum dicey_error err = DICEY_OK;
 
     for (;;) {

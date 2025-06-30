@@ -305,6 +305,14 @@ static const struct test_object test_objects[] = {
     { .path = TEST_TIMER_PATH, .traits = (const char *[]) { TEST_TIMER_TRAIT, NULL }},
 };
 
+struct test_alias {
+    const char *alias, *target;
+};
+
+static const struct test_alias test_aliases[] = {
+    {.alias = TEST_TIMER_ALIAS_PATH, .target = TEST_TIMER_PATH},
+};
+
 struct timer_state {
     struct dicey_server *server;
 
@@ -591,10 +599,7 @@ static enum dicey_error registry_fill(struct dicey_registry *const registry) {
     for (const struct test_object *object_def = test_objects; object_def < objects_end; ++object_def) {
         assert(object_def->path && object_def->traits);
 
-        struct dicey_hashset *traits_set = dicey_hashset_new();
-        if (!traits_set) {
-            return DICEY_ENOMEM;
-        }
+        struct dicey_hashset *traits_set = NULL;
 
         for (const char *const *trait_name_ptr = object_def->traits; *trait_name_ptr; ++trait_name_ptr) {
             const char *const trait_name = *trait_name_ptr;
@@ -620,6 +625,16 @@ static enum dicey_error registry_fill(struct dicey_registry *const registry) {
         if (err) {
             dicey_hashset_delete(traits_set);
 
+            return err;
+        }
+    }
+
+    const struct test_alias *const aliases_end = test_aliases + sizeof(test_aliases) / sizeof(test_aliases[0]);
+    for (const struct test_alias *alias_def = test_aliases; alias_def < aliases_end; ++alias_def) {
+        assert(alias_def->alias && alias_def->target);
+
+        const enum dicey_error err = dicey_registry_alias_object(registry, alias_def->target, alias_def->alias);
+        if (err) {
             return err;
         }
     }
@@ -1378,13 +1393,6 @@ int main(const int argc, char *argv[]) {
 
     // start and register the timer thread
     timer_state_init(&tstate, global_server);
-
-    ctx.hash = dicey_hashtable_new();
-    if (!ctx.hash) {
-        fprintf(stderr, "error: hashtable_new failed\n");
-
-        goto quit;
-    }
 
     if (dicey_hashtable_set(&ctx.hash, TIMER_STATE_KEY, &tstate, NULL) == DICEY_HASH_SET_FAILED) {
         err = DICEY_ENOMEM;
