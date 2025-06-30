@@ -32,10 +32,14 @@ struct dicey_object {
     const char *main_path; /**< The path the object was created at. This is the "main" path, which may be different from
                               the aliased path if the object has been aliased. */
 
-    struct dicey_hashset
-        *aliases; /**< A set of aliases for this object. This is a set of paths that point to the same object. */
+    /** A set of aliases for this object. This is a set of paths that point to the same object. */
+    struct dicey_hashset *aliases;
 
     void *cached_xml; /**< A cached XML representation of the object. Internal, do not use. Lazily generated */
+
+    ptrdiff_t refcount; /**< The reference count of the object. This is used to determine when the object can be
+                              freed. It is incremented when the object is aliased, and decremented when the alias
+                              is removed. */
 };
 
 struct dicey_registry {

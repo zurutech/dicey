@@ -45,15 +45,25 @@
 
 static_assert(sizeof(NULL) == sizeof(void *), "NULL is not a pointer");
 
-static void object_free(void *const ptr) {
+static void object_ref(struct dicey_object *const object) {
+    assert(object && object->refcount > 0);
+
+    ++object->refcount;
+}
+
+static void object_deref(void *const ptr) {
     struct dicey_object *const object = ptr;
 
-    if (object) {
-        dicey_hashset_delete(object->aliases);
-        dicey_hashset_delete(object->traits);
+    assert(!object || object->refcount > 0);
 
-        xmlFree(object->cached_xml);
-        free(object);
+    if (object) {
+        if (--object->refcount <= 0) {
+            dicey_hashset_delete(object->aliases);
+            dicey_hashset_delete(object->traits);
+
+            xmlFree(object->cached_xml);
+            free(object);
+        }
     }
 }
 
@@ -72,6 +82,7 @@ static struct dicey_object *object_new_with(struct dicey_hashset *traits) {
 
     *object = (struct dicey_object) {
         .traits = traits,
+        .refcount = 1, // the object is created with a refcount of 1
     };
 
     return object;
@@ -108,6 +119,19 @@ static bool path_is_valid(const char *const path) {
     return true;
 }
 
+static enum dicey_error registry_remove_path(struct dicey_registry *const registry, const char *const path) {
+    assert(registry && path);
+
+    struct dicey_object *const obj = dicey_hashtable_remove(registry->paths, path);
+    if (!obj) {
+        return TRACE(DICEY_EPATH_NOT_FOUND);
+    }
+
+    object_deref(obj);
+
+    return DICEY_OK;
+}
+
 static enum dicey_error registry_del_object(struct dicey_registry *const registry, const char *const path) {
     assert(registry && path);
 
@@ -128,9 +152,9 @@ static enum dicey_error registry_del_object(struct dicey_registry *const registr
         assert(alias);
 
         // remove the alias from the hashtable
-        const bool success = dicey_hashtable_remove(registry->paths, alias);
-        DICEY_UNUSED(success);
-        assert(success); // the alias should always exist in the hashtable
+        const enum dicey_error err = registry_remove_path(registry, alias);
+        DICEY_UNUSED(err);
+        assert(!err); // the alias should always exist in the hashtable
     }
 
     // remove the main path from the hashtable. The object is now purged from the registry
@@ -139,7 +163,7 @@ static enum dicey_error registry_del_object(struct dicey_registry *const registr
     assert(success); // the main path should always exist in the hashtable
 
     // now that no references to the object exist, we can safely free it
-    object_free(object);
+    object_deref(object);
 
     return DICEY_OK;
 }
@@ -345,7 +369,7 @@ void dicey_registry_deinit(struct dicey_registry *const registry) {
     assert(registry);
 
     if (registry) {
-        dicey_hashtable_delete(registry->paths, &object_free);
+        dicey_hashtable_delete(registry->paths, &object_deref);
         dicey_hashtable_delete(registry->traits, &trait_free);
 
         free(registry->buffer.data);
@@ -416,14 +440,14 @@ enum dicey_error dicey_registry_add_object_with(struct dicey_registry *const reg
     va_end(traits);
 
     if (err) {
-        object_free(object);
+        object_deref(object);
 
         return err;
     }
 
     err = registry_add_object(registry, path, object);
     if (err) {
-        object_free(object);
+        object_deref(object);
     }
 
     return err;
@@ -452,7 +476,7 @@ enum dicey_error dicey_registry_add_object_with_trait_list(
     for (; *traits; ++traits) {
         const char *const trait = *traits;
         if (!registry_trait_exists(registry, trait)) {
-            object_free(object);
+            object_deref(object);
 
             return TRACE(DICEY_ETRAIT_NOT_FOUND);
         }
@@ -462,12 +486,12 @@ enum dicey_error dicey_registry_add_object_with_trait_list(
             break;
 
         case DICEY_HASH_SET_UPDATED:
-            object_free(object);
+            object_deref(object);
 
             return TRACE(DICEY_EINVAL);
 
         case DICEY_HASH_SET_FAILED:
-            object_free(object);
+            object_deref(object);
 
             return TRACE(DICEY_ENOMEM);
         }
@@ -475,7 +499,7 @@ enum dicey_error dicey_registry_add_object_with_trait_list(
 
     const enum dicey_error err = registry_add_object(registry, path, object);
     if (err) {
-        object_free(object);
+        object_deref(object);
     }
 
     return err;
@@ -512,7 +536,7 @@ enum dicey_error dicey_registry_add_object_with_trait_set(
 
     const enum dicey_error err = registry_add_object(registry, path, node);
     if (err) {
-        object_free(node);
+        object_deref(node);
     }
 
     return err;
@@ -625,6 +649,8 @@ enum dicey_error dicey_registry_alias_object(
     if (!object) {
         return TRACE(DICEY_EPATH_NOT_FOUND);
     }
+
+    object_ref(object); // we will add an object alias to the registry, so we need to increment the refcount
 
     enum dicey_error err = registry_add_object(registry, alias, object);
     if (err) {
@@ -823,7 +849,7 @@ enum dicey_error dicey_registry_remove_object(struct dicey_registry *const regis
         return TRACE(DICEY_EPATH_NOT_FOUND);
     }
 
-    object_free(object);
+    object_deref(object);
 
     return DICEY_OK;
 }
@@ -844,13 +870,19 @@ enum dicey_error dicey_registry_unalias_object(
         return TRACE(DICEY_EPATH_NOT_FOUND);
     }
 
+    if (!dicey_object_has_alias(object, alias)) {
+        return TRACE(DICEY_EPATH_NOT_ALIAS); // alias does not exist
+    }
+
+    assert(object->aliases && dicey_hashset_size(object->aliases) > 0 && object->refcount >= 2);
+
     // remove the alias from the object's aliases
     const bool success = dicey_hashset_remove(object->aliases, alias);
     if (!success) {
         return TRACE(DICEY_EPATH_NOT_FOUND); // alias does not exist
     }
 
-    enum dicey_error err = registry_del_object(registry, alias);
+    enum dicey_error err = registry_remove_path(registry, alias);
     if (err) {
         assert(false); // should never happen, it means the registry broke spectacularly its internal invariants
         return err;
