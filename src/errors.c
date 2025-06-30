@@ -53,6 +53,7 @@ static const struct dicey_error_def error_info[] = {
     ERROR_INFO_FOR(DICEY_EPATH_DELETED, "PathDeleted", "path has been deleted"),
     ERROR_INFO_FOR(DICEY_EPATH_NOT_FOUND, "PathNotFound", "path not found"),
     ERROR_INFO_FOR(DICEY_EPATH_MALFORMED, "MalformedPath", "malformed path"),
+    ERROR_INFO_FOR(DICEY_EPATH_NOT_ALIAS, "PathNotAlias", "path is not an alias"),
     ERROR_INFO_FOR(DICEY_ETRAIT_NOT_FOUND, "TraitNotFound", "trait not found"),
     ERROR_INFO_FOR(DICEY_EELEMENT_NOT_FOUND, "ElementNotFound", "element not found"),
     ERROR_INFO_FOR(DICEY_ESIGNATURE_MALFORMED, "MalformedSignature", "malformed signature"),
@@ -106,6 +107,8 @@ bool dicey_error_is_valid(enum dicey_error errnum) {
     case DICEY_ESERVER_TOO_OLD:
     case DICEY_EPATH_DELETED:
     case DICEY_EPATH_NOT_FOUND:
+    case DICEY_EPATH_MALFORMED:
+    case DICEY_EPATH_NOT_ALIAS:
     case DICEY_ETRAIT_NOT_FOUND:
     case DICEY_EELEMENT_NOT_FOUND:
     case DICEY_ESIGNATURE_MALFORMED:

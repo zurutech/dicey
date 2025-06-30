@@ -64,19 +64,20 @@ enum dicey_error {
     DICEY_EPATH_DELETED = -0x041A,        /**< Path has been deleted. */
     DICEY_EPATH_NOT_FOUND = -0x041B,      /**< Path not found. */
     DICEY_EPATH_MALFORMED = -0x041C,      /**< Path is malformed */
-    DICEY_ETRAIT_NOT_FOUND = -0x041D,     /**< Trait not found. */
-    DICEY_EELEMENT_NOT_FOUND = -0x041E,   /**< Element not found. */
-    DICEY_ESIGNATURE_MALFORMED = -0x041F, /**< Signature is malformed. */
-    DICEY_ESIGNATURE_MISMATCH = -0x0420,  /**< Signature is mismatched. */
-    DICEY_EPROPERTY_READ_ONLY = -0x0421,  /**< Property is read-only. */
-    DICEY_EPEER_NOT_FOUND = -0x0422,      /**< Peer not found. */
-    DICEY_ESEQNUM_MISMATCH = -0x0423,     /**< Sequence number mismatch. */
-    DICEY_EUUID_NOT_VALID = -0x0424,      /**< UUID is not valid. */
+    DICEY_EPATH_NOT_ALIAS = -0x041D,      /**< Path is not an alias. */
+    DICEY_ETRAIT_NOT_FOUND = -0x041E,     /**< Trait not found. */
+    DICEY_EELEMENT_NOT_FOUND = -0x041F,   /**< Element not found. */
+    DICEY_ESIGNATURE_MALFORMED = -0x0420, /**< Signature is malformed. */
+    DICEY_ESIGNATURE_MISMATCH = -0x0421,  /**< Signature is mismatched. */
+    DICEY_EPROPERTY_READ_ONLY = -0x0422,  /**< Property is read-only. */
+    DICEY_EPEER_NOT_FOUND = -0x0423,      /**< Peer not found. */
+    DICEY_ESEQNUM_MISMATCH = -0x0424,     /**< Sequence number mismatch. */
+    DICEY_EUUID_NOT_VALID = -0x0425,      /**< UUID is not valid. */
 
-    DICEY_EUV_UNKNOWN = -0x0525, /**< Unknown libuv error. */
+    DICEY_EUV_UNKNOWN = -0x0526, /**< Unknown libuv error. */
 
     // Plugin errors are only valid if plugins are enabled
-    DICEY_EPLUGIN_INVALID_NAME = -0x7E26, /**< Invalid plugin name. */
+    DICEY_EPLUGIN_INVALID_NAME = -0x7E27, /**< Invalid plugin name. */
 };
 
 /**
