@@ -62,7 +62,17 @@ cdef extern from "dicey/dicey.h":
         dicey_packet *packet
     )
 
-    ctypedef void dicey_client_on_sub_unsub_done_fn(
+    cdef struct dicey_client_subscribe_result:
+        dicey_error err
+        const char *real_path
+
+    ctypedef void dicey_client_on_sub_done_fn(
+        dicey_client *client,
+        void *ctx,
+        dicey_client_subscribe_result result
+    )
+
+    ctypedef void dicey_client_on_unsub_done_fn(
         dicey_client *client,
         void *ctx,
         dicey_error status
@@ -170,7 +180,7 @@ cdef extern from "dicey/dicey.h":
 
     void *dicey_client_set_context(dicey_client *client, void *data)
 
-    dicey_error dicey_client_subscribe_to(
+    dicey_client_subscribe_result dicey_client_subscribe_to(
         dicey_client *client,
         const char *path,
         dicey_selector sel,
@@ -181,7 +191,7 @@ cdef extern from "dicey/dicey.h":
         dicey_client *client,
         const char *path,
         dicey_selector sel,
-        dicey_client_on_sub_unsub_done_fn *cb,
+        dicey_client_on_sub_done_fn *cb,
         void *data,
         uint32_t timeout
     )
@@ -197,7 +207,7 @@ cdef extern from "dicey/dicey.h":
         dicey_client *client,
         const char *path,
         dicey_selector sel,
-        dicey_client_on_sub_unsub_done_fn *cb,
+        dicey_client_on_unsub_done_fn *cb,
         void *data,
         uint32_t timeout
     )
