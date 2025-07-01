@@ -335,12 +335,13 @@ static enum dicey_error registry_add_aliases(
     }
 
     if (err && err != DICEY_EEXIST) {
-        struct dicey_hashset_iter iter = dicey_hashset_iter_start(aliases);
-        const char *alias = NULL;
+        iter = dicey_hashset_iter_start(aliases);
+        alias = NULL;
 
         while (dicey_hashset_iter_next(&iter, &alias)) {
+            assert(alias);
             // remove the alias from the registry, best effort
-            (void) dicey_registry_unalias_object(registry, path, alias);
+            (void) dicey_registry_unalias_object(registry, alias);
         }
     }
 
@@ -1202,6 +1203,25 @@ static enum dicey_error loop_request_add_aliases(
     return err;
 }
 
+static enum dicey_error loop_request_del_alias(
+    struct dicey_server *const server,
+    struct dicey_client_data *const client,
+    void *const payload
+) {
+    DICEY_UNUSED(client);
+
+    // no need to free the payload, it is a const char[] embedded in the request struct
+    const char *alias = payload;
+    assert(alias);
+
+    enum dicey_error err = DICEY_OK;
+    if (server) {
+        err = dicey_registry_unalias_object(&server->registry, alias);
+    }
+
+    return err;
+}
+
 static enum dicey_error loop_request_add_trait(
     struct dicey_server *const server,
     struct dicey_client_data *const client,
@@ -1848,6 +1868,51 @@ enum dicey_error dicey_server_delete_object(struct dicey_server *const server, c
             }
 
             assert((size_t) result == path_size);
+
+            return dicey_server_submit_request(server, req);
+        }
+
+    default:
+        return TRACE(DICEY_EINVAL);
+    }
+}
+
+enum dicey_error dicey_server_delete_object_alias(struct dicey_server *const server, const char *const alias) {
+    assert(server && alias);
+
+    // TODO: same concerns as above
+    switch ((enum dicey_server_state) server->state) {
+    case SERVER_STATE_UNINIT:
+    case SERVER_STATE_INIT:
+        {
+            struct dicey_registry *const registry = dicey_server_get_registry(server);
+            assert(registry);
+
+            return dicey_registry_unalias_object(registry, alias);
+        }
+
+    case SERVER_STATE_RUNNING:
+        {
+            const size_t alias_size = dutl_zstring_size(alias);
+            struct dicey_server_loop_request *const req = DICEY_SERVER_LOOP_REQ_NEW_WITH_BYTES(alias_size);
+            if (!req) {
+                return TRACE(DICEY_ENOMEM);
+            }
+
+            *req = (struct dicey_server_loop_request) {
+                .cb = &loop_request_del_alias,
+                .target = DICEY_SERVER_LOOP_REQ_NO_TARGET,
+            };
+
+            struct dicey_view_mut payload = DICEY_SERVER_LOOP_REQ_GET_PAYLOAD_AS_VIEW_MUT(*req, alias_size);
+            const ptrdiff_t result = dicey_view_mut_write_zstring(&payload, alias);
+            if (result < 0) {
+                free(req);
+
+                return (enum dicey_error) result;
+            }
+
+            assert((size_t) result == alias_size);
 
             return dicey_server_submit_request(server, req);
         }

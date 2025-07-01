@@ -236,6 +236,23 @@ DICEY_EXPORT enum dicey_error dicey_server_add_object_aliases(
 );
 
 /**
+ * @brief Deletes an alias from an object.
+ * @note This function has a different behaviour depending on whether the server is running or not. If the server is
+ *       in a stopped state, the alias is removed from the server's registry immediately (note: not thread safe).
+ *       If the server is running, the request is executed on the server thread: the function only submit the request to
+ *       the server thread and return immediately.
+ * @param server The server to delete the alias from.
+ * @param alias  The alias to remove.
+ * @return       Error code. The possible values are several and include:
+ *               - OK: the alias was successfully deleted
+ *               - ENOMEM: memory allocation failed
+ *               - EPATH_MALFORMED: the alias is malformed
+ *               - EPATH_NOT_FOUND: the alias is not registered
+ *               - EPATH_NOT_ALIAS: the path is not an alias
+ */
+DICEY_EXPORT enum dicey_error dicey_server_delete_object_alias(struct dicey_server *server, const char *alias);
+
+/**
  * @brief Deletes an object from the server. The server will stop handling requests at the given path.
  * @note This function has a different behaviour depending on whether the server is running or not. If the server is
  *       in a stopped state, the trait is removed from the server's registry immediately. If the server is running, the
