@@ -69,10 +69,14 @@
 
 #define TEST_MGR_PATH "/dicey/test/manager"
 #define TEST_MGR_TRAIT "dicey.test.Manager"
-#define TEST_MGR_ADD_ELEMENT "Add"
+#define TEST_MGR_ADD_ELEMENT "AddTestObject"
 #define TEST_MGR_ADD_SIGNATURE "s -> @"
-#define TEST_MGR_DEL_ELEMENT "Delete"
+#define TEST_MGR_ALIAS_ELEMENT "Alias"
+#define TEST_MGR_ALIAS_SIGNATURE "{@@} -> $"
+#define TEST_MGR_DEL_ELEMENT "DeleteTestObject"
 #define TEST_MGR_DEL_SIGNATURE "@ -> $"
+#define TEST_MGR_UNALIAS_ELEMENT "Unalias"
+#define TEST_MGR_UNALIAS_SIGNATURE "@ -> $"
 
 #define TEST_OBJ_PATH_BASE "/dicey/test/object/"
 #define TEST_OBJ_PATH_FMT TEST_OBJ_PATH_BASE "%zu"
@@ -256,8 +260,18 @@ static const struct test_trait test_traits[] = {
                 },
                 &(struct test_element) {
                     .type = DICEY_ELEMENT_TYPE_OPERATION,
+                    .name = TEST_MGR_ALIAS_ELEMENT,
+                    .signature = TEST_MGR_ALIAS_SIGNATURE,
+                },
+                &(struct test_element) {
+                    .type = DICEY_ELEMENT_TYPE_OPERATION,
                     .name = TEST_MGR_DEL_ELEMENT,
                     .signature = TEST_MGR_DEL_SIGNATURE,
+                },
+                &(struct test_element) {
+                    .type = DICEY_ELEMENT_TYPE_OPERATION,
+                    .name = TEST_MGR_UNALIAS_ELEMENT,
+                    .signature = TEST_MGR_UNALIAS_SIGNATURE,
                 },
                 NULL,
             }, },
@@ -948,6 +962,94 @@ static enum dicey_error on_test_del(
     return send_reply(server, cln, seq, req->path, req->selector, (struct dicey_arg) { .type = DICEY_TYPE_UNIT });
 }
 
+static enum dicey_error on_test_alias(
+    struct dicey_server *const server,
+    const struct dicey_client_info *const cln,
+    const uint32_t seq,
+    const struct dicey_message *const req
+) {
+    assert(server && cln && req && req->type == DICEY_OP_EXEC);
+
+    struct dicey_pair pair = { 0 };
+
+    enum dicey_error err = dicey_value_get_pair(&req->value, &pair);
+    if (err) {
+        return send_reply(server, cln, seq, req->path, req->selector, (struct dicey_arg) {
+            .type = DICEY_TYPE_ERROR,
+            .error = {
+                .code = err,
+                .message = dicey_error_msg(err),
+            },
+        });
+    }
+
+    const char *target = NULL;
+
+    err = dicey_value_get_path(&pair.first, &target);
+    if (err) {
+        return send_reply(server, cln, seq, req->path, req->selector, (struct dicey_arg) {
+            .type = DICEY_TYPE_ERROR,
+            .error = {
+                .code = err,
+                .message = dicey_error_msg(err),
+            },
+        });
+    }
+
+    const char *alias = NULL;
+    err = dicey_value_get_path(&pair.second, &alias);
+    if (err) {
+        return send_reply(server, cln, seq, req->path, req->selector, (struct dicey_arg) {
+            .type = DICEY_TYPE_ERROR,
+            .error = {
+                .code = err,
+                .message = dicey_error_msg(err),
+            },
+        });
+    }
+
+    err = dicey_server_add_object_alias(server, target, alias);
+    if (err) {
+        return send_reply(server, cln, seq, req->path, req->selector, (struct dicey_arg) {
+            .type = DICEY_TYPE_ERROR,
+            .error = {
+                .code = err,
+                .message = dicey_error_msg(err),
+            },
+        });
+    }
+
+    return send_reply(server, cln, seq, req->path, req->selector, (struct dicey_arg) { .type = DICEY_TYPE_UNIT });
+}
+
+static enum dicey_error on_test_unalias(
+    struct dicey_server *const server,
+    const struct dicey_client_info *const cln,
+    const uint32_t seq,
+    const struct dicey_message *const req
+) {
+    assert(server && cln && req && req->type == DICEY_OP_EXEC);
+
+    const char *path = NULL;
+    enum dicey_error err = dicey_value_get_path(&req->value, &path);
+    if (err) {
+        return send_reply(server, cln, seq, req->path, req->selector, (struct dicey_arg) { .type = DICEY_TYPE_ERROR, .error = {
+            .code = err,
+            .message = dicey_error_msg(err),
+        } });
+    }
+
+    err = dicey_server_delete_object_alias(server, path);
+    if (err) {
+        return send_reply(server, cln, seq, req->path, req->selector, (struct dicey_arg) { .type = DICEY_TYPE_ERROR, .error = {
+            .code = err,
+            .message = dicey_error_msg(err),
+        } });
+    }
+
+    return send_reply(server, cln, seq, req->path, req->selector, (struct dicey_arg) { .type = DICEY_TYPE_UNIT });
+}
+
 static enum dicey_error on_test_obj_name(
     struct dicey_server *const server,
     const struct dicey_client_info *const cln,
@@ -1192,8 +1294,12 @@ static void on_request_received(struct dicey_server *const server, struct dicey_
         err = on_echo_req(server, request);
     } else if (dicey_message_matches_element(msg, TEST_MGR_PATH, TEST_MGR_TRAIT, TEST_MGR_ADD_ELEMENT)) {
         err = on_test_add(server, cln, seq, msg);
+    } else if (dicey_message_matches_element(msg, TEST_MGR_PATH, TEST_MGR_TRAIT, TEST_MGR_ALIAS_ELEMENT)) {
+        err = on_test_alias(server, cln, seq, msg);
     } else if (dicey_message_matches_element(msg, TEST_MGR_PATH, TEST_MGR_TRAIT, TEST_MGR_DEL_ELEMENT)) {
         err = on_test_del(server, cln, seq, msg);
+    } else if (dicey_message_matches_element(msg, TEST_MGR_PATH, TEST_MGR_TRAIT, TEST_MGR_UNALIAS_ELEMENT)) {
+        err = on_test_unalias(server, cln, seq, msg);
     } else if (dicey_message_matches_element_under_root(
                    msg, TEST_OBJ_PATH_BASE, TEST_OBJ_TRAIT, TEST_OBJ_NAME_ELEMENT
                )) {
