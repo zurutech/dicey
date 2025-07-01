@@ -31,6 +31,7 @@
 
 #include <dicey/core/builders.h>
 #include <dicey/core/errors.h>
+#include <dicey/core/hashset.h>
 #include <dicey/core/packet.h>
 #include <dicey/core/typedescr.h>
 #include <dicey/core/value.h>
@@ -307,6 +308,43 @@ static enum dicey_error make_error(
             .message = dicey_error_msg(msg_err),
         },
     });
+}
+
+static enum dicey_error registry_add_aliases(
+    struct dicey_registry *const registry,
+    const char *const path,
+    const struct dicey_hashset *const aliases
+) {
+    assert(registry && path);
+
+    if (!aliases || !dicey_hashset_size(aliases)) {
+        return DICEY_OK; // no aliases to add
+    }
+
+    struct dicey_hashset_iter iter = dicey_hashset_iter_start(aliases);
+    const char *alias = NULL;
+    enum dicey_error err = DICEY_OK;
+
+    while (dicey_hashset_iter_next(&iter, &alias)) {
+        err = dicey_registry_alias_object(registry, path, alias);
+
+        // if the alias already exists, we can ignore the error
+        if (err && err != DICEY_EEXIST) {
+            break;
+        }
+    }
+
+    if (err && err != DICEY_EEXIST) {
+        struct dicey_hashset_iter iter = dicey_hashset_iter_start(aliases);
+        const char *alias = NULL;
+
+        while (dicey_hashset_iter_next(&iter, &alias)) {
+            // remove the alias from the registry, best effort
+            (void) dicey_registry_unalias_object(registry, path, alias);
+        }
+    }
+
+    return DICEY_OK;
 }
 
 static enum dicey_error server_sendpkt(
@@ -1134,6 +1172,36 @@ static enum dicey_error loop_request_add_object(
     return err;
 }
 
+struct aliases_info {
+    const char *path;
+    struct dicey_hashset *aliases;
+};
+
+static enum dicey_error loop_request_add_aliases(
+    struct dicey_server *const server,
+    struct dicey_client_data *const client,
+    void *const payload
+) {
+    DICEY_UNUSED(client);
+
+    struct aliases_info nfo = { 0 };
+
+    memcpy(&nfo, payload, sizeof nfo);
+    assert(nfo.path && nfo.aliases);
+
+    enum dicey_error err = DICEY_OK;
+
+    if (server) {
+        err = registry_add_aliases(&server->registry, nfo.path, nfo.aliases);
+    }
+
+    // free the strings we strdup'd earlier
+    free((char *) nfo.path);
+    dicey_hashset_delete(nfo.aliases);
+
+    return err;
+}
+
 static enum dicey_error loop_request_add_trait(
     struct dicey_server *const server,
     struct dicey_client_data *const client,
@@ -1636,6 +1704,77 @@ out:
     }
 
     return err;
+}
+
+enum dicey_error dicey_server_add_object_alias(
+    struct dicey_server *const server,
+    const char *const path,
+    const char *const alias
+) {
+    assert(server && path && alias);
+
+    struct dicey_hashset *aliases = NULL;
+    if (dicey_hashset_add(&aliases, alias) == DICEY_HASH_SET_FAILED) {
+        return TRACE(DICEY_ENOMEM);
+    }
+
+    return dicey_server_add_object_aliases(server, path, aliases);
+}
+
+enum dicey_error dicey_server_add_object_aliases(
+    struct dicey_server *const server,
+    const char *const path,
+    struct dicey_hashset *aliases
+) {
+    assert(server && path && aliases);
+
+    switch ((enum dicey_server_state) server->state) {
+    // directly add the aliases to the registry if the server is not running
+    case SERVER_STATE_UNINIT:
+    case SERVER_STATE_INIT:
+        {
+            struct dicey_registry *const registry = dicey_server_get_registry(server);
+            assert(registry);
+
+            const enum dicey_error err = registry_add_aliases(registry, path, aliases);
+
+            dicey_hashset_delete(aliases);
+
+            return err;
+        }
+
+    // submit a request to the server loop if the server is running
+    case SERVER_STATE_RUNNING:
+        {
+            struct dicey_server_loop_request *const req = DICEY_SERVER_LOOP_REQ_NEW(struct aliases_info);
+            if (!req) {
+                return TRACE(DICEY_ENOMEM);
+            }
+
+            char *const path_copy = strdup(path);
+            if (!path_copy) {
+                free(req);
+                return TRACE(DICEY_ENOMEM);
+            }
+
+            *req = (struct dicey_server_loop_request) {
+                .cb = &loop_request_add_aliases,
+                .target = DICEY_SERVER_LOOP_REQ_NO_TARGET,
+            };
+
+            struct aliases_info aliases_info = {
+                .path = path_copy,
+                .aliases = aliases,
+            };
+
+            DICEY_SERVER_LOOP_SET_PAYLOAD(req, struct aliases_info, &aliases_info);
+
+            return dicey_server_submit_request(server, req);
+        }
+
+    default:
+        return TRACE(DICEY_EINVAL);
+    }
 }
 
 enum dicey_error dicey_server_add_trait(struct dicey_server *const server, struct dicey_trait *const trait) {

@@ -188,6 +188,54 @@ DICEY_EXPORT enum dicey_error dicey_server_add_object_with(struct dicey_server *
 DICEY_EXPORT enum dicey_error dicey_server_add_trait(struct dicey_server *server, struct dicey_trait *trait);
 
 /**
+ * @brief Adds an alias to an object. The object will then be accessible from the alias path.
+ * @note This function has a different behaviour depending on whether the server is running or not. If the server is
+ *       in a stopped state, the alias is added to the server's registry immediately (note: not thread safe).
+ *       If the server is running, the request is executed on the server thread: the function only submit the request to
+ *       the server thread and return immediately.
+ * @note The alias must not be already registered, and the path must be a valid path. If the path is an alias, the real
+ *       path of the object will be used to register the new alias.
+ * @param server The server to add the alias to.
+ * @param path   The path of the object to alias.
+ * @param alias  The alias to add to the object.
+ * @return       Error code. The possible values are several and include:
+ *               - OK: the alias was successfully added
+ *               - ENOMEM: memory allocation failed
+ *               - EPATH_MALFORMED: the path or the alias is malformed
+ *               - EPATH_NOT_FOUND: the object is not registered
+ *               - EEXIST: the alias is already registered
+ */
+DICEY_EXPORT enum dicey_error dicey_server_add_object_alias(
+    struct dicey_server *server,
+    const char *path,
+    const char *alias
+);
+
+/**
+ * @brief Adds a set of aliases to an object. The object will then be accessible from the alias paths.
+ * @note This function has a different behaviour depending on whether the server is running or not. If the server is
+ *       in a stopped state, the aliases are added to the server's registry immediately (note: not thread safe).
+ *       If the server is running, the request is executed on the server thread: the function only submit the request to
+ *       the server thread and return immediately.
+ * @note The aliases must not be already registered, and the path must be a valid path. If the path is an alias, the
+ * real path of the object will be used to register the new aliases.
+ * @param server  The server to add the aliases to.
+ * @param path    The path of the object to alias.
+ * @param aliases The set of aliases to add to the object. The server will take ownership of this set.
+ * @return        Error code. The possible values are several and include:
+ *                - OK: the aliases were successfully added
+ *                - ENOMEM: memory allocation failed
+ *                - EPATH_MALFORMED: the path or one of the aliases is malformed
+ *                - EPATH_NOT_FOUND: the object is not registered
+ *                - EEXIST: one of the aliases is already registered
+ */
+DICEY_EXPORT enum dicey_error dicey_server_add_object_aliases(
+    struct dicey_server *server,
+    const char *path,
+    struct dicey_hashset *aliases
+);
+
+/**
  * @brief Deletes an object from the server. The server will stop handling requests at the given path.
  * @note This function has a different behaviour depending on whether the server is running or not. If the server is
  *       in a stopped state, the trait is removed from the server's registry immediately. If the server is running, the
