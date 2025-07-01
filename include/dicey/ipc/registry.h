@@ -407,15 +407,15 @@ DICEY_EXPORT enum dicey_error dicey_registry_remove_object(struct dicey_registry
  * @note  Deleting an object main path will also delete its aliases.
  * @note  The object original path can't be unaliased, so this function will fail if the path is the same as the
  *        original path of the object.
- * @param registry The registry to create the alias in.
- * @param path     The path to the object to alias.
- * @param alias    The alias to create. This must not already exist in the registry.
+ * @param registry The registry to remove the alias from.
+ * @param alias    The alias to remove.
+ * @return         Error code. Possible values are:
+ *                 - OK: the alias was successfully removed
+ *                 - EPATH_NOT_FOUND: the alias does not exist
+ *                 - EPATH_NOT_ALIAS: the path is not an alias
+ *                 - EPATH_MALFORMED: the path is malformed (e.g. not a valid Dicey path)
  */
-DICEY_EXPORT enum dicey_error dicey_registry_unalias_object(
-    struct dicey_registry *registry,
-    const char *path,
-    const char *alias
-);
+DICEY_EXPORT enum dicey_error dicey_registry_unalias_object(struct dicey_registry *registry, const char *alias);
 
 /**
  * @brief Represents an event that can occur during a registry walk.

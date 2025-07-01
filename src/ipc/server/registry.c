@@ -864,18 +864,14 @@ enum dicey_error dicey_registry_remove_object(struct dicey_registry *const regis
     return DICEY_OK;
 }
 
-enum dicey_error dicey_registry_unalias_object(
-    struct dicey_registry *const registry,
-    const char *const path,
-    const char *const alias
-) {
-    assert(registry && path && alias);
+enum dicey_error dicey_registry_unalias_object(struct dicey_registry *const registry, const char *const alias) {
+    assert(registry && alias);
 
-    if (!path_is_valid(path) || !path_is_valid(alias)) {
+    if (!path_is_valid(alias)) {
         return TRACE(DICEY_EPATH_MALFORMED);
     }
 
-    struct dicey_object *const object = dicey_hashtable_get(registry->paths, path);
+    struct dicey_object *const object = dicey_registry_get_object_mut(registry, alias);
     if (!object) {
         return TRACE(DICEY_EPATH_NOT_FOUND);
     }
