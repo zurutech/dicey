@@ -641,13 +641,21 @@ enum dicey_error dicey_registry_alias_object(
         return TRACE(DICEY_EPATH_MALFORMED);
     }
 
-    if (dicey_registry_contains_object(registry, alias)) {
-        return TRACE(DICEY_EEXIST);
-    }
-
     struct dicey_object *const object = dicey_hashtable_get(registry->paths, path);
     if (!object) {
         return TRACE(DICEY_EPATH_NOT_FOUND);
+    }
+
+    const char *const existing = dicey_registry_get_main_path(registry, alias);
+    if (existing) {
+        if (strcmp(existing, alias) && !strcmp(existing, object->main_path)) {
+            // `alias` is already an alias that points to the target object - return DICEY_EEXIST
+            return TRACE(DICEY_EEXIST);
+        } else {
+            // Return DICEY_EINVAL because the alias is already registered to a different object
+            // or `alias` points to an object directly (may be the same)
+            return TRACE(DICEY_EINVAL);
+        }
     }
 
     object_ref(object); // we will add an object alias to the registry, so we need to increment the refcount
@@ -660,6 +668,8 @@ enum dicey_error dicey_registry_alias_object(
     // not very efficient, we fetch the stuff again to get the string key owned by the registry
     struct dicey_object_entry alias_entry = { 0 };
     err = dicey_registry_get_object_entry(registry, path, &alias_entry) ? DICEY_OK : DICEY_EPATH_NOT_FOUND;
+
+    // note: path must be the alias path, because we're requested that, not the main path
     assert(!err && alias_entry.object == object && !strcmp(alias_entry.path, path));
 
     // register the alias in the object's aliases

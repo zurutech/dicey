@@ -233,7 +233,9 @@ DICEY_EXPORT enum dicey_error dicey_registry_add_trait_with_element_list(
  * @param alias    The alias to create. This must not already exist in the registry.
  * @return         Error code. Possible values are:
  *                 - OK: the alias was successfully created
- *                 - EEXISTS: an object already exists at the given alias path
+ *                 - EEXISTS: this very exact alias already exists in the registry
+ *                 - EINVAL: the path or alias is invalid (`alias` exists and points to a different object, `alias` is
+ *                           the same as `path`, or `alias` is the path to an object that is not aliased)
  *                 - ENOMEM: memory allocation failed
  *                 - EPATH_MALFORMED: the path or alias is invalid (e.g. not a valid Dicey path)
  *                 - EPATH_NOT_FOUND: the object at the given path does not exist
