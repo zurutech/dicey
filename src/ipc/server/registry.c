@@ -219,14 +219,16 @@ static enum dicey_error registry_add_object(
         {
             assert(!old_value);
 
-            // fetch the entry for the object we just added, in order to get a path owned by the hashtable
-            struct dicey_object_entry entry = { 0 };
-            const enum dicey_error err = registry_get_object_entry(registry, &entry, path);
-            DICEY_UNUSED(err);
-            assert(!err); // we just added the object, so it should always exist
+            // if the object does not have a main path, we set it to the one we just added
+            if (!object->main_path) {
+                // fetch the entry for the object we just added, in order to get a path owned by the hashtable
+                struct dicey_object_entry entry = { 0 };
+                const enum dicey_error err = registry_get_object_entry(registry, &entry, path);
+                DICEY_UNUSED(err);
+                assert(!err); // we just added the object, so it should always exist
 
-            // set the main path of the object to the one we just added
-            object->main_path = entry.path;
+                object->main_path = entry.path;
+            }
 
             break;
         }
