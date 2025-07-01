@@ -669,10 +669,10 @@ enum dicey_error dicey_registry_alias_object(
 
     // not very efficient, we fetch the stuff again to get the string key owned by the registry
     struct dicey_object_entry alias_entry = { 0 };
-    err = dicey_registry_get_object_entry(registry, path, &alias_entry) ? DICEY_OK : DICEY_EPATH_NOT_FOUND;
+    err = dicey_registry_get_object_entry(registry, alias, &alias_entry) ? DICEY_OK : DICEY_EPATH_NOT_FOUND;
 
     // note: path must be the alias path, because we're requested that, not the main path
-    assert(!err && alias_entry.object == object && !strcmp(alias_entry.path, path));
+    assert(!err && alias_entry.object == object && !strcmp(alias_entry.path, alias));
 
     // register the alias in the object's aliases
     enum dicey_hash_set_result res = dicey_hashset_add(&object->aliases, alias_entry.path);
@@ -878,16 +878,12 @@ enum dicey_error dicey_registry_unalias_object(struct dicey_registry *const regi
         return TRACE(DICEY_EPATH_NOT_FOUND);
     }
 
-    if (!dicey_object_has_alias(object, alias)) {
-        return TRACE(DICEY_EPATH_NOT_ALIAS); // alias does not exist
-    }
-
     assert(object->aliases && dicey_hashset_size(object->aliases) > 0 && object->refcount >= 2);
 
     // remove the alias from the object's aliases
     const bool success = dicey_hashset_remove(object->aliases, alias);
     if (!success) {
-        return TRACE(DICEY_EPATH_NOT_FOUND); // alias does not exist
+        return TRACE(DICEY_EPATH_NOT_ALIAS); // alias does not exist
     }
 
     enum dicey_error err = registry_remove_path(registry, alias);
