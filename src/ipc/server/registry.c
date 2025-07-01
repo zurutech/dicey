@@ -643,6 +643,11 @@ enum dicey_error dicey_registry_alias_object(
         return TRACE(DICEY_EPATH_MALFORMED);
     }
 
+    if (!strcmp(path, alias)) {
+        // aliasing an object to itself is not allowed
+        return TRACE(DICEY_EINVAL);
+    }
+
     struct dicey_object *const object = dicey_hashtable_get(registry->paths, path);
     if (!object) {
         return TRACE(DICEY_EPATH_NOT_FOUND);
