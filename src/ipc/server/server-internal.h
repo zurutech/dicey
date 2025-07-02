@@ -17,8 +17,6 @@
 #if !defined(JUYPLEPMAY_SERVER_INTERNAL_H)
 #define JUYPLEPMAY_SERVER_INTERNAL_H
 
-#define _XOPEN_SOURCE 700
-
 #include <stdint.h>
 
 #include <uv.h>
