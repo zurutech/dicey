@@ -452,16 +452,12 @@ void util_dumper_dump_request(struct util_dumper *const dumper, const struct dic
     const struct dicey_client_info *const cln = dicey_request_get_client_info(req);
     assert(cln);
 
-    util_dumper_printf(dumper, "request { client_id = %zu, seq = %" PRIu32 ", ", cln->id, dicey_request_get_seq(req));
+    util_dumper_printf(dumper, "request(client_id = %zu, seq = %" PRIu32 ") ", cln->id, dicey_request_get_seq(req));
 
     const struct dicey_message *const msg = dicey_request_get_message(req);
     assert(msg);
 
-    util_dumper_printf(dumper, "message = ");
     dump_message(dumper, msg);
-
-    util_dumper_printf(dumper, " }");
-    util_dumper_newline(dumper);
 }
 
 void util_dumper_dump_value(struct util_dumper *const dumper, const struct dicey_value *const value) {
