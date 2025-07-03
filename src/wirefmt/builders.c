@@ -582,6 +582,8 @@ enum dicey_error dicey_value_builder_set(struct dicey_value_builder *const build
         return TRACE(DICEY_ENOMEM);
     }
 
+    builder_state_set(builder, BUILDER_STATE_IDLE);
+
     return DICEY_OK;
 }
 

@@ -92,15 +92,22 @@ enum dicey_error finalize_request(
 ) {
     assert(req && builder);
 
-    if (req->state != DICEY_REQUEST_STATE_CONSTRUCTING || !dicey_value_builder_is_pending(builder)) {
+    if (req->state != DICEY_REQUEST_STATE_CONSTRUCTING) {
         return TRACE(DICEY_EINVAL);
+    }
+
+    enum dicey_error err = dicey_message_builder_value_end(&req->resp_builder, builder);
+    if (err) {
+        req->state = DICEY_REQUEST_STATE_ABORTED;
+
+        return err;
     }
 
     assert(dicey_message_builder_is_pending(&req->resp_builder));
 
     struct dicey_packet reply = { 0 };
 
-    enum dicey_error err = dicey_message_builder_build(&req->resp_builder, &reply);
+    err = dicey_message_builder_build(&req->resp_builder, &reply);
     if (err) {
         req->state = DICEY_REQUEST_STATE_ABORTED;
 
@@ -123,6 +130,10 @@ enum dicey_error finalize_request(
     req->state = DICEY_REQUEST_STATE_COMPLETED;
 
     return DICEY_OK;
+}
+
+enum dicey_error dicey_request_acknowledge(struct dicey_request *const req) {
+    return dicey_request_reply(req, (struct dicey_arg) { .type = DICEY_TYPE_UNIT });
 }
 
 void dicey_request_deinit(struct dicey_request *const req) {
@@ -174,6 +185,12 @@ const struct dicey_client_info *dicey_request_get_client_info(const struct dicey
 
 const struct dicey_message *dicey_request_get_message(const struct dicey_request *const req) {
     return req ? &req->message : NULL;
+}
+
+enum dicey_op dicey_request_get_op(const struct dicey_request *const req) {
+    assert(req);
+
+    return req->op;
 }
 
 const char *dicey_request_get_real_path(const struct dicey_request *const req) {

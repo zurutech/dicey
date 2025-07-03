@@ -37,6 +37,14 @@ extern "C" {
 struct dicey_request;
 
 /**
+ * @brief Replies to a request with a unit value, "acknowledging" the request as successful.
+ * @note  This function is equivalent to replying with a value of type DICEY_TYPE_UNIT.
+ * @param req The request to acknowledge.
+ * @return An error code indicating if the operation was successful.
+ */
+DICEY_EXPORT enum dicey_error dicey_request_acknowledge(struct dicey_request *req);
+
+/**
  * @brief Fails a request with an error code and message.
  * @param req The request to fail.
  * @param code The error code.
@@ -67,6 +75,13 @@ DICEY_EXPORT const struct dicey_client_info *dicey_request_get_client_info(const
  * @return A pointer to the message, with the same lifetime as the request.
  */
 DICEY_EXPORT const struct dicey_message *dicey_request_get_message(const struct dicey_request *req);
+
+/**
+ * @brief Gets the operation type of a request.
+ * @param req The request.
+ * @return The operation type of the request.
+ */
+DICEY_EXPORT enum dicey_op dicey_request_get_op(const struct dicey_request *req);
 
 /**
  * @brief Gets the real path of the request, which is the path that the request was sent to.
