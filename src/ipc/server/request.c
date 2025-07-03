@@ -173,9 +173,11 @@ const struct dicey_client_info *dicey_request_get_client_info(const struct dicey
 }
 
 const struct dicey_message *dicey_request_get_message(const struct dicey_request *const req) {
-    assert(req);
+    return req ? &req->message : NULL;
+}
 
-    return &req->message;
+const char *dicey_request_get_real_path(const struct dicey_request *const req) {
+    return req ? req->real_path : NULL;
 }
 
 uint32_t dicey_request_get_seq(const struct dicey_request *const req) {
@@ -311,12 +313,16 @@ enum dicey_error dicey_server_request_for(
         goto deinit_all;
     }
 
+    dest->real_path = dest->message.path;
     dest->packet = packet;
     dest->cln = *cln; // copy the client info, it's just a few bytes
     dest->op = dest->message.type;
     dest->state = DICEY_REQUEST_STATE_PENDING;
     dest->signature = elem->signature;
     dest->server = server;
+
+    // hide the message path from the user-facing code
+    dest->message.path = dicey_registry_get_main_path(&server->registry, dest->message.path);
 
     return DICEY_OK;
 

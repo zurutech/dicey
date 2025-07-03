@@ -1259,14 +1259,26 @@ static void on_request_received(struct dicey_server *const server, struct dicey_
     const struct dicey_client_info *const cln = dicey_request_get_client_info(request);
     const int32_t seq = dicey_request_get_seq(request);
     const struct dicey_message *const msg = dicey_request_get_message(request);
-    assert(msg && cln);
+    const char *const real_path = dicey_request_get_real_path(request);
 
-    out("info: received request #%" PRIu32 " from client %zu for `%s#%s:%s`\n",
-        seq,
-        cln->id,
-        msg->path,
-        msg->selector.trait,
-        msg->selector.elem);
+    assert(msg && cln && real_path);
+
+    if (strcmp(real_path, msg->path)) {
+        out("info: received request #%" PRIu32 " from client %zu for `%s#%s:%s` through alias `%s`\n",
+            seq,
+            cln->id,
+            msg->path,
+            msg->selector.trait,
+            msg->selector.elem,
+            real_path);
+    } else {
+        out("info: received request #%" PRIu32 " from client %zu for `%s#%s:%s`\n",
+            seq,
+            cln->id,
+            msg->path,
+            msg->selector.trait,
+            msg->selector.elem);
+    }
 
     dump_request(request);
 

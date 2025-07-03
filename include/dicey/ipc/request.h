@@ -69,6 +69,14 @@ DICEY_EXPORT const struct dicey_client_info *dicey_request_get_client_info(const
 DICEY_EXPORT const struct dicey_message *dicey_request_get_message(const struct dicey_request *req);
 
 /**
+ * @brief Gets the real path of the request, which is the path that the request was sent to.
+ *        This may differ from the message path if the request was sent to an alias.
+ * @param req The request.
+ * @return A pointer to the real path string, with the same lifetime as the request.
+ */
+DICEY_EXPORT const char *dicey_request_get_real_path(const struct dicey_request *req);
+
+/**
  * @brief Gets the sequence number of a request.
  * @param req The request.
  * @return The sequence number of the request.
