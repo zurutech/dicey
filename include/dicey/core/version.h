@@ -32,8 +32,8 @@ extern "C" {
  *        The revision number is incremented every time the protocol is patched without breaking compatibility or
  *        adding new features.
  */
-#define DICEY_PROTO_MAJOR 1
-#define DICEY_PROTO_REVISION 1
+#define DICEY_PROTO_MAJOR 2
+#define DICEY_PROTO_REVISION 0
 #define DICEY_PROTO_STRING #DICEY_PROTO_MAJOR "r" #DICEY_PROTO_REVISION
 
 /**
@@ -47,6 +47,12 @@ struct dicey_version {
 #define DICEY_PROTO_VERSION_CURRENT                                                                                    \
     ((struct dicey_version) { .major = DICEY_PROTO_MAJOR, .revision = DICEY_PROTO_REVISION })
 
+/**
+ * @brief Compares two version structures.
+ * @param a The first version structure.
+ * @param b The second version structure.
+ * @return < 0 if a < b, 0 if a == b, > 0 if a > b.
+ */
 DICEY_EXPORT int dicey_version_cmp(struct dicey_version a, struct dicey_version b);
 
 /**
@@ -58,11 +64,11 @@ DICEY_EXPORT int dicey_version_cmp(struct dicey_version a, struct dicey_version 
  * compatibility
  */
 #define DICEY_LIB_VERSION_MAJOR 0
-#define DICEY_LIB_VERSION_MINOR 5
-#define DICEY_LIB_VERSION_PATCH 1
+#define DICEY_LIB_VERSION_MINOR 6
+#define DICEY_LIB_VERSION_PATCH 0
 #define DICEY_LIB_VERSION_STRING #DICEY_LIB_VERSION_MAJOR "." #DICEY_LIB_VERSION_MINOR "." #DICEY_LIB_VERSION_PATCH
 
-#define DICEY_LIB_VER_INT 0x00000501
+#define DICEY_LIB_VER_INT 0x00000600
 
 #if defined(__cplusplus)
 }

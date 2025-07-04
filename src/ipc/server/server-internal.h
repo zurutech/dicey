@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 
-#include "dicey/ipc/server-api.h"
 #if !defined(JUYPLEPMAY_SERVER_INTERNAL_H)
 #define JUYPLEPMAY_SERVER_INTERNAL_H
 
@@ -32,6 +31,7 @@
 #include "ipc/queue.h"
 
 #include "client-data.h"
+#include "registry-internal.h"
 
 #include "dicey_config.h"
 

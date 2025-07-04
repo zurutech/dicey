@@ -20,11 +20,14 @@
 #include <stdbool.h>
 #include <stddef.h>
 
+#include "../core/builders.h"
 #include "../core/errors.h"
+#include "../core/message.h"
 #include "../core/packet.h"
 
 #include "address.h"
 #include "registry.h"
+#include "request.h"
 #include "server.h"
 
 #include "dicey_config.h"
@@ -86,19 +89,12 @@ typedef void dicey_server_on_error_fn(
 
 /**
  * @brief Callback type for when a request is received from a client.
- * @param server The server instance that received the request.
- * @param cln    The info of the client that sent the request.
- * @param seq    The sequence number associated with the request. The user must respond with the same sequence number,
- *               or the client will fail to match the response back to the request.
- * @param packet The packet containing the request data. The ownership of this packet is transferred to the callback,
- *               which must free it when done.
+ * @param server  The server instance that received the request.
+ * @param cln     The info of the client that sent the request.
+ * @param request The request that was received. User code will be able to reply and handle the request via this
+ * structure. The request object is valid until the request is replied to or cancelled.
  */
-typedef void dicey_server_on_request_fn(
-    struct dicey_server *server,
-    const struct dicey_client_info *cln,
-    uint32_t seq,
-    struct dicey_packet packet
-);
+typedef void dicey_server_on_request_fn(struct dicey_server *server, struct dicey_request *request);
 
 /**
  * @brief Callback type that is called when the server either starts up successfully or fails to start up.
@@ -192,6 +188,71 @@ DICEY_EXPORT enum dicey_error dicey_server_add_object_with(struct dicey_server *
 DICEY_EXPORT enum dicey_error dicey_server_add_trait(struct dicey_server *server, struct dicey_trait *trait);
 
 /**
+ * @brief Adds an alias to an object. The object will then be accessible from the alias path.
+ * @note This function has a different behaviour depending on whether the server is running or not. If the server is
+ *       in a stopped state, the alias is added to the server's registry immediately (note: not thread safe).
+ *       If the server is running, the request is executed on the server thread: the function only submit the request to
+ *       the server thread and return immediately.
+ * @note The alias must not be already registered, and the path must be a valid path. If the path is an alias, the real
+ *       path of the object will be used to register the new alias.
+ * @param server The server to add the alias to.
+ * @param path   The path of the object to alias.
+ * @param alias  The alias to add to the object.
+ * @return       Error code. The possible values are several and include:
+ *               - OK: the alias was successfully added
+ *               - ENOMEM: memory allocation failed
+ *               - EPATH_MALFORMED: the path or the alias is malformed
+ *               - EPATH_NOT_FOUND: the object is not registered
+ *               - EEXIST: the alias is already registered
+ */
+DICEY_EXPORT enum dicey_error dicey_server_add_object_alias(
+    struct dicey_server *server,
+    const char *path,
+    const char *alias
+);
+
+/**
+ * @brief Adds a set of aliases to an object. The object will then be accessible from the alias paths.
+ * @note This function has a different behaviour depending on whether the server is running or not. If the server is
+ *       in a stopped state, the aliases are added to the server's registry immediately (note: not thread safe).
+ *       If the server is running, the request is executed on the server thread: the function only submit the request to
+ *       the server thread and return immediately.
+ * @note The aliases must not be already registered, and the path must be a valid path. If the path is an alias, the
+ * real path of the object will be used to register the new aliases.
+ * @param server  The server to add the aliases to.
+ * @param path    The path of the object to alias.
+ * @param aliases The set of aliases to add to the object. The server will take ownership of this set.
+ * @return        Error code. The possible values are several and include:
+ *                - OK: the aliases were successfully added
+ *                - ENOMEM: memory allocation failed
+ *                - EPATH_MALFORMED: the path or one of the aliases is malformed
+ *                - EPATH_NOT_FOUND: the object is not registered
+ *                - EEXIST: one of the aliases is already registered
+ */
+DICEY_EXPORT enum dicey_error dicey_server_add_object_aliases(
+    struct dicey_server *server,
+    const char *path,
+    struct dicey_hashset *aliases
+);
+
+/**
+ * @brief Deletes an alias from an object.
+ * @note This function has a different behaviour depending on whether the server is running or not. If the server is
+ *       in a stopped state, the alias is removed from the server's registry immediately (note: not thread safe).
+ *       If the server is running, the request is executed on the server thread: the function only submit the request to
+ *       the server thread and return immediately.
+ * @param server The server to delete the alias from.
+ * @param alias  The alias to remove.
+ * @return       Error code. The possible values are several and include:
+ *               - OK: the alias was successfully deleted
+ *               - ENOMEM: memory allocation failed
+ *               - EPATH_MALFORMED: the alias is malformed
+ *               - EPATH_NOT_FOUND: the alias is not registered
+ *               - EPATH_NOT_ALIAS: the path is not an alias
+ */
+DICEY_EXPORT enum dicey_error dicey_server_delete_object_alias(struct dicey_server *server, const char *alias);
+
+/**
  * @brief Deletes an object from the server. The server will stop handling requests at the given path.
  * @note This function has a different behaviour depending on whether the server is running or not. If the server is
  *       in a stopped state, the trait is removed from the server's registry immediately. If the server is running, the
@@ -234,32 +295,32 @@ DICEY_EXPORT struct dicey_registry *dicey_server_get_registry(struct dicey_serve
 DICEY_EXPORT enum dicey_error dicey_server_kick(struct dicey_server *server, size_t id);
 
 /**
- * @brief Raises an event, notifying all clients subscribed to it. This function is asynchronous and won't wait for the
- *        event to actually be sent.
- * @param server The server to raise the event from.
- * @param event  The event to raise. The ownership of the packet is transferred to the server, which will free it when
- *               done. This packet must be an event packet.
+ * @brief Raises a signal, notifying all clients subscribed to it. This function is asynchronous and won't wait for the
+ *        signal to actually be sent.
+ * @param server The server to raise the signal from.
+ * @param packet The signal to raise. The ownership of the packet is transferred to the server, which will free it when
+ *               done. This packet must be a signal packet.
  * @return       Error code. The possible values are several and include:
- *               - OK: the event was successfully raised
+ *               - OK: the signal was successfully raised
  *               - ENOMEM: memory allocation failed
- *               - EINVAL: the packet is invalid (e.g. it is not an event)
- *               - EELEMENT_NOT_FOUND: the event's element is not found
+ *               - EINVAL: the packet is invalid (e.g. it is not a signal)
+ *               - EELEMENT_NOT_FOUND: the signal's element is not found
  */
 DICEY_EXPORT enum dicey_error dicey_server_raise(struct dicey_server *server, struct dicey_packet packet);
 
 /*
- * @brief Raises an event, notifying all clients subscribed to it. This function is synchronous and will block until the
- *        event is actually sent.
+ * @brief Raises a signal, notifying all clients subscribed to it. This function is synchronous and will block until the
+ *        signal is actually sent.
  * @note  Even if this function returns, there is no guarantee that the clients actually received anything. This
  * function only guarantees that the `write()` syscall is actually performed and that it succeeded.
- * @param server The server to raise the event from.
- * @param event  The event to raise. The ownership of the packet is transferred to the server, which will free it when
- *               done. This packet must be an event packet.
+ * @param server The server to raise the signal from.
+ * @param packet The signal to raise. The ownership of the packet is transferred to the server, which will free it when
+ *               done. This packet must be a signal packet.
  * @return       Error code. The possible values are several and include:
- *               - OK: the event was successfully raised
+ *               - OK: the signal was successfully raised
  *               - ENOMEM: memory allocation failed
- *               - EINVAL: the packet is invalid (e.g. it is not an event)
- *               - EELEMENT_NOT_FOUND: the event's element is not found
+ *               - EINVAL: the packet is invalid (e.g. it is not a signal)
+ *               - EELEMENT_NOT_FOUND: the signal's element is not found
  */
 DICEY_EXPORT enum dicey_error dicey_server_raise_and_wait(struct dicey_server *server, struct dicey_packet packet);
 

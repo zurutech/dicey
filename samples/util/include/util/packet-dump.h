@@ -22,6 +22,7 @@
 #include "dumper.h"
 
 void util_dumper_dump_packet(struct util_dumper *dumper, struct dicey_packet packet);
+void util_dumper_dump_request(struct util_dumper *dumper, const struct dicey_request *packet);
 void util_dumper_dump_value(struct util_dumper *dumper, const struct dicey_value *value);
 
 #endif // BSRUIZGUZI_PACKET_DUMP_H

@@ -149,15 +149,11 @@ bool dicey_builtin_request_is_valid(const struct dicey_builtin_request *const re
 }
 
 bool dicey_registry_get_builtin_info_for(
-    const struct dicey_element_entry *elem,
+    const struct dicey_element_entry elem,
     struct dicey_registry_builtin_info *target
 ) {
-    if (!elem) {
-        return false;
-    }
-
     // the tag is used to identify which elements are builtins
-    const uintptr_t tag = elem->element->_tag;
+    const uintptr_t tag = elem.element->_tag;
 
     if (!tag) {
         return false;

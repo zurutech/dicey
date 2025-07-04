@@ -174,15 +174,23 @@ cdef class Client:
     def set(self, path: Path | str, selector: Selector | (str, str), value: _Any, *, timeout_ms: int = DEFAULT_TIMEOUT_MS):
         self.request(Message(Operation.SET, path, selector, value), timeout_ms=timeout_ms)
 
-    def subscribe(self, path: Path | str, selector: Selector | (str, str), *, timeout_ms: int = DEFAULT_TIMEOUT_MS):
-        path = str(path).encode('ASCII')
+    def subscribe(self, path: Path | str, selector: Selector | (str, str), *, timeout_ms: int = DEFAULT_TIMEOUT_MS) -> Path:
+        og_path = path
+        path = str(og_path).encode('ASCII')
 
         selector = Selector(*selector) if isinstance(selector, tuple) else selector
 
         trait = selector.trait.encode('ASCII')
         elem = selector.elem.encode('ASCII')
 
-        _check(dicey_client_subscribe_to(self._client, path, dicey_selector(trait, elem), timeout_ms))
+        result = dicey_client_subscribe_to(self._client, path, dicey_selector(trait, elem), timeout_ms)
+
+        _check(result.err)
+
+        if result.real_path:
+            return Path(result.real_path.decode('ASCII'))
+        else:
+            return Path(og_path)
 
     def traits(self, path: Path | str, *, timeout_ms: int = DEFAULT_TIMEOUT_MS) -> _Any:
         return self.request(Message(Operation.LIST_TRAITS, path), timeout_ms)

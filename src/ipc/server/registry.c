@@ -26,6 +26,7 @@
 
 #include <libxml/xmlmemory.h>
 
+#include <dicey/core/errors.h>
 #include <dicey/core/hashset.h>
 #include <dicey/core/hashtable.h>
 #include <dicey/core/views.h>
@@ -44,20 +45,29 @@
 
 static_assert(sizeof(NULL) == sizeof(void *), "NULL is not a pointer");
 
-static void object_free(void *const ptr) {
+static void object_ref(struct dicey_object *const object) {
+    assert(object && object->refcount > 0);
+
+    ++object->refcount;
+}
+
+static void object_deref(void *const ptr) {
     struct dicey_object *const object = ptr;
 
-    if (object) {
-        dicey_hashset_delete(object->traits);
+    assert(!object || object->refcount > 0);
 
-        xmlFree(object->_cached_xml);
-        free(object);
+    if (object) {
+        if (--object->refcount <= 0) {
+            dicey_hashset_delete(object->aliases);
+            dicey_hashset_delete(object->traits);
+
+            xmlFree(object->cached_xml);
+            free(object);
+        }
     }
 }
 
 static struct dicey_object *object_new_with(struct dicey_hashset *traits) {
-    assert(traits);
-
     struct dicey_object *const object = malloc(sizeof *object);
     if (!object) {
         return NULL;
@@ -72,25 +82,14 @@ static struct dicey_object *object_new_with(struct dicey_hashset *traits) {
 
     *object = (struct dicey_object) {
         .traits = traits,
+        .refcount = 1, // the object is created with a refcount of 1
     };
 
     return object;
 }
 
 static struct dicey_object *object_new(void) {
-    struct dicey_hashset *const traits = dicey_hashset_new();
-    if (!traits) {
-        return NULL;
-    }
-
-    struct dicey_object *const object = object_new_with(traits);
-    if (!object) {
-        dicey_hashset_delete(traits);
-
-        return NULL;
-    }
-
-    return object;
+    return object_new_with(NULL);
 }
 
 static void trait_free(void *const trait_ptr) {
@@ -120,6 +119,19 @@ static bool path_is_valid(const char *const path) {
     return true;
 }
 
+static enum dicey_error registry_remove_path(struct dicey_registry *const registry, const char *const path) {
+    assert(registry && path);
+
+    struct dicey_object *const obj = dicey_hashtable_remove(registry->paths, path);
+    if (!obj) {
+        return TRACE(DICEY_EPATH_NOT_FOUND);
+    }
+
+    object_deref(obj);
+
+    return DICEY_OK;
+}
+
 static enum dicey_error registry_del_object(struct dicey_registry *const registry, const char *const path) {
     assert(registry && path);
 
@@ -127,12 +139,31 @@ static enum dicey_error registry_del_object(struct dicey_registry *const registr
         return TRACE(DICEY_EPATH_MALFORMED);
     }
 
-    struct dicey_object *const object = dicey_hashtable_remove(registry->_paths, path);
+    struct dicey_object *const object = dicey_registry_get_object_mut(registry, path);
     if (!object) {
         return TRACE(DICEY_EPATH_NOT_FOUND);
     }
 
-    object_free(object);
+    // first, free all the aliases (the set contains strings borrowed from the hashtable)
+    struct dicey_hashset_iter iter = dicey_hashset_iter_start(object->aliases);
+
+    const char *alias = NULL;
+    while (dicey_hashset_iter_next(&iter, &alias)) {
+        assert(alias);
+
+        // remove the alias from the hashtable
+        const enum dicey_error err = registry_remove_path(registry, alias);
+        DICEY_UNUSED(err);
+        assert(!err); // the alias should always exist in the hashtable
+    }
+
+    // remove the main path from the hashtable. The object is now purged from the registry
+    const bool success = dicey_hashtable_remove(registry->paths, object->main_path);
+    DICEY_UNUSED(success);
+    assert(success); // the main path should always exist in the hashtable
+
+    // now that no references to the object exist, we can safely free it
+    object_deref(object);
 
     return DICEY_OK;
 }
@@ -142,14 +173,14 @@ static enum dicey_error registry_get_object_entry(
     struct dicey_object_entry *dest,
     const char *const path
 ) {
-    assert(registry && registry->_paths && dest && path);
+    assert(registry && dest && path);
 
     if (!path_is_valid(path)) {
         return TRACE(DICEY_EPATH_MALFORMED);
     }
 
     struct dicey_hashtable_entry entry = { 0 };
-    struct dicey_object *const obj = dicey_hashtable_get_entry(registry->_paths, path, &entry);
+    struct dicey_object *const obj = dicey_hashtable_get_entry(registry->paths, path, &entry);
     if (!obj) {
         // deliberately not TRACE()ing here because this is a common case and often used for checking if an object
         // exists
@@ -167,7 +198,7 @@ static enum dicey_error registry_get_object_entry(
 static bool registry_trait_exists(const struct dicey_registry *const registry, const char *const trait) {
     assert(registry && trait);
 
-    return dicey_hashtable_contains(registry->_traits, trait);
+    return dicey_hashtable_contains(registry->traits, trait);
 }
 
 static enum dicey_error registry_add_object(
@@ -176,7 +207,7 @@ static enum dicey_error registry_add_object(
     struct dicey_object *const object
 ) {
     void *old_value = NULL;
-    switch (dicey_hashtable_set(&registry->_paths, path, object, &old_value)) {
+    switch (dicey_hashtable_set(&registry->paths, path, object, &old_value)) {
     case DICEY_HASH_SET_FAILED:
         return TRACE(DICEY_ENOMEM);
 
@@ -185,8 +216,22 @@ static enum dicey_error registry_add_object(
         break;
 
     case DICEY_HASH_SET_ADDED:
-        assert(!old_value);
-        break;
+        {
+            assert(!old_value);
+
+            // if the object does not have a main path, we set it to the one we just added
+            if (!object->main_path) {
+                // fetch the entry for the object we just added, in order to get a path owned by the hashtable
+                struct dicey_object_entry entry = { 0 };
+                const enum dicey_error err = registry_get_object_entry(registry, &entry, path);
+                DICEY_UNUSED(err);
+                assert(!err); // we just added the object, so it should always exist
+
+                object->main_path = entry.path;
+            }
+
+            break;
+        }
     }
 
     return DICEY_OK;
@@ -204,7 +249,7 @@ static enum dicey_error registry_add_trait(
     }
 
     void *old_value = NULL;
-    switch (dicey_hashtable_set(&registry->_traits, trait_name, trait, &old_value)) {
+    switch (dicey_hashtable_set(&registry->traits, trait_name, trait, &old_value)) {
     case DICEY_HASH_SET_FAILED:
         return TRACE(DICEY_ENOMEM);
 
@@ -267,7 +312,7 @@ char *dicey_metaname_vformat_to(struct dicey_view_mut *const buffer_view, const 
     if (!buffer_view || buffer_view->len < needed) {
         buffer = realloc(buffer, needed);
         if (!buffer) {
-            return NULL;
+            goto quit; // OOM
         }
 
         if (buffer_view) {
@@ -286,20 +331,50 @@ quit:
     return buffer;
 }
 
+const struct dicey_hashset *dicey_object_get_aliases(const struct dicey_object *const object) {
+    assert(object); // always initialized
+
+    return object->aliases; // null is empty
+}
+
+struct dicey_hashset *dicey_object_get_main_path(const struct dicey_object *object);
+
+struct dicey_hashset *dicey_object_get_traits(const struct dicey_object *const object) {
+    assert(object);
+
+    return object->traits;
+}
+
+bool dicey_object_has_alias(const struct dicey_object *const object, const char *const alias) {
+    assert(object && alias);
+
+    // check if the alias is in the aliases set
+    return dicey_hashset_contains(dicey_object_get_aliases(object), alias);
+}
+
 bool dicey_object_implements(const struct dicey_object *const object, const char *const trait) {
     assert(object && object->traits && trait);
 
     return dicey_hashset_contains(object->traits, trait);
 }
 
+struct dicey_element_entry dicey_object_element_entry_to_element_entry(
+    const struct dicey_object_element_entry *const entry
+) {
+    return (struct dicey_element_entry) {
+        .sel = entry->sel,
+        .element = entry->element,
+    };
+}
+
 void dicey_registry_deinit(struct dicey_registry *const registry) {
     assert(registry);
 
     if (registry) {
-        dicey_hashtable_delete(registry->_paths, &object_free);
-        dicey_hashtable_delete(registry->_traits, &trait_free);
+        dicey_hashtable_delete(registry->paths, &object_deref);
+        dicey_hashtable_delete(registry->traits, &trait_free);
 
-        free(registry->_buffer.data);
+        free(registry->buffer.data);
 
         *registry = (struct dicey_registry) { 0 };
     }
@@ -308,23 +383,7 @@ void dicey_registry_deinit(struct dicey_registry *const registry) {
 enum dicey_error dicey_registry_init(struct dicey_registry *const registry) {
     assert(registry);
 
-    struct dicey_hashtable *const paths = dicey_hashtable_new();
-    if (!paths) {
-        return TRACE(DICEY_ENOMEM);
-    }
-
-    struct dicey_hashtable *const traits = dicey_hashtable_new();
-    if (!traits) {
-        dicey_hashtable_delete(paths, &object_free);
-
-        return TRACE(DICEY_ENOMEM);
-    }
-
-    *registry = (struct dicey_registry) {
-        ._paths = paths,
-        ._traits = traits,
-        ._buffer = dicey_view_mut_from(NULL, 0),
-    };
+    *registry = (struct dicey_registry) { 0 };
 
     const enum dicey_error err = dicey_registry_populate_builtins(registry);
     if (err) {
@@ -383,14 +442,14 @@ enum dicey_error dicey_registry_add_object_with(struct dicey_registry *const reg
     va_end(traits);
 
     if (err) {
-        object_free(object);
+        object_deref(object);
 
         return err;
     }
 
     err = registry_add_object(registry, path, object);
     if (err) {
-        object_free(object);
+        object_deref(object);
     }
 
     return err;
@@ -419,7 +478,7 @@ enum dicey_error dicey_registry_add_object_with_trait_list(
     for (; *traits; ++traits) {
         const char *const trait = *traits;
         if (!registry_trait_exists(registry, trait)) {
-            object_free(object);
+            object_deref(object);
 
             return TRACE(DICEY_ETRAIT_NOT_FOUND);
         }
@@ -429,12 +488,12 @@ enum dicey_error dicey_registry_add_object_with_trait_list(
             break;
 
         case DICEY_HASH_SET_UPDATED:
-            object_free(object);
+            object_deref(object);
 
             return TRACE(DICEY_EINVAL);
 
         case DICEY_HASH_SET_FAILED:
-            object_free(object);
+            object_deref(object);
 
             return TRACE(DICEY_ENOMEM);
         }
@@ -442,7 +501,7 @@ enum dicey_error dicey_registry_add_object_with_trait_list(
 
     const enum dicey_error err = registry_add_object(registry, path, object);
     if (err) {
-        object_free(object);
+        object_deref(object);
     }
 
     return err;
@@ -472,14 +531,14 @@ enum dicey_error dicey_registry_add_object_with_trait_set(
         }
     }
 
-    struct dicey_object *const object = object_new_with(set);
-    if (!object) {
+    struct dicey_object *const node = object_new_with(set);
+    if (!node) {
         return TRACE(DICEY_ENOMEM);
     }
 
-    const enum dicey_error err = registry_add_object(registry, path, object);
+    const enum dicey_error err = registry_add_object(registry, path, node);
     if (err) {
-        object_free(object);
+        object_deref(node);
     }
 
     return err;
@@ -573,6 +632,71 @@ enum dicey_error dicey_registry_add_trait_with_element_list(
     return err;
 }
 
+enum dicey_error dicey_registry_alias_object(
+    struct dicey_registry *const registry,
+    const char *const path,
+    const char *const alias
+) {
+    assert(registry && path && alias);
+
+    if (!path_is_valid(path) || !path_is_valid(alias)) {
+        return TRACE(DICEY_EPATH_MALFORMED);
+    }
+
+    if (!strcmp(path, alias)) {
+        // aliasing an object to itself is not allowed
+        return TRACE(DICEY_EINVAL);
+    }
+
+    struct dicey_object *const object = dicey_hashtable_get(registry->paths, path);
+    if (!object) {
+        return TRACE(DICEY_EPATH_NOT_FOUND);
+    }
+
+    const char *const existing = dicey_registry_get_main_path(registry, alias);
+    if (existing) {
+        if (strcmp(existing, alias) && !strcmp(existing, object->main_path)) {
+            // `alias` is already an alias that points to the target object - return DICEY_EEXIST
+            return TRACE(DICEY_EEXIST);
+        } else {
+            // Return DICEY_EINVAL because the alias is already registered to a different object
+            // or `alias` points to an object directly (may be the same)
+            return TRACE(DICEY_EINVAL);
+        }
+    }
+
+    object_ref(object); // we will add an object alias to the registry, so we need to increment the refcount
+
+    enum dicey_error err = registry_add_object(registry, alias, object);
+    if (err) {
+        return err;
+    }
+
+    // not very efficient, we fetch the stuff again to get the string key owned by the registry
+    struct dicey_object_entry alias_entry = { 0 };
+    err = dicey_registry_get_object_entry(registry, alias, &alias_entry) ? DICEY_OK : DICEY_EPATH_NOT_FOUND;
+
+    // note: path must be the alias path, because we're requested that, not the main path
+    assert(!err && alias_entry.object == object && !strcmp(alias_entry.path, alias));
+
+    // register the alias in the object's aliases
+    enum dicey_hash_set_result res = dicey_hashset_add(&object->aliases, alias_entry.path);
+    switch (res) {
+    case DICEY_HASH_SET_ADDED:
+        break;
+
+    case DICEY_HASH_SET_UPDATED:
+        // this should never happen, because we just checked that the alias does not exist
+        assert(false);
+        return TRACE(DICEY_EINVAL);
+
+    case DICEY_HASH_SET_FAILED:
+        return dicey_registry_remove_object(registry, alias);
+    }
+
+    return DICEY_OK;
+}
+
 bool dicey_registry_contains_element(
     const struct dicey_registry *const registry,
     const char *const path,
@@ -602,7 +726,7 @@ const char *dicey_registry_format_metaname(struct dicey_registry *registry, cons
     va_list ap;
     va_start(ap, fmt);
 
-    const char *const result = dicey_metaname_vformat_to(&registry->_buffer, fmt, ap);
+    const char *const result = dicey_metaname_vformat_to(&registry->buffer, fmt, ap);
 
     va_end(ap);
 
@@ -615,7 +739,7 @@ const struct dicey_element *dicey_registry_get_element(
     const char *const trait_name,
     const char *const elem
 ) {
-    struct dicey_element_entry entry = { 0 };
+    struct dicey_object_element_entry entry = { 0 };
 
     return dicey_registry_get_element_entry(registry, path, trait_name, elem, &entry) ? entry.element : NULL;
 }
@@ -625,7 +749,7 @@ bool dicey_registry_get_element_entry(
     const char *const path,
     const char *const trait_name,
     const char *const elem,
-    struct dicey_element_entry *const entry
+    struct dicey_object_element_entry *entry
 ) {
     assert(registry && path && trait_name && elem && entry);
 
@@ -646,7 +770,21 @@ bool dicey_registry_get_element_entry(
         return false;
     }
 
-    return dicey_trait_get_element_entry(trait, elem, entry);
+    struct dicey_element_entry elem_entry = { 0 };
+    bool res = dicey_trait_get_element_entry(trait, elem, &elem_entry);
+    if (!res) {
+        return false; // element does not exist
+    }
+
+    assert(elem_entry.element);
+
+    *entry = (struct dicey_object_element_entry) {
+        .main_path = obj_entry.object->main_path,
+        .sel = elem_entry.sel,
+        .element = elem_entry.element,
+    };
+
+    return true;
 }
 
 const struct dicey_element *dicey_registry_get_element_from_sel(
@@ -661,9 +799,17 @@ bool dicey_registry_get_element_entry_from_sel(
     const struct dicey_registry *registry,
     const char *path,
     struct dicey_selector sel,
-    struct dicey_element_entry *entry
+    struct dicey_object_element_entry *entry
 ) {
     return dicey_registry_get_element_entry(registry, path, sel.trait, sel.elem, entry);
+}
+
+const char *dicey_registry_get_main_path(const struct dicey_registry *const registry, const char *const path) {
+    assert(registry && path);
+
+    const struct dicey_object *const object = dicey_registry_get_object(registry, path);
+
+    return object ? object->main_path : NULL;
 }
 
 const struct dicey_object *dicey_registry_get_object(
@@ -692,19 +838,20 @@ bool dicey_registry_get_object_entry(
     return true;
 }
 
-struct dicey_object *dicey_registry_get_object_mut(
-    const struct dicey_registry *const registry,
-    const char *const path
-) {
+struct dicey_object *dicey_registry_get_object_mut(const struct dicey_registry *const registry, const char *path) {
     assert(registry && path);
 
-    return dicey_hashtable_get(registry->_paths, path);
+    if (!path_is_valid(path)) {
+        return NULL;
+    }
+
+    return dicey_hashtable_get(registry->paths, path);
 }
 
 struct dicey_trait *dicey_registry_get_trait(const struct dicey_registry *const registry, const char *const name) {
     assert(registry && name);
 
-    return dicey_hashtable_get(registry->_traits, name);
+    return dicey_hashtable_get(registry->traits, name);
 }
 
 enum dicey_error dicey_registry_remove_object(struct dicey_registry *const registry, const char *const path) {
@@ -714,12 +861,41 @@ enum dicey_error dicey_registry_remove_object(struct dicey_registry *const regis
         return TRACE(DICEY_EPATH_MALFORMED);
     }
 
-    struct dicey_object *const object = dicey_hashtable_remove(registry->_paths, path);
+    struct dicey_object *const object = dicey_hashtable_remove(registry->paths, path);
     if (!object) {
         return TRACE(DICEY_EPATH_NOT_FOUND);
     }
 
-    object_free(object);
+    object_deref(object);
+
+    return DICEY_OK;
+}
+
+enum dicey_error dicey_registry_unalias_object(struct dicey_registry *const registry, const char *const alias) {
+    assert(registry && alias);
+
+    if (!path_is_valid(alias)) {
+        return TRACE(DICEY_EPATH_MALFORMED);
+    }
+
+    struct dicey_object *const object = dicey_registry_get_object_mut(registry, alias);
+    if (!object) {
+        return TRACE(DICEY_EPATH_NOT_FOUND);
+    }
+
+    assert(object->aliases && dicey_hashset_size(object->aliases) > 0 && object->refcount >= 2);
+
+    // remove the alias from the object's aliases
+    const bool success = dicey_hashset_remove(object->aliases, alias);
+    if (!success) {
+        return TRACE(DICEY_EPATH_NOT_ALIAS); // alias does not exist
+    }
+
+    enum dicey_error err = registry_remove_path(registry, alias);
+    if (err) {
+        assert(false); // should never happen, it means the registry broke spectacularly its internal invariants
+        return err;
+    }
 
     return DICEY_OK;
 }

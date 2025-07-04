@@ -347,7 +347,7 @@ static enum dicey_error plugin_issue_quit(
     assert(server && req_data);
 
     if (client) {
-        return TRACE(EACCES); // clients can't send ask plugins to quit
+        return TRACE(DICEY_EACCES); // clients can't send ask plugins to quit
     }
 
     struct plugin_quit_metadata md = { 0 };
@@ -416,7 +416,7 @@ static enum dicey_error plugin_issue_work(
     assert(server && req_data);
 
     if (client) {
-        return TRACE(EACCES); // clients can't send work to plugins
+        return TRACE(DICEY_EACCES); // clients can't send work to plugins
     }
 
     struct plugin_send_work_data req = { 0 };
@@ -501,6 +501,11 @@ static enum dicey_error plugin_request_quit(
         extra_md ? *extra_md : (struct plugin_quit_metadata) { 0 },
         target
     );
+    if (err) {
+        free(req);
+
+        return err;
+    }
 
     err = dicey_server_submit_request(server, req);
     if (err) {

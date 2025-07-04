@@ -269,6 +269,19 @@ DICEY_EXPORT enum dicey_error dicey_value_get_i32(const struct dicey_value *valu
 DICEY_EXPORT enum dicey_error dicey_value_get_i64(const struct dicey_value *value, int64_t *dest);
 
 /**
+ * @brief If the value is a list-type (array or tuple), gets the list value from the given value.
+ * @note  This function acts the same  as dicey_value_get_array or dicey_value_get_tuple, depending on the type of the
+ * value.
+ * @param value The value to get the list from. Must contain a list-type value (array or tuple).
+ * @param dest The destination to store the list value.
+ * @return The error code indicating the success or failure of the operation.
+ *        Possible errors include:
+ *        - OK: The operation was successful.
+ *        - EVALUE_TYPE_MISMATCH: The value is not a list-type (array or tuple).
+ */
+DICEY_EXPORT enum dicey_error dicey_value_get_list(const struct dicey_value *value, struct dicey_list *dest);
+
+/**
  * @brief Gets the pair value from the given value.
  * @param value The value to get the pair from.
  * @param dest The destination to store the pair value.. Note that this is a borrowed pointer and should

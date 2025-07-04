@@ -24,4 +24,6 @@
 #define TEST_TIMER_TIMERFIRED_ELEMENT "TimerFired"
 #define TEST_TIMER_TIMERFIRED_SIGNATURE "(xi)"
 
+#define TEST_TIMER_ALIAS_PATH "/dicey/test/timer_alias"
+
 #endif // KQZYQWXORP_TIMER_H

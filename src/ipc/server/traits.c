@@ -85,7 +85,7 @@ enum dicey_error dicey_trait_add_element(
     const char *const name,
     const struct dicey_element elem
 ) {
-    assert(trait && trait->elems && elem.signature && *elem.signature && elem.type != DICEY_ELEMENT_TYPE_INVALID);
+    assert(trait && elem.signature && *elem.signature && elem.type != DICEY_ELEMENT_TYPE_INVALID);
 
     struct dicey_typedescr descr = { 0 };
 
@@ -187,24 +187,15 @@ struct dicey_trait *dicey_trait_new(const char *const name) {
         return NULL;
     }
 
-    struct dicey_hashtable *const elems = dicey_hashtable_new();
-    if (!elems) {
-        free(name_copy);
-
-        return NULL;
-    }
-
     struct dicey_trait *const trait = malloc(sizeof *trait);
     if (!trait) {
         free(name_copy);
-        dicey_hashtable_delete(elems, free_elem);
 
         return NULL;
     }
 
     *trait = (struct dicey_trait) {
         .name = name_copy,
-        .elems = elems,
     };
 
     return trait;

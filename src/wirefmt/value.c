@@ -33,17 +33,6 @@
 #include "sup/trace.h"
 #include "sup/util.h"
 
-static enum dicey_error value_get_list(const struct dicey_value *const value, struct dicey_list *const dest) {
-    assert(value && dest);
-
-    *dest = (struct dicey_list) {
-        ._type = value->_data.list.inner_type,
-        ._data = value->_data.list.data,
-    };
-
-    return DICEY_OK;
-}
-
 bool dicey_iterator_has_next(const struct dicey_iterator iter) {
     return iter._data.len > 0;
 }
@@ -304,7 +293,7 @@ enum dicey_error dicey_value_get_array(const struct dicey_value *const value, st
         return TRACE(DICEY_EVALUE_TYPE_MISMATCH);
     }
 
-    return value_get_list(value, dest);
+    return dicey_value_get_list(value, dest);
 }
 
 DICEY_VALUE_GET_IMPL_TRIVIAL(bool, bool, DICEY_TYPE_BOOL, boolean)
@@ -335,6 +324,24 @@ DICEY_VALUE_GET_IMPL_TRIVIAL(i32, int32_t, DICEY_TYPE_INT32, i32)
 DICEY_VALUE_GET_IMPL_TRIVIAL(i64, int64_t, DICEY_TYPE_INT64, i64)
 
 DICEY_VALUE_GET_IMPL_TRIVIAL(path, const char *, DICEY_TYPE_PATH, str)
+
+enum dicey_error dicey_value_get_list(const struct dicey_value *const value, struct dicey_list *const dest) {
+    assert(value && dest);
+
+    const enum dicey_type type = dicey_value_get_type(value);
+    if (type != DICEY_TYPE_ARRAY && type != DICEY_TYPE_TUPLE) {
+        return TRACE(DICEY_EVALUE_TYPE_MISMATCH);
+    }
+
+    assert(value && dest);
+
+    *dest = (struct dicey_list) {
+        ._type = value->_data.list.inner_type,
+        ._data = value->_data.list.data,
+    };
+
+    return DICEY_OK;
+}
 
 enum dicey_error dicey_value_get_pair(const struct dicey_value *const value, struct dicey_pair *const dest) {
     assert(value && dest);
@@ -376,7 +383,7 @@ enum dicey_error dicey_value_get_tuple(const struct dicey_value *const value, st
         return TRACE(DICEY_EVALUE_TYPE_MISMATCH);
     }
 
-    return value_get_list(value, dest);
+    return dicey_value_get_list(value, dest);
 }
 
 DICEY_VALUE_GET_IMPL_TRIVIAL(uuid, struct dicey_uuid, DICEY_TYPE_UUID, uuid)

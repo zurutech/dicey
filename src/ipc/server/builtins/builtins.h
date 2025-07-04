@@ -105,10 +105,7 @@ struct dicey_registry_builtin_info {
     uint8_t opcode;
 };
 
-bool dicey_registry_get_builtin_info_for(
-    const struct dicey_element_entry *elem,
-    struct dicey_registry_builtin_info *target
-);
+bool dicey_registry_get_builtin_info_for(struct dicey_element_entry elem, struct dicey_registry_builtin_info *target);
 
 enum dicey_error dicey_registry_populate_builtins(struct dicey_registry *registry);
 

@@ -36,17 +36,44 @@ extern "C" {
 /**
  * @brief Represents an object inside of a registry.
  */
-struct dicey_object {
-    struct dicey_hashset *traits; /**< A set containing the names of traits that this object implements. */
+struct dicey_object;
 
-    void *_cached_xml; /**< A cached XML representation of the object. Internal, do not use. Lazily generated */
-};
+/**
+ * @brief Returns the paths a given object is aliased at.
+ * @param object The object to get the traits of.
+ * @return       A pointer to a hashset containing the names of the traits that the object implements.
+ */
+DICEY_EXPORT const struct dicey_hashset *dicey_object_get_aliases(const struct dicey_object *object);
+
+/**
+ * @brief Returns the paths a given object is aliased at.
+ * @param object The object to get the traits of.
+ * @return       A pointer to a hashset containing the names of the traits that the object implements.
+ */
+DICEY_EXPORT struct dicey_hashset *dicey_object_get_main_path(const struct dicey_object *object);
+
+/**
+ * @brief Returns the traits of the given object.
+ * @param object The object to get the traits of.
+ * @return       A pointer to a hashset containing the names of the traits that the object implements.
+ */
+DICEY_EXPORT struct dicey_hashset *dicey_object_get_traits(const struct dicey_object *object);
+
+/**
+ * @brief Checks if the object is aliased at a given path.
+ * @param object The object to check.
+ * @param alias The alias to check for.
+ * @return True if the object is aliased at the given path, false otherwise.
+ */
+DICEY_EXPORT bool dicey_object_has_alias(const struct dicey_object *object, const char *alias);
 
 /**
  * @brief Represents an object entry inside of a registry.
  */
 struct dicey_object_entry {
-    const char *path; /**< The path of this object. This string is valid for the entire lifetime of the object */
+    /**< The path of this object. This string is valid for the entire lifetime of the object */
+    /**< Note: if the object is aliased, this will be the concrete path, not the aliased path */
+    const char *path;
     const struct dicey_object *object; /**< The object itself. */
 };
 
@@ -74,18 +101,7 @@ struct dicey_element_new_entry {
  *        The registry is used by the server to determine whether a given request is valid or not, depending on whether
  *        the object and trait exist and the object implements the trait.
  */
-struct dicey_registry {
-    // note: While the paths are technically hierarchical, this has zero to no effect on the actual implementation.
-    //       The paths are simply used as a way to identify objects and traits, and "directory-style" access is not
-    //       of much use ATM. If this ever becomes useful, it's simple to implement - just swap the hashtable for a
-    //       sorted tree or something similar.
-    struct dicey_hashtable *_paths;
-
-    struct dicey_hashtable *_traits;
-
-    // scratchpad buffer used when crafting strings. Non thread-safe like all the rest of the registry.
-    struct dicey_view_mut _buffer;
-};
+struct dicey_registry;
 
 /**
  * @brief Deinitialises a `dicey_registry`, releasing any resources it may own and resetting it to an empty state.
@@ -209,6 +225,28 @@ DICEY_EXPORT enum dicey_error dicey_registry_add_trait_with_element_list(
 );
 
 /**
+ * @brief Creates an object alias in the registry. The alias is a new path that points to the same object as the
+ * original path
+ * @note  Deleting an object will also delete its aliases.
+ * @param registry The registry to create the alias in.
+ * @param path     The path to the object to alias.
+ * @param alias    The alias to create. This must not already exist in the registry.
+ * @return         Error code. Possible values are:
+ *                 - OK: the alias was successfully created
+ *                 - EEXISTS: this very exact alias already exists in the registry
+ *                 - EINVAL: the path or alias is invalid (`alias` exists and points to a different object, `alias` is
+ *                           the same as `path`, or `alias` is the path to an object that is not aliased)
+ *                 - ENOMEM: memory allocation failed
+ *                 - EPATH_MALFORMED: the path or alias is invalid (e.g. not a valid Dicey path)
+ *                 - EPATH_NOT_FOUND: the object at the given path does not exist
+ */
+DICEY_EXPORT enum dicey_error dicey_registry_alias_object(
+    struct dicey_registry *registry,
+    const char *path,
+    const char *alias
+);
+
+/**
  * @brief Checks if an element exists at a given path in the registry.
  * @param registry The registry to get the element from.
  * @param path     The path to the object.
@@ -280,7 +318,7 @@ DICEY_EXPORT bool dicey_registry_get_element_entry(
     const char *path,
     const char *trait_name,
     const char *elem,
-    struct dicey_element_entry *entry
+    struct dicey_object_element_entry *entry
 );
 
 /**
@@ -308,8 +346,18 @@ DICEY_EXPORT bool dicey_registry_get_element_entry_from_sel(
     const struct dicey_registry *registry,
     const char *path,
     struct dicey_selector sel,
-    struct dicey_element_entry *entry
+    struct dicey_object_element_entry *entry
 );
+
+/**
+ * @brief Resolves the main path of an object at a given path.
+ * @note  If the path is not an alias, this will return the same path but from the registry allocation scope.
+ * @param registry The registry to resolve the path in.
+ * @param path The path to resolve.
+ * @return     The main path of the object at the given path, or NULL if the path is invalid or the object does not
+ *             exist.
+ */
+DICEY_EXPORT const char *dicey_registry_get_main_path(const struct dicey_registry *registry, const char *path);
 
 /**
  * @brief Gets the object at a given path.
@@ -353,6 +401,21 @@ DICEY_EXPORT struct dicey_trait *dicey_registry_get_trait(const struct dicey_reg
  *                 - EPATH_NOT_FOUND: no object exists at the given path
  */
 DICEY_EXPORT enum dicey_error dicey_registry_remove_object(struct dicey_registry *registry, const char *path);
+
+/**
+ * @brief Removes an object alias from the registry. This won't touch the original object.
+ * @note  Deleting an object main path will also delete its aliases.
+ * @note  The object original path can't be unaliased, so this function will fail if the path is the same as the
+ *        original path of the object.
+ * @param registry The registry to remove the alias from.
+ * @param alias    The alias to remove.
+ * @return         Error code. Possible values are:
+ *                 - OK: the alias was successfully removed
+ *                 - EPATH_NOT_FOUND: the alias does not exist
+ *                 - EPATH_NOT_ALIAS: the path is not an alias
+ *                 - EPATH_MALFORMED: the path is malformed (e.g. not a valid Dicey path)
+ */
+DICEY_EXPORT enum dicey_error dicey_registry_unalias_object(struct dicey_registry *registry, const char *alias);
 
 /**
  * @brief Represents an event that can occur during a registry walk.

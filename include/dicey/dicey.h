@@ -35,6 +35,7 @@
 #include "ipc/builtins/server.h"
 #include "ipc/client.h"
 #include "ipc/registry.h"
+#include "ipc/request.h"
 #include "ipc/server-api.h"
 #include "ipc/server.h"
 #include "ipc/traits.h"

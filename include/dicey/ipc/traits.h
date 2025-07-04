@@ -79,6 +79,28 @@ struct dicey_element_entry {
 };
 
 /**
+ * @brief Structure that describes the entry associated with an element of an object.
+ */
+struct dicey_object_element_entry {
+    /**< The main path of the object this element belongs to. This is the "main" path, which may be different from the
+     * aliased path if the object has been aliased
+     */
+    const char *main_path;
+
+    struct dicey_selector sel; /**< The element selector. This is guaranteed to be valid until the trait exists */
+    const struct dicey_element *element; /**< The element itself */
+};
+
+/**
+ * @brief Converts a dicey_object_element_entry to a dicey_element_entry. No data is copied.
+ * @param entry The dicey_object_element_entry to convert.
+ * @return The converted dicey_element_entry.
+ */
+DICEY_EXPORT struct dicey_element_entry dicey_object_element_entry_to_element_entry(
+    const struct dicey_object_element_entry *entry
+);
+
+/**
  * @brief Iterator over the elements of a trait structure.
  */
 struct dicey_trait_iter {

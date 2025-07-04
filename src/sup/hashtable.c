@@ -182,7 +182,7 @@ static struct table_entry *hash_get_entry_for_set(
 }
 
 static struct table_entry *hash_get_entry(struct dicey_hashtable *const ht, const char *const key) {
-    return hash_get_entry_for_set(ht, key, NULL, NULL);
+    return ht ? hash_get_entry_for_set(ht, key, NULL, NULL) : NULL; // handle empty table
 }
 
 static struct dicey_hashtable *hash_new(const int32_t *const primes_list, const size_t extra_cap) {
@@ -205,6 +205,12 @@ static struct dicey_hashtable *hash_new(const int32_t *const primes_list, const 
     };
 
     return table;
+}
+
+struct dicey_hashtable *hash_new_default(void) {
+    assert(*primes > 0);
+
+    return hash_new(primes, 0U);
 }
 
 static enum dicey_hash_set_result hash_set(
@@ -428,12 +434,6 @@ finish:
     return res;
 }
 
-struct dicey_hashtable *dicey_hashtable_new(void) {
-    assert(*primes > 0);
-
-    return hash_new(primes, 0U);
-}
-
 void dicey_hashtable_delete(struct dicey_hashtable *const table, dicey_hashtable_free_fn *const free_fn) {
     if (!table) {
         return;
@@ -562,9 +562,18 @@ enum dicey_hash_set_result dicey_hashtable_set(
     void *const value,
     void **const old_value
 ) {
+    assert(table_ptr);
+
+    if (!*table_ptr) {
+        *table_ptr = hash_new_default();
+        if (!*table_ptr) {
+            return DICEY_HASH_SET_FAILED;
+        }
+    }
+
     return hash_set(table_ptr, (struct maybe_owned_str) { .str = (char *) key, .owned = false }, value, old_value);
 }
 
 uint32_t dicey_hashtable_size(const struct dicey_hashtable *const table) {
-    return table ? table->len : 0;
+    return table ? table->len : 0U;
 }

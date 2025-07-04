@@ -49,10 +49,6 @@ enum dicey_hash_set_result dicey_hashset_add(struct dicey_hashset **const set, c
     return res;
 }
 
-struct dicey_hashset *dicey_hashset_new(void) {
-    return (struct dicey_hashset *) dicey_hashtable_new();
-}
-
 void dicey_hashset_delete(struct dicey_hashset *const table) {
     dicey_hashtable_delete((struct dicey_hashtable *) table, NULL);
 }

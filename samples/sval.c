@@ -16,6 +16,7 @@
 
 // thank you MS, but just no
 #define _CRT_SECURE_NO_WARNINGS 1
+#define _GNU_SOURCE 1
 
 #include <assert.h>
 #include <inttypes.h>

@@ -20,21 +20,24 @@
 #include "dicey_config.h"
 
 /**
- * object "/dicey/server" : dicey.EventManager, dicey.PluginManager (if plugins are enabled)
+ * object "/dicey/server" : dicey.SignalManager, dicey.PluginManager (if plugins are enabled)
  */
 #define DICEY_SERVER_PATH "/dicey/server"
 
 /**
- * trait dicey.EventManager {
- *     Subscribe: {@%} -> u // takes a path and selector of an event to subscribe to
- *     Unsubscribe: {@%} -> u // takes a path and selector of an event to unsubscribe from
+ * trait dicey.SignalManager {
+ *     Subscribe: {@%} -> v   // takes a path and selector of a signal to subscribe to. Returns either unit or the
+ *                            // main path of the target object (if the request targets an alias)
+ *                            // Note: signals are never raised on aliases. The client must take note of whether the
+ *                            // user subscribed to an aliased path or not.
+ *     Unsubscribe: {@%} -> $ // takes a path and selector of a signal to unsubscribe from. Will follow aliases.
  * }
  */
 
-#define DICEY_EVENTMANAGER_TRAIT_NAME "dicey.EventManager"
+#define DICEY_EVENTMANAGER_TRAIT_NAME "dicey.SignalManager"
 
 #define DICEY_EVENTMANAGER_SUBSCRIBE_OP_NAME "Subscribe"
-#define DICEY_EVENTMANAGER_SUBSCRIBE_OP_SIG "{@%} -> $"
+#define DICEY_EVENTMANAGER_SUBSCRIBE_OP_SIG "{@%} -> v"
 
 #define DICEY_EVENTMANAGER_UNSUBSCRIBE_OP_NAME "Unsubscribe"
 #define DICEY_EVENTMANAGER_UNSUBSCRIBE_OP_SIG "{@%} -> $"
