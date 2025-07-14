@@ -3,6 +3,8 @@
 <?xml-model href="object.xsd" type="application/xml" schematypens="http://www.w3.org/2001/XMLSchema"?>
 
 <object path="/dicey/registry">
+    <alias>/some/path</alias>
+    <alias>/some/other/path</alias>
     <trait name="trait.Name">
         <property name="Rodata" signature="s" read-only="true" />
         <operation name="HasSomething" signature="s -> b" />

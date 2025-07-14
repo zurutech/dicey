@@ -42,6 +42,7 @@
 #define READ_ONLY_ATT BAD_CAST "read-only"
 #define SIGNAL_ELEM BAD_CAST "signal"
 #define SIGNATURE_ATTR BAD_CAST "signature"
+#define ALIAS_ELEM BAD_CAST "alias"
 #define TRAIT_ELEM BAD_CAST "trait"
 #define XML_MODEL_PI BAD_CAST "xml-model"
 
@@ -141,7 +142,19 @@ static enum dicey_error object_dump_xml(
         return TRACE(DICEY_ENOMEM);
     }
 
-    struct dicey_hashset_iter iter = dicey_hashset_iter_start(obj->traits);
+    struct dicey_hashset_iter iter = dicey_hashset_iter_start(obj->aliases);
+    const char *alias = NULL;
+    while (dicey_hashset_iter_next(&iter, &alias)) {
+        assert(alias);
+
+        if (!xmlNewChild(obj_node, NULL, ALIAS_ELEM, BAD_CAST alias)) {
+            xmlFreeDoc(doc);
+
+            return TRACE(DICEY_ENOMEM);
+        }
+    }
+
+    iter = dicey_hashset_iter_start(obj->traits);
 
     const char *trait_name = NULL;
     while (dicey_hashset_iter_next(&iter, &trait_name)) {

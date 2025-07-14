@@ -16,9 +16,10 @@
     </xs:simpleType>
     
     <xs:complexType name="object">
-        <xs:sequence>
+        <xs:choice minOccurs="0" maxOccurs="unbounded">
+            <xs:element name="alias" type="path" minOccurs="0" maxOccurs="unbounded" />
             <xs:element name="trait" type="trait" minOccurs="1" maxOccurs="unbounded" />
-        </xs:sequence>
+        </xs:choice>
         <xs:attribute name="path" type="path" use="required" />
     </xs:complexType>
 
