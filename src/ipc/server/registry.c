@@ -883,8 +883,6 @@ enum dicey_error dicey_registry_unalias_object(struct dicey_registry *const regi
         return TRACE(DICEY_EPATH_NOT_FOUND);
     }
 
-    assert(object->aliases && dicey_hashset_size(object->aliases) > 0 && object->refcount >= 2);
-
     // remove the alias from the object's aliases
     const bool success = dicey_hashset_remove(object->aliases, alias);
     if (!success) {
