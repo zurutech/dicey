@@ -88,6 +88,34 @@ enum print_flags {
     PRINT_CONTINUE_BAR = 1 << 1,
 };
 
+enum path_kind {
+    PATH_KIND_OBJECT,
+    PATH_KIND_ALIAS,
+};
+
+static enum dicey_error check_path_kind(
+    struct dicey_client *const client,
+    const char *const path,
+    enum path_kind *const dest
+) {
+    assert(client && path && dest);
+
+    const enum dicey_error err = dicey_client_is_path_alias(client, path, DEFAULT_TIMEOUT);
+
+    switch (err) {
+    case DICEY_OK:
+        *dest = PATH_KIND_ALIAS;
+        return DICEY_OK;
+
+    case DICEY_EPATH_NOT_ALIAS:
+        *dest = PATH_KIND_OBJECT;
+        return DICEY_OK;
+
+    default:
+        return err;
+    }
+}
+
 static enum dicey_error dump_element(
     struct util_dumper *const dumper,
     const uint8_t print_flags,
@@ -195,6 +223,27 @@ enum verbosity {
     VERBOSE_DUMP,
 };
 
+struct path {
+    enum path_kind kind;
+    char *path;
+};
+
+static bool path_init(struct path *const pentry, const char *const path, const enum path_kind kind) {
+    assert(pentry && path);
+
+    char *const pclone = strdup(path);
+    if (!pclone) {
+        return false; // memory allocation failed
+    }
+
+    *pentry = (struct path) {
+        .kind = kind,
+        .path = pclone,
+    };
+
+    return true;
+}
+
 static void print_introspect_data(
     FILE *const out,
     const enum verbosity verbosity,
@@ -291,21 +340,31 @@ static void print_introspect_data(
     }
 }
 
-static ptrdiff_t query_paths(struct dicey_client *const client, const char *const target, char **const dest) {
+static ptrdiff_t query_paths(struct dicey_client *const client, const char *const target, struct path **const dest, ) {
     assert(client && target && dest);
 
     if (strcmp(target, "all")) {
-        // return just target as a list
-        *dest = strdup(target);
-        if (!*dest) {
-            return DICEY_ENOMEM;
+        enum path_kind kind = PATH_KIND_OBJECT;
+        const enum dicey_error err = check_path_kind(client, target, &kind);
+        if (err) {
+            return err; // failed to check path kind
         }
 
-        return (ptrdiff_t) strlen(target) + 1;
+        // return just target as a list
+        struct path *const pentry = malloc(sizeof *pentry);
+        if (!pentry || !path_init(pentry, target, kind)) {
+            free(pentry);
+
+            return DICEY_ENOMEM; // failed to initialize path entry
+        }
+
+        *dest = pentry;
+
+        return 1; // one path
     }
 
-    struct dicey_packet result = { 0 };
-    enum dicey_error err = dicey_client_list_objects(client, &result, DEFAULT_TIMEOUT);
+    struct dicey_packet objs_result = { 0 }, paths_result = { 0 };
+    enum dicey_error err = dicey_client_list_objects(client, &objs_result, DEFAULT_TIMEOUT);
     if (err) {
         return err;
     }
@@ -313,7 +372,7 @@ static ptrdiff_t query_paths(struct dicey_client *const client, const char *cons
     size_t needed = DICEY_OK;
 
     struct dicey_message msg = { 0 };
-    err = dicey_packet_as_message(result, &msg);
+    err = dicey_packet_as_message(objs_result, &msg);
     if (err) {
         goto quit;
     }
@@ -378,7 +437,8 @@ quit:
         free(*dest);
     }
 
-    dicey_packet_deinit(&result);
+    dicey_packet_deinit(&objs_result);
+    dicey_packet_deinit(&paths_result);
 
     return err ? err : (ptrdiff_t) needed;
 }

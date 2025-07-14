@@ -115,6 +115,20 @@ typedef void dicey_client_on_connect_fn(
 typedef void dicey_client_on_disconnect_fn(struct dicey_client *client, void *ctx, enum dicey_error status);
 
 /**
+ * @brief Represents a callback function that is called whenever a client checks if a path is an alias.
+ * @param client The client this callback is associated with.
+ * @param ctx    The context associated to this function (usually passed through `dicey_client_is_alias_async()`).
+ * @param status The status of the operation - either `DICEY_OK` or an error describing why the operation failed.
+ * @param is_alias Whether the path is an alias or not.
+ */
+typedef void dicey_client_on_is_alias_fn(
+    struct dicey_client *client,
+    void *ctx,
+    enum dicey_error status,
+    bool is_alias
+);
+
+/**
  * @brief Represents a callback function that is called whenever a client receives a reply to a previously sent request.
  * @param client The client this callback is associated with.
  * @param ctx    The context associated to this function (usually passed through `dicey_client_request_async()`).
@@ -467,6 +481,46 @@ DICEY_EXPORT enum dicey_error dicey_client_inspect_path_as_xml_async(
 );
 
 /**
+ * @brief Checks if a path is an alias for another object. Synchronous.
+ * @param client The client to send the request with.
+ * @param path   The path to check.
+ * @param timeout The maximum time to wait for a response, in milliseconds.
+ * @return       Error code. A (non-exhaustive) list of possible values are:
+ *               - OK: the path is an alias for another object
+ *               - EPATH_NOT_ALIAS: the path is not an alias for another object
+ *               - EPATH_NOT_FOUND: the path does not exist
+ *               - EINVAL: the client is in the wrong state (i.e. not connected)
+ *               - ETIMEDOUT: the request timed out
+ *               - ENOMEM: memory allocation failed (out of memory)
+ */
+DICEY_EXPORT enum dicey_error dicey_client_is_path_alias(
+    struct dicey_client *client,
+    const char *path,
+    uint32_t timeout
+);
+
+/**
+ * @brief Checks if a path is an alias for another object. Asynchronous.
+ * @param client The client to send the request with.
+ * @param path   The path to check.
+ * @param cb     The callback to call when a response is received or an error occurs.
+ * @param data   The context to pass to the callback.
+ * @param timeout The maximum time to wait for a response, in milliseconds.
+ * @return       Error code. A (non-exhaustive) list of possible values are:
+ *               - OK: the path is an alias for another object
+ *               - EINVAL: the client is in the wrong state (i.e. not connected)
+ *               - ETIMEDOUT: the request timed out
+ *               - ENOMEM: memory allocation failed (out of memory)
+ */
+DICEY_EXPORT enum dicey_error dicey_client_is_path_alias_async(
+    struct dicey_client *client,
+    const char *path,
+    dicey_client_on_is_alias_fn *cb,
+    void *data,
+    uint32_t timeout
+);
+
+/**
  * @brief Returns true if the client is connected to a server, false otherwise.
  * @param client The client to check.
  * @return       True if the client is connected to a server, false otherwise.
@@ -475,6 +529,8 @@ DICEY_EXPORT bool dicey_client_is_running(const struct dicey_client *client);
 
 /**
  * @brief Lists all objects on the server, blocking until a response is received or an error occurs.
+ * @note  The list of objects returned will not contain aliases. Use `dicey_client_list_paths()` to get a list of all
+ *        paths, including aliases.
  * @param client   The client to send the request with.
  * @param response The response packet, if the request was successful. Must be freed using `dicey_packet_deinit()` when
  *                 done. The packet is expected to have a signature as specified by `DICEY_REGISTRY_OBJECTS_PROP_SIG`.
@@ -494,6 +550,8 @@ DICEY_EXPORT enum dicey_error dicey_client_list_objects(
 /**
  * @brief Lists all objects on the server, returning immediately and calling the provided callback when a response is
  *        received or an error occurs.
+ * @note  The list of objects returned will not contain aliases. Use `dicey_client_list_paths_async()` to get a list of
+ *        all paths, including aliases.
  * @param client  The client to send the request with.
  * @param cb      The callback to call when a response is received or an error occurs. The packet is expected to have a
  *                signature as specified by `DICEY_REGISTRY_OBJECTS_PROP_SIG`.
@@ -505,6 +563,48 @@ DICEY_EXPORT enum dicey_error dicey_client_list_objects(
  *                - ENOMEM: memory allocation failed (out of memory)
  */
 DICEY_EXPORT enum dicey_error dicey_client_list_objects_async(
+    struct dicey_client *client,
+    dicey_client_on_reply_fn *cb,
+    void *data,
+    uint32_t timeout
+);
+
+/**
+ * @brief Lists all paths on the server, blocking until a response is received or an error occurs.
+ * @note  The list of paths returned will also contain aliases. Use `dicey_client_list_objects()` to get a list of just
+ *        objects.
+ * @param client   The client to send the request with.
+ * @param response The response packet, if the request was successful. Must be freed using `dicey_packet_deinit()` when
+ *                 done. The packet is expected to have a signature as specified by `DICEY_REGISTRY_PATHS_PROP_SIG`.
+ * @param timeout  The maximum time to wait for a response, in milliseconds.
+ * @return         Error code. A (non-exhaustive) list of possible values are:
+ *                 - OK: the request was successfully sent and a response was received (`response` is valid)
+ *                 - EINVAL: the client is in the wrong state (i.e. not connected)
+ *                 - ETIMEDOUT: the request timed out'
+ *                 - ENOMEM: memory allocation failed (out of memory)
+ */
+DICEY_EXPORT enum dicey_error dicey_client_list_paths(
+    struct dicey_client *client,
+    struct dicey_packet *response,
+    uint32_t timeout
+);
+
+/**
+ * @brief Lists all paths on the server, returning immediately and calling the provided callback when a response is
+ *        received or an error occurs.
+ * @note  The list of paths returned will also contain aliases. Use `dicey_client_list_objects_async()` to get a list of
+ *        just objects.
+ * @param client  The client to send the request with.
+ * @param cb      The callback to call when a response is received or an error occurs. The packet is expected to have a
+ *                signature as specified by `DICEY_REGISTRY_PATHS_PROP_SIG`.
+ * @param data    The context to pass to the callback.
+ * @param timeout The maximum time to wait for a response, in milliseconds.
+ * @return        Error code. A (non-exhaustive) list of possible values are:
+ *                - OK: the request was successfully submitted for sending
+ *                - EINVAL: the client is in the wrong state (i.e. not connected)
+ *                - ENOMEM: memory allocation failed (out of memory)
+ */
+DICEY_EXPORT enum dicey_error dicey_client_list_paths_async(
     struct dicey_client *client,
     dicey_client_on_reply_fn *cb,
     void *data,

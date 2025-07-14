@@ -970,7 +970,31 @@ static bool client_event(struct dicey_client *const client, const int event, ...
     return res;
 }
 
-static enum dicey_error parse_unit_reply(struct dicey_packet packet) {
+static enum dicey_error parse_bool_reply(const struct dicey_packet packet, bool *const value) {
+    assert(dicey_packet_is_valid(packet) && value);
+
+    // attempt extracting an error code, or find errors in the reply
+    struct dicey_message msg = { 0 };
+    enum dicey_error err = dicey_packet_as_message(packet, &msg);
+    if (err) {
+        return err; // failed to parse the packet as a message
+    }
+
+    err = dicey_value_get_bool(&msg.value, value);
+    if (!err) {
+        return DICEY_OK; // successfully parsed the reply
+    }
+
+    struct dicey_errmsg errmsg = { 0 };
+    err = dicey_value_get_error(&msg.value, &errmsg);
+    if (err) {
+        return err; // failed to get an error from the value
+    }
+
+    return (enum dicey_error) errmsg.code;
+}
+
+static enum dicey_error parse_unit_reply(const struct dicey_packet packet) {
     // attempt extracting an error code, or find errors in the reply
     struct dicey_message msg = { 0 };
     enum dicey_error err = dicey_packet_as_message(packet, &msg);
@@ -1019,6 +1043,39 @@ static enum dicey_error parse_subunsub_reply(struct dicey_packet packet, char **
     }
 
     return DICEY_OK; // successfully parsed the reply
+}
+
+struct is_alias_async_ctx {
+    dicey_client_on_is_alias_fn *cb; /**< Callback for is_alias */
+    void *data;                      /**< Data to pass to the callback */
+};
+
+static void is_alias_on_reply(
+    struct dicey_client *const client,
+    void *const ctx,
+    enum dicey_error err,
+    struct dicey_packet *packet
+) {
+    assert(client && ctx && packet);
+
+    struct is_alias_async_ctx *const is_alias_ctx = ctx;
+    dicey_client_on_is_alias_fn *const cb = is_alias_ctx->cb;
+    assert(cb);
+
+    void *const data = is_alias_ctx->data;
+
+    free(is_alias_ctx); // free the context, we don't need it anymore
+
+    if (err) {
+        cb(client, data, err, false);
+
+        return;
+    }
+
+    bool is_alias = false;
+    enum dicey_error parse_err = parse_bool_reply(*packet, &is_alias);
+
+    cb(client, data, parse_err, is_alias);
 }
 
 struct subunsub_async_ctx {
@@ -1548,6 +1605,93 @@ enum dicey_error dicey_client_inspect_path_as_xml(
     );
 }
 
+enum dicey_error dicey_client_inspect_path_as_xml_async(
+    struct dicey_client *const client,
+    const char *const path,
+    dicey_client_on_reply_fn *const cb,
+    void *const data,
+    const uint32_t timeout
+) {
+    return dicey_client_get_async(
+        client,
+        path,
+        (struct dicey_selector) {
+            .trait = DICEY_INTROSPECTION_TRAIT_NAME,
+            .elem = DICEY_INTROSPECTION_XML_PROP_NAME,
+        },
+        cb,
+        data,
+        timeout
+    );
+}
+
+enum dicey_error dicey_client_is_path_alias(struct dicey_client *client, const char *path, uint32_t timeout) {
+    assert(client && path);
+
+    struct dicey_packet response = { 0 };
+
+    enum dicey_error err = dicey_client_exec(
+        client,
+        DICEY_REGISTRY_PATH,
+        (struct dicey_selector) {
+            .trait = DICEY_REGISTRY_TRAIT_NAME,
+            .elem = DICEY_REGISTRY_PATH_IS_ALIAS_OP_NAME,
+        },
+        (struct dicey_arg) {
+            .type = DICEY_TYPE_PATH,
+            .path = path,
+        },
+        &response,
+        timeout
+    );
+
+    if (err) {
+        return err;
+    }
+
+    bool is_alias = false;
+    err = parse_bool_reply(response, &is_alias);
+    dicey_packet_deinit(&response);
+
+    return err ? err : (is_alias ? DICEY_OK : TRACE(DICEY_EPATH_NOT_ALIAS));
+}
+
+enum dicey_error dicey_client_is_path_alias_async(
+    struct dicey_client *client,
+    const char *path,
+    dicey_client_on_is_alias_fn *cb,
+    void *data,
+    uint32_t timeout
+) {
+    assert(client && path && cb);
+
+    struct is_alias_async_ctx *const is_alias_ctx = malloc(sizeof *is_alias_ctx);
+    if (!is_alias_ctx) {
+        return TRACE(DICEY_ENOMEM);
+    }
+
+    *is_alias_ctx = (struct is_alias_async_ctx) {
+        .cb = cb,
+        .data = data,
+    };
+
+    return dicey_client_exec_async(
+        client,
+        DICEY_REGISTRY_PATH,
+        (struct dicey_selector) {
+            .trait = DICEY_REGISTRY_TRAIT_NAME,
+            .elem = DICEY_REGISTRY_PATH_IS_ALIAS_OP_NAME,
+        },
+        (struct dicey_arg) {
+            .type = DICEY_TYPE_PATH,
+            .path = path,
+        },
+        &is_alias_on_reply,
+        is_alias_ctx,
+        timeout
+    );
+}
+
 bool dicey_client_is_running(const struct dicey_client *const client) {
     assert(client);
 
@@ -1587,6 +1731,46 @@ enum dicey_error dicey_client_list_objects_async(
         (struct dicey_selector) {
             .trait = DICEY_REGISTRY_TRAIT_NAME,
             .elem = DICEY_REGISTRY_OBJECTS_PROP_NAME,
+        },
+        cb,
+        data,
+        timeout
+    );
+}
+
+enum dicey_error dicey_client_list_paths(
+    struct dicey_client *const client,
+    struct dicey_packet *const response,
+    const uint32_t timeout
+) {
+    assert(client && response);
+
+    return dicey_client_get(
+        client,
+        DICEY_REGISTRY_PATH,
+        (struct dicey_selector) {
+            .trait = DICEY_REGISTRY_TRAIT_NAME,
+            .elem = DICEY_REGISTRY_PATHS_PROP_NAME,
+        },
+        response,
+        timeout
+    );
+}
+
+enum dicey_error dicey_client_list_paths_async(
+    struct dicey_client *const client,
+    dicey_client_on_reply_fn *const cb,
+    void *const data,
+    const uint32_t timeout
+) {
+    assert(client && cb);
+
+    return dicey_client_get_async(
+        client,
+        DICEY_REGISTRY_PATH,
+        (struct dicey_selector) {
+            .trait = DICEY_REGISTRY_TRAIT_NAME,
+            .elem = DICEY_REGISTRY_PATHS_PROP_NAME,
         },
         cb,
         data,

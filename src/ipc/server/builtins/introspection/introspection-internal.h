@@ -38,6 +38,12 @@ enum dicey_error introspection_check_path_exists(
     struct dicey_packet *dest
 );
 
+enum dicey_error introspection_check_path_is_alias(
+    const struct dicey_registry *registry,
+    const char *path,
+    struct dicey_packet *dest
+);
+
 enum dicey_error introspection_check_trait_exists(
     const struct dicey_registry *registry,
     const char *trait,
@@ -52,6 +58,7 @@ enum dicey_error introspection_craft_filtered_elemlist(
     struct dicey_packet *dest
 );
 
+enum dicey_error introspection_craft_objlist(const struct dicey_registry *registry, struct dicey_packet *dest);
 enum dicey_error introspection_craft_pathlist(const struct dicey_registry *registry, struct dicey_packet *dest);
 enum dicey_error introspection_craft_traitlist(const struct dicey_registry *registry, struct dicey_packet *dest);
 

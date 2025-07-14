@@ -43,12 +43,16 @@
 
 /**
  * trait dicey.Registry {
- *     ro Objects: [@] // a list of object paths
+ *     ro Objects: [@] // a list of object paths (excluding aliases)
+ *     ro Paths: [@] // a list of all paths in the registry, including aliases
  *     ro Traits: [@]  // a list of trait object paths
  *
  *     ElementExists: (@%) -> b // given a path and selector, return true if the element exists
  *     PathExists: @ -> b // takes a path, returns true if it exists. Nicer than attempting to get data from a
- * non-existing path and handling failure TraitExists: s -> b // takes a path, returns true if such a trait exists
+ *                        // non-existing path and handling failure
+ *     PathIsAlias: @ -> b // takes a path, returns true if it is an alias, false otherwise, error if the path does not
+ *                         // exist
+ *     TraitExists: s -> b // takes a path, returns true if such a trait exists
  *
  *     // TODO: add signals for object creation and deletion
  * }
@@ -59,6 +63,9 @@
 #define DICEY_REGISTRY_OBJECTS_PROP_NAME "Objects"
 #define DICEY_REGISTRY_OBJECTS_PROP_SIG "[@]"
 
+#define DICEY_REGISTRY_PATHS_PROP_NAME "Paths"
+#define DICEY_REGISTRY_PATHS_PROP_SIG "[@]"
+
 #define DICEY_REGISTRY_TRAITS_PROP_NAME "Traits"
 #define DICEY_REGISTRY_TRAITS_PROP_SIG "[s]"
 
@@ -67,6 +74,9 @@
 
 #define DICEY_REGISTRY_PATH_EXISTS_OP_NAME "PathExists"
 #define DICEY_REGISTRY_PATH_EXISTS_OP_SIG "@ -> b"
+
+#define DICEY_REGISTRY_PATH_IS_ALIAS_OP_NAME "PathIsAlias"
+#define DICEY_REGISTRY_PATH_IS_ALIAS_OP_SIG "@ -> b"
 
 #define DICEY_REGISTRY_TRAIT_EXISTS_OP_NAME "TraitExists"
 #define DICEY_REGISTRY_TRAIT_EXISTS_OP_SIG "s -> b"
