@@ -52,6 +52,7 @@
  *                        // non-existing path and handling failure
  *     PathIsAlias: @ -> b // takes a path, returns true if it is an alias, false otherwise, error if the path does not
  *                         // exist
+ *     RealPath: @ -> @ // takes a path, returns the real path of the object (same if not an alias)
  *     TraitExists: s -> b // takes a path, returns true if such a trait exists
  *
  *     // TODO: add signals for object creation and deletion
@@ -77,6 +78,9 @@
 
 #define DICEY_REGISTRY_PATH_IS_ALIAS_OP_NAME "PathIsAlias"
 #define DICEY_REGISTRY_PATH_IS_ALIAS_OP_SIG "@ -> b"
+
+#define DICEY_REGISTRY_REAL_PATH_OP_NAME "RealPath"
+#define DICEY_REGISTRY_REAL_PATH_OP_SIG "@ -> @"
 
 #define DICEY_REGISTRY_TRAIT_EXISTS_OP_NAME "TraitExists"
 #define DICEY_REGISTRY_TRAIT_EXISTS_OP_SIG "s -> b"

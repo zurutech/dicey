@@ -77,6 +77,12 @@ enum dicey_error introspection_init_builder(
     const char *elem_name
 );
 
+enum dicey_error introspection_get_real_path(
+    const struct dicey_registry *registry,
+    const char *path,
+    struct dicey_packet *dest
+);
+
 enum dicey_error introspection_object_populate_xml(
     const struct dicey_registry *registry,
     const char *path,

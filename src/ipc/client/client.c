@@ -1536,6 +1536,56 @@ void *dicey_client_get_context(const struct dicey_client *client) {
     return client->ctx;
 }
 
+enum dicey_error dicey_client_get_real_path(
+    struct dicey_client *const client,
+    const char *const path,
+    struct dicey_packet *const response,
+    const uint32_t timeout
+) {
+    assert(client && path && response);
+
+    return dicey_client_exec(
+        client,
+        DICEY_REGISTRY_PATH,
+        (struct dicey_selector) {
+            .trait = DICEY_REGISTRY_TRAIT_NAME,
+            .elem = DICEY_REGISTRY_REAL_PATH_OP_NAME,
+        },
+        (struct dicey_arg) {
+            .type = DICEY_TYPE_PATH,
+            .path = path,
+        },
+        response,
+        timeout
+    );
+}
+
+enum dicey_error dicey_client_get_real_path_async(
+    struct dicey_client *const client,
+    const char *const path,
+    dicey_client_on_reply_fn *const cb,
+    void *const data,
+    const uint32_t timeout
+) {
+    assert(client && path && cb);
+
+    return dicey_client_exec_async(
+        client,
+        DICEY_REGISTRY_PATH,
+        (struct dicey_selector) {
+            .trait = DICEY_REGISTRY_TRAIT_NAME,
+            .elem = DICEY_REGISTRY_REAL_PATH_OP_NAME,
+        },
+        (struct dicey_arg) {
+            .type = DICEY_TYPE_PATH,
+            .path = path,
+        },
+        cb,
+        data,
+        timeout
+    );
+}
+
 enum dicey_error dicey_client_init(struct dicey_client *const client, const struct dicey_client_args *const args) {
     assert(client);
 

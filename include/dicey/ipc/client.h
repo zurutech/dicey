@@ -390,8 +390,45 @@ DICEY_EXPORT enum dicey_error dicey_client_get_async(
 /**
  * @brief Gets the context associated with a client. This is either the `ctx` parameter set via
  * `dicey_client_set_context()` or NULL if no context has been set.
+ * @param client The client to get the context from.
+ * @return       The context associated with the client, or NULL if no context has been set
  */
 DICEY_EXPORT void *dicey_client_get_context(const struct dicey_client *client);
+
+/**
+ * @brief Asks the server the real path of a given path, blocking until a response is received or an error occurs.
+ *        This function is useful to resolve aliases and get the actual path of an object.
+ * @param client The client to send the request with.
+ * @param path   The object path to inspect.
+ * @param response The response packet, if the request was successful. Must be freed using `dicey_packet_deinit()` when
+ *                 done. The response packet is expected to contain the real path as a path.
+ * @param timeout The maximum time to wait for a response, in milliseconds.
+ * @return       Error code. A (non-exhaustive) list of possible values are:
+ *               - OK: the request was successfully sent and a response was received (`response` is valid)
+ *               - EINVAL: the client is in the wrong state (i.e. not connected)
+ *               - ETIMEDOUT: the request timed out
+ *               - ENOMEM: memory allocation failed (out of memory)
+ *               - EPATH_NOT_FOUND: the path was not found
+ * @param
+ */
+DICEY_EXPORT enum dicey_error dicey_client_get_real_path(
+    struct dicey_client *client,
+    const char *path,
+    struct dicey_packet *response,
+    uint32_t timeout
+);
+
+/**
+ * @brief Asks the server the real path of a given path, blocking until a response is received or an error occurs.
+ *        This function is useful to resolve aliases and get the actual path of an object.
+ */
+DICEY_EXPORT enum dicey_error dicey_client_get_real_path_async(
+    struct dicey_client *client,
+    const char *path,
+    dicey_client_on_reply_fn *cb,
+    void *data,
+    uint32_t timeout
+);
 
 /**
  * @brief Inspects the object at a given path.
