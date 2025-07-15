@@ -392,12 +392,26 @@ DICEY_EXPORT bool dicey_registry_get_object_entry(
 DICEY_EXPORT struct dicey_trait *dicey_registry_get_trait(const struct dicey_registry *registry, const char *name);
 
 /**
+ * @brief Returns OK if the path is an alias, or EPATH_NOT_ALIAS if it is not.
+ * @param registry The registry to inspect.
+ * @param path     The path to check
+ * @param is_alias A pointer to a boolean that will be set to true if the path is an alias, false otherwise.
+ *                 This pointer must not be NULL.
+ * @return         Error code. Possible values are:
+ *                 - OK: the path is an alias
+ *                 - EPATH_NOT_ALIAS: the path is not an alias
+ *                 - EPATH_MALFORMED: the path is malformed (e.g. not a valid Dicey path)
+ *                 - EPATH_NOT_FOUND: the path does not exist in the registry
+ */
+DICEY_EXPORT enum dicey_error dicey_registry_is_alias(const struct dicey_registry *registry, const char *path);
+
+/**
  * @brief Removes an object from the registry.
  * @param registry The registry to remove the object from.
  * @param path     The path to the object.
  * @return         Error code. Possible values are:
  *                 - OK: the object was successfully removed from the registry
- *                 - EINVAL: the path is malformed
+ *                 - EPATH_MALFORMED: the path is malformed
  *                 - EPATH_NOT_FOUND: no object exists at the given path
  */
 DICEY_EXPORT enum dicey_error dicey_registry_remove_object(struct dicey_registry *registry, const char *path);

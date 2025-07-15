@@ -854,6 +854,25 @@ struct dicey_trait *dicey_registry_get_trait(const struct dicey_registry *const 
     return dicey_hashtable_get(registry->traits, name);
 }
 
+enum dicey_error dicey_registry_is_alias(const struct dicey_registry *const registry, const char *const path) {
+    assert(registry && path);
+
+    if (!path_is_valid(path)) {
+        return TRACE(DICEY_EPATH_MALFORMED);
+    }
+
+    const struct dicey_object *const object = dicey_registry_get_object(registry, path);
+    if (!object) {
+        return TRACE(DICEY_EPATH_NOT_FOUND);
+    }
+
+    assert(object->main_path);
+
+    // if path is the same as the main path, then it is not an alias
+    // no trace here: this is a testing function, so we don't want unnecessary breakpoints
+    return strcmp(object->main_path, path) ? DICEY_OK : DICEY_EPATH_NOT_ALIAS;
+}
+
 enum dicey_error dicey_registry_remove_object(struct dicey_registry *const registry, const char *const path) {
     assert(registry && path);
 

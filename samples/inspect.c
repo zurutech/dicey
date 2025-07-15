@@ -88,6 +88,34 @@ enum print_flags {
     PRINT_CONTINUE_BAR = 1 << 1,
 };
 
+enum path_kind {
+    PATH_KIND_OBJECT,
+    PATH_KIND_ALIAS,
+};
+
+static enum dicey_error check_path_kind(
+    struct dicey_client *const client,
+    const char *const path,
+    enum path_kind *const dest
+) {
+    assert(client && path && dest);
+
+    const enum dicey_error err = dicey_client_is_path_alias(client, path, DEFAULT_TIMEOUT);
+
+    switch (err) {
+    case DICEY_OK:
+        *dest = PATH_KIND_ALIAS;
+        return DICEY_OK;
+
+    case DICEY_EPATH_NOT_ALIAS:
+        *dest = PATH_KIND_OBJECT;
+        return DICEY_OK;
+
+    default:
+        return err;
+    }
+}
+
 static enum dicey_error dump_element(
     struct util_dumper *const dumper,
     const uint8_t print_flags,
@@ -195,6 +223,74 @@ enum verbosity {
     VERBOSE_DUMP,
 };
 
+struct path {
+    enum path_kind kind;
+    char *path, *alias; // alias is only used for PATH_KIND_ALIAS
+};
+
+static void path_delete(void *const pentry) {
+    if (pentry) {
+        const struct path *const path = pentry;
+        free(path->path);
+        free(path->alias);
+
+        free(pentry);
+    }
+}
+
+static struct path *path_new(const char *const path) {
+    assert(path);
+
+    struct path *const pentry = malloc(sizeof(struct path));
+    if (!pentry) {
+        return NULL; // memory allocation failed
+    }
+
+    char *const pclone = strdup(path);
+    if (!pclone) {
+        return false; // memory allocation failed
+    }
+
+    *pentry = (struct path) {
+        .kind = PATH_KIND_OBJECT,
+        .path = pclone,
+    };
+
+    return pentry;
+}
+
+static struct path *alias_new(const char *const target, const char *const link) {
+    assert(target && link);
+
+    struct path *const pentry = malloc(sizeof(struct path));
+    if (!pentry) {
+        return NULL; // memory allocation failed
+    }
+
+    char *const path = strdup(target);
+    if (!path) {
+        free(pentry);
+
+        return NULL; // memory allocation failed
+    }
+
+    char *const alias = strdup(link);
+    if (!alias) {
+        free(path);
+        free(pentry);
+
+        return NULL; // memory allocation failed
+    }
+
+    *pentry = (struct path) {
+        .kind = PATH_KIND_ALIAS,
+        .path = path,
+        .alias = alias,
+    };
+
+    return pentry;
+}
+
 static void print_introspect_data(
     FILE *const out,
     const enum verbosity verbosity,
@@ -291,96 +387,250 @@ static void print_introspect_data(
     }
 }
 
-static ptrdiff_t query_paths(struct dicey_client *const client, const char *const target, char **const dest) {
-    assert(client && target && dest);
+static enum dicey_error query_objects(struct dicey_client *const client, struct dicey_hashtable **const dest) {
+    assert(client && dest && !*dest);
 
-    if (strcmp(target, "all")) {
-        // return just target as a list
-        *dest = strdup(target);
-        if (!*dest) {
-            return DICEY_ENOMEM;
-        }
+    struct dicey_hashtable *table = NULL;
 
-        return (ptrdiff_t) strlen(target) + 1;
-    }
-
-    struct dicey_packet result = { 0 };
-    enum dicey_error err = dicey_client_list_objects(client, &result, DEFAULT_TIMEOUT);
+    struct dicey_packet objs_result = { 0 };
+    enum dicey_error err = dicey_client_list_objects(client, &objs_result, DEFAULT_TIMEOUT);
     if (err) {
         return err;
     }
 
-    size_t needed = DICEY_OK;
-
     struct dicey_message msg = { 0 };
-    err = dicey_packet_as_message(result, &msg);
+    err = dicey_packet_as_message(objs_result, &msg);
     if (err) {
         goto quit;
     }
 
-    struct dicey_list paths = { 0 };
-    err = dicey_value_get_array(&msg.value, &paths);
+    struct dicey_list plist = { 0 };
+    err = dicey_value_get_array(&msg.value, &plist);
     if (err) {
         goto quit;
     }
 
-    struct dicey_iterator it = dicey_list_iter(&paths);
+    struct dicey_iterator it = dicey_list_iter(&plist);
 
-    while (dicey_iterator_has_next(it)) {
-        struct dicey_value entry = { 0 };
-        err = dicey_iterator_next(&it, &entry);
-        if (err) {
-            goto quit;
-        }
-
+    struct dicey_value entry = { 0 };
+    while (dicey_iterator_next(&it, &entry) == DICEY_OK) {
         const char *path = NULL;
         err = dicey_value_get_path(&entry, &path);
         if (err) {
+            goto quit; // failed to get path
+        }
+
+        struct path *const pentry = path_new(path);
+        if (!pentry) {
+            err = DICEY_ENOMEM; // memory allocation failed
+
             goto quit;
         }
 
-        needed += strlen(path) + 1;
-    }
+        const enum dicey_hash_set_result res = dicey_hashtable_set(&table, path, pentry, NULL);
+        switch (res) {
+        case DICEY_HASH_SET_FAILED:
+            err = DICEY_ENOMEM; // memory allocation failed
 
-    *dest = calloc(needed, sizeof *dest);
-    if (!*dest) {
-        err = DICEY_ENOMEM;
+            goto quit;
 
-        goto quit;
-    }
+        case DICEY_HASH_SET_ADDED:
+            break;
 
-    char *ptr = *dest;
-    it = dicey_list_iter(&paths);
+        case DICEY_HASH_SET_UPDATED:
+            assert(false); // should never happen, server is broken if this happens
+            err = DICEY_EINVAL;
 
-    while (dicey_iterator_has_next(it)) {
-        struct dicey_value entry = { 0 };
-        err = dicey_iterator_next(&it, &entry);
-        if (err) {
             goto quit;
         }
-
-        const char *path = NULL;
-        err = dicey_value_get_path(&entry, &path);
-        if (err) {
-            goto quit;
-        }
-
-        // also copy the null byte
-        const size_t nbytes = strlen(path) + 1;
-
-        memcpy(ptr, path, nbytes);
-
-        ptr += nbytes;
     }
+
+    *dest = table; // return the table to the caller
 
 quit:
     if (err) {
-        free(*dest);
+        dicey_hashtable_delete(table, path_delete);
+    } else {
+        *dest = table; // return the table to the caller
     }
 
-    dicey_packet_deinit(&result);
+    dicey_packet_deinit(&objs_result);
 
-    return err ? err : (ptrdiff_t) needed;
+    return err;
+}
+
+static enum dicey_error query_real_path(struct dicey_client *const client, const char *const path, char **const dest) {
+    assert(client && path && dest);
+
+    struct dicey_packet packet = { 0 };
+    enum dicey_error err = dicey_client_get_real_path(client, path, &packet, DEFAULT_TIMEOUT);
+    if (err) {
+        return err; // failed to get real path
+    }
+
+    struct dicey_message msg = { 0 };
+    err = dicey_packet_as_message(packet, &msg);
+    if (err) {
+        dicey_packet_deinit(&packet);
+        return err; // failed to parse the packet as a message
+    }
+
+    struct dicey_errmsg errmsg = { 0 };
+    err = dicey_value_get_error(&msg.value, &errmsg);
+    if (!err) {
+        dicey_packet_deinit(&packet);
+
+        return (enum dicey_error) errmsg.code; // the server returned an error code
+    }
+
+    const char *real_path = NULL;
+    err = dicey_value_get_path(&msg.value, &real_path);
+    if (err) {
+        dicey_packet_deinit(&packet);
+
+        return err; // failed to get the real path from the value
+    }
+
+    *dest = strdup(real_path);
+    dicey_packet_deinit(&packet);
+
+    // return an error if strdup failed
+    return *dest ? DICEY_OK : DICEY_ENOMEM;
+}
+
+static enum dicey_error query_paths(
+    struct dicey_client *const client,
+    const char *const target,
+    struct dicey_hashtable **const dest
+) {
+    assert(client && target && dest);
+
+    if (strcmp(target, "all")) {
+        enum path_kind kind = PATH_KIND_OBJECT;
+        enum dicey_error err = check_path_kind(client, target, &kind);
+        if (err) {
+            return err; // failed to check path kind
+        }
+
+        struct path *path = NULL;
+
+        if (kind == PATH_KIND_OBJECT) {
+            path = path_new(target);
+        } else {
+            char *alias = NULL;
+            err = query_real_path(client, target, &alias);
+            if (err) {
+                return err; // failed to query real path
+            }
+
+            assert(alias);
+
+            path = alias_new(target, alias);
+            free(alias);
+        }
+
+        if (!path) {
+            return DICEY_ENOMEM; // memory allocation failed
+        }
+
+        const enum dicey_hash_set_result res = dicey_hashtable_set(dest, target, path, NULL);
+        if (res == DICEY_HASH_SET_FAILED) {
+            free(path);
+            return DICEY_ENOMEM; // memory allocation failed
+        }
+
+        return DICEY_OK; // successfully added the path
+    }
+
+    // handle the "all" case
+
+    struct dicey_hashtable *paths = NULL;
+
+    enum dicey_error err = query_objects(client, &paths);
+    if (err) {
+        goto quit; // failed to query objects
+    }
+
+    struct dicey_packet paths_result = { 0 };
+    err = dicey_client_list_paths(client, &paths_result, DEFAULT_TIMEOUT);
+    if (err) {
+        goto quit; // failed to list paths
+    }
+
+    struct dicey_message msg = { 0 };
+    err = dicey_packet_as_message(paths_result, &msg);
+    if (err) {
+        goto quit;
+    }
+
+    struct dicey_list plist = { 0 };
+    err = dicey_value_get_array(&msg.value, &plist);
+    if (err) {
+        goto quit;
+    }
+
+    struct dicey_iterator it = dicey_list_iter(&plist);
+    struct dicey_value entry = { 0 };
+
+    while (dicey_iterator_next(&it, &entry) == DICEY_OK) {
+        const char *path = NULL;
+        err = dicey_value_get_path(&entry, &path);
+        if (err) {
+            goto quit; // failed to get path
+        }
+
+        // if the path is already in the hashtable, then skip it. Otherwise, it's an alias
+        if (dicey_hashtable_contains(paths, path)) {
+            continue;
+        }
+
+        char *apath = NULL;
+        err = query_real_path(client, path, &apath);
+        if (err) {
+            goto quit; // failed to query real path
+        }
+
+        assert(apath);
+
+        struct path *const alias = alias_new(path, apath);
+        free(apath); // free the alias string, we don't need it anymore
+        if (!alias) {
+            err = DICEY_ENOMEM; // memory allocation failed
+
+            goto quit;
+        }
+
+        const enum dicey_hash_set_result res = dicey_hashtable_set(&paths, path, alias, NULL);
+        switch (res) {
+        case DICEY_HASH_SET_FAILED:
+            path_delete(apath);
+            err = DICEY_ENOMEM; // memory allocation failed
+
+            goto quit;
+
+        case DICEY_HASH_SET_ADDED:
+            break;
+
+        case DICEY_HASH_SET_UPDATED:
+            // this should never happen, server is broken if this happens
+            assert(false);
+            path_delete(apath);
+            err = DICEY_EINVAL;
+
+            goto quit;
+        }
+    }
+
+    *dest = paths; // return the hashtable to the caller
+
+quit:
+    if (err) {
+        dicey_hashtable_delete(paths, path_delete);
+    }
+
+    dicey_packet_deinit(&paths_result);
+
+    return err;
 }
 
 struct inspect_args {
@@ -422,28 +672,35 @@ static int do_op(const struct inspect_args *const args) {
         return err;
     }
 
-    char *path_list = NULL;
-    const ptrdiff_t res = query_paths(client, args->path, &path_list);
-    if (res < 0) {
-        err = (enum dicey_error) res;
-
+    struct dicey_hashtable *paths = NULL;
+    err = query_paths(client, args->path, &paths);
+    if (err) {
         goto quit;
     }
 
-    assert(path_list);
+    assert(paths && dicey_hashtable_size(paths));
 
-    const size_t nbytes = (size_t) res;
-    const char *const end = path_list + nbytes;
+    struct dicey_hashtable_iter it = dicey_hashtable_iter_start(paths);
+    const char *path = NULL;
+    void *value = NULL;
+    while (dicey_hashtable_iter_next(&it, &path, &value)) {
+        assert(path && value);
 
-    for (const char *ptr = path_list; !err && ptr < end; ptr += strlen(ptr) + 1) {
+        const struct path *const pentry = value;
+        if (pentry->kind == PATH_KIND_ALIAS) {
+            fprintf(args->output, "alias %s -> %s\n", pentry->path, path);
+
+            continue; // don't inspect aliases
+        }
+
         struct dicey_packet result = { 0 };
         switch (args->op) {
         case OUTPUT_NATIVE:
-            err = dicey_client_inspect_path(client, ptr, &result, DEFAULT_TIMEOUT);
+            err = dicey_client_inspect_path(client, path, &result, DEFAULT_TIMEOUT);
             break;
 
         case OUTPUT_XML:
-            err = dicey_client_inspect_path_as_xml(client, ptr, &result, DEFAULT_TIMEOUT);
+            err = dicey_client_inspect_path_as_xml(client, path, &result, DEFAULT_TIMEOUT);
             break;
 
         default:
@@ -471,7 +728,7 @@ static int do_op(const struct inspect_args *const args) {
     }
 
 quit:
-    free(path_list);
+    dicey_hashtable_delete(paths, path_delete);
     fclose(args->output);
     (void) dicey_client_disconnect(client);
     dicey_client_delete(client);

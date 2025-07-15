@@ -49,9 +49,12 @@ enum introspection_op {
     INTROSPECTION_OP_GET_DATA,
     INTROSPECTION_OP_GET_XML,
     INTROSPECTION_OP_REGISTRY_GET_OBJS,
+    INTROSPECTION_OP_REGISTRY_GET_PATHS,
     INTROSPECTION_OP_REGISTRY_GET_TRAITS,
     INTROSPECTION_OP_REGISTRY_ELEMENT_EXISTS,
     INTROSPECTION_OP_REGISTRY_PATH_EXISTS,
+    INTROSPECTION_OP_REGISTRY_PATH_IS_ALIAS,
+    INTROSPECTION_OP_REGISTRY_REAL_PATH,
     INTROSPECTION_OP_REGISTRY_TRAIT_EXISTS,
     INTROSPECTION_OP_TRAIT_GET_OPERATIONS,
     INTROSPECTION_OP_TRAIT_GET_PROPERTIES,
@@ -84,6 +87,13 @@ static const struct dicey_default_element registry_elements[] = {
      .opcode = INTROSPECTION_OP_REGISTRY_GET_OBJS,
      },
     {
+     .name = DICEY_REGISTRY_PATHS_PROP_NAME,
+     .type = DICEY_ELEMENT_TYPE_PROPERTY,
+     .signature = DICEY_REGISTRY_PATHS_PROP_SIG,
+     .flags = DICEY_ELEMENT_READONLY,
+     .opcode = INTROSPECTION_OP_REGISTRY_GET_PATHS,
+     },
+    {
      .name = DICEY_REGISTRY_TRAITS_PROP_NAME,
      .type = DICEY_ELEMENT_TYPE_PROPERTY,
      .signature = DICEY_REGISTRY_TRAITS_PROP_SIG,
@@ -101,6 +111,18 @@ static const struct dicey_default_element registry_elements[] = {
      .type = DICEY_ELEMENT_TYPE_OPERATION,
      .signature = DICEY_REGISTRY_PATH_EXISTS_OP_SIG,
      .opcode = INTROSPECTION_OP_REGISTRY_PATH_EXISTS,
+     },
+    {
+     .name = DICEY_REGISTRY_PATH_IS_ALIAS_OP_NAME,
+     .type = DICEY_ELEMENT_TYPE_OPERATION,
+     .signature = DICEY_REGISTRY_PATH_IS_ALIAS_OP_SIG,
+     .opcode = INTROSPECTION_OP_REGISTRY_PATH_IS_ALIAS,
+     },
+    {
+     .name = DICEY_REGISTRY_REAL_PATH_OP_NAME,
+     .type = DICEY_ELEMENT_TYPE_OPERATION,
+     .signature = DICEY_REGISTRY_REAL_PATH_OP_SIG,
+     .opcode = INTROSPECTION_OP_REGISTRY_REAL_PATH,
      },
     {
      .name = DICEY_REGISTRY_TRAIT_EXISTS_OP_NAME,
@@ -252,8 +274,11 @@ static enum dicey_error perform_introspection_op(
     case INTROSPECTION_OP_GET_XML:
         return introspection_dump_xml(registry, path, response);
 
-    case INTROSPECTION_OP_REGISTRY_GET_OBJS:
+    case INTROSPECTION_OP_REGISTRY_GET_PATHS:
         return introspection_craft_pathlist(registry, response);
+
+    case INTROSPECTION_OP_REGISTRY_GET_OBJS:
+        return introspection_craft_objlist(registry, response);
 
     case INTROSPECTION_OP_REGISTRY_GET_TRAITS:
         return introspection_craft_traitlist(registry, response);
@@ -280,6 +305,30 @@ static enum dicey_error perform_introspection_op(
             const enum dicey_error err = dicey_value_get_path(value, &target);
 
             return err ? err : introspection_check_path_exists(registry, target, response);
+        }
+
+    case INTROSPECTION_OP_REGISTRY_PATH_IS_ALIAS:
+        {
+            assert(value);
+
+            const char *target = NULL;
+
+            // this operation consumes a path and returns a boolean
+            const enum dicey_error err = dicey_value_get_path(value, &target);
+
+            return err ? err : introspection_check_path_is_alias(registry, target, response);
+        }
+
+    case INTROSPECTION_OP_REGISTRY_REAL_PATH:
+        {
+            assert(value);
+
+            const char *target = NULL;
+
+            // this operation consumes a path and returns a path
+            const enum dicey_error err = dicey_value_get_path(value, &target);
+
+            return err ? err : introspection_get_real_path(registry, target, response);
         }
 
     case INTROSPECTION_OP_REGISTRY_TRAIT_EXISTS:

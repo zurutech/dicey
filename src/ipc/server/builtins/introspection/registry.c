@@ -35,6 +35,11 @@
 
 #include "introspection-internal.h"
 
+enum pathlist_policy {
+    PATHLIST_ALL,
+    PATHLIST_NO_ALIASES,
+};
+
 static enum dicey_error craft_bool_response(
     const bool value,
     const char *const path,
@@ -58,6 +63,87 @@ static enum dicey_error craft_bool_response(
         }
     );
 
+    if (err) {
+        goto fail;
+    }
+
+    err = dicey_message_builder_build(&builder, dest);
+    if (err) {
+        goto fail;
+    }
+
+    return DICEY_OK;
+
+fail:
+    dicey_message_builder_discard(&builder);
+
+    return err;
+}
+
+static enum dicey_error craft_pathlist(
+    const struct dicey_registry *const registry,
+    const enum pathlist_policy policy,
+    struct dicey_packet *const dest
+) {
+    assert(registry && dest);
+
+    struct dicey_message_builder builder = { 0 };
+    enum dicey_error err = introspection_init_builder(
+        &builder, DICEY_REGISTRY_PATH, DICEY_REGISTRY_TRAIT_NAME, DICEY_REGISTRY_OBJECTS_PROP_NAME
+    );
+
+    if (err) {
+        goto fail;
+    }
+
+    struct dicey_value_builder value_builder = { 0 };
+    err = dicey_message_builder_value_start(&builder, &value_builder);
+    if (err) {
+        goto fail;
+    }
+
+    err = dicey_value_builder_array_start(&value_builder, DICEY_TYPE_PATH);
+    if (err) {
+        goto fail;
+    }
+
+    // TODO: implement an actual API to iterate over the registry's paths. We can do this here because this is a private
+    // registry function
+    struct dicey_hashtable_iter iter = dicey_hashtable_iter_start(registry->paths);
+
+    const char *path = NULL;
+    while (dicey_hashtable_iter_next(&iter, &path, NULL)) {
+        assert(path);
+
+        if (policy == PATHLIST_NO_ALIASES && dicey_registry_is_alias(registry, path) == DICEY_OK) {
+            continue; // skip aliases
+        }
+
+        struct dicey_value_builder element = { 0 };
+        err = dicey_value_builder_next(&value_builder, &element);
+        if (err) {
+            goto fail;
+        }
+
+        err = dicey_value_builder_set(
+            &element,
+            (struct dicey_arg) {
+                .type = DICEY_TYPE_PATH,
+                .path = path,
+            }
+        );
+
+        if (err) {
+            goto fail;
+        }
+    }
+
+    err = dicey_value_builder_array_end(&value_builder);
+    if (err) {
+        goto fail;
+    }
+
+    err = dicey_message_builder_value_end(&builder, &value_builder);
     if (err) {
         goto fail;
     }
@@ -341,6 +427,28 @@ enum dicey_error introspection_check_path_exists(
     );
 }
 
+enum dicey_error introspection_check_path_is_alias(
+    const struct dicey_registry *const registry,
+    const char *const path,
+    struct dicey_packet *const dest
+) {
+    assert(registry && path && dest);
+
+    const enum dicey_error err = dicey_registry_is_alias(registry, path);
+    switch (err) {
+    case DICEY_OK:
+    case DICEY_EPATH_NOT_ALIAS:
+        break; // these are the expected outcomes
+
+    default:
+        return err;
+    }
+
+    return craft_bool_response(
+        err == DICEY_OK, DICEY_REGISTRY_PATH, DICEY_REGISTRY_TRAIT_NAME, DICEY_REGISTRY_PATH_IS_ALIAS_OP_NAME, dest
+    );
+}
+
 enum dicey_error introspection_check_trait_exists(
     const struct dicey_registry *const registry,
     const char *const trait,
@@ -355,80 +463,18 @@ enum dicey_error introspection_check_trait_exists(
     );
 }
 
+enum dicey_error introspection_craft_objlist(
+    const struct dicey_registry *const registry,
+    struct dicey_packet *const dest
+) {
+    return craft_pathlist(registry, PATHLIST_NO_ALIASES, dest);
+}
+
 enum dicey_error introspection_craft_pathlist(
     const struct dicey_registry *const registry,
     struct dicey_packet *const dest
 ) {
-    assert(registry && dest);
-
-    struct dicey_message_builder builder = { 0 };
-    enum dicey_error err = introspection_init_builder(
-        &builder, DICEY_REGISTRY_PATH, DICEY_REGISTRY_TRAIT_NAME, DICEY_REGISTRY_OBJECTS_PROP_NAME
-    );
-
-    if (err) {
-        goto fail;
-    }
-
-    struct dicey_value_builder value_builder = { 0 };
-    err = dicey_message_builder_value_start(&builder, &value_builder);
-    if (err) {
-        goto fail;
-    }
-
-    err = dicey_value_builder_array_start(&value_builder, DICEY_TYPE_PATH);
-    if (err) {
-        goto fail;
-    }
-
-    // TODO: implement an actual API to iterate over the registry's paths. We can do this here because this is a private
-    // registry function
-    struct dicey_hashtable_iter iter = dicey_hashtable_iter_start(registry->paths);
-
-    const char *path = NULL;
-    while (dicey_hashtable_iter_next(&iter, &path, NULL)) {
-        assert(path);
-
-        struct dicey_value_builder element = { 0 };
-        err = dicey_value_builder_next(&value_builder, &element);
-        if (err) {
-            goto fail;
-        }
-
-        err = dicey_value_builder_set(
-            &element,
-            (struct dicey_arg) {
-                .type = DICEY_TYPE_PATH,
-                .path = path,
-            }
-        );
-
-        if (err) {
-            goto fail;
-        }
-    }
-
-    err = dicey_value_builder_array_end(&value_builder);
-    if (err) {
-        goto fail;
-    }
-
-    err = dicey_message_builder_value_end(&builder, &value_builder);
-    if (err) {
-        goto fail;
-    }
-
-    err = dicey_message_builder_build(&builder, dest);
-    if (err) {
-        goto fail;
-    }
-
-    return DICEY_OK;
-
-fail:
-    dicey_message_builder_discard(&builder);
-
-    return err;
+    return craft_pathlist(registry, PATHLIST_ALL, dest);
 }
 
 enum dicey_error introspection_craft_traitlist(
@@ -615,4 +661,49 @@ fail:
     dicey_message_builder_discard(&builder);
 
     return err;
+}
+
+enum dicey_error introspection_get_real_path(
+    const struct dicey_registry *const registry,
+    const char *const path,
+    struct dicey_packet *const dest
+) {
+    assert(registry && path && dest);
+
+    const char *real_path = dicey_registry_get_main_path(registry, path);
+    if (!real_path) {
+        return TRACE(DICEY_EPATH_NOT_FOUND);
+    }
+
+    struct dicey_message_builder builder = { 0 };
+    enum dicey_error err =
+        introspection_init_builder(&builder, path, DICEY_REGISTRY_TRAIT_NAME, DICEY_REGISTRY_REAL_PATH_OP_NAME);
+    if (err) {
+        return err;
+    }
+
+    struct dicey_value_builder value_builder = { 0 };
+    err = dicey_message_builder_value_start(&builder, &value_builder);
+    if (err) {
+        return err;
+    }
+
+    err = dicey_value_builder_set(
+        &value_builder,
+        (struct dicey_arg) {
+            .type = DICEY_TYPE_PATH,
+            .path = real_path,
+        }
+    );
+
+    if (err) {
+        return err;
+    }
+
+    err = dicey_message_builder_value_end(&builder, &value_builder);
+    if (err) {
+        return err;
+    }
+
+    return dicey_message_builder_build(&builder, dest);
 }
