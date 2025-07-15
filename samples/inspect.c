@@ -688,7 +688,7 @@ static int do_op(const struct inspect_args *const args) {
 
         const struct path *const pentry = value;
         if (pentry->kind == PATH_KIND_ALIAS) {
-            fprintf(args->output, "alias %s -> %s\n", pentry->path, path);
+            fprintf(args->output, "alias %s -> %s\n", pentry->path, pentry->alias);
 
             continue; // don't inspect aliases
         }
