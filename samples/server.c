@@ -77,6 +77,8 @@
 #define TEST_MGR_DEL_SIGNATURE "@ -> $"
 #define TEST_MGR_UNALIAS_ELEMENT "Unalias"
 #define TEST_MGR_UNALIAS_SIGNATURE "@ -> $"
+#define TEST_MGR_UNALIAS_ALL_ELEMENT "UnaliasAll"
+#define TEST_MGR_UNALIAS_ALL_SIGNATURE "@ -> $"
 
 #define TEST_OBJ_PATH_BASE "/dicey/test/object/"
 #define TEST_OBJ_PATH_FMT TEST_OBJ_PATH_BASE "%zu"
@@ -272,6 +274,11 @@ static const struct test_trait test_traits[] = {
                     .type = DICEY_ELEMENT_TYPE_OPERATION,
                     .name = TEST_MGR_UNALIAS_ELEMENT,
                     .signature = TEST_MGR_UNALIAS_SIGNATURE,
+                },
+                &(struct test_element) {
+                    .type = DICEY_ELEMENT_TYPE_OPERATION,
+                    .name = TEST_MGR_UNALIAS_ALL_ELEMENT,
+                    .signature = TEST_MGR_UNALIAS_ALL_SIGNATURE,
                 },
                 NULL,
             }, },
@@ -873,6 +880,26 @@ static enum dicey_error on_test_unalias(struct dicey_server *const server, struc
     return dicey_request_acknowledge(req);
 }
 
+static enum dicey_error on_test_unalias_all(struct dicey_server *const server, struct dicey_request *const req) {
+    assert(server && req);
+
+    const struct dicey_message *const msg = dicey_request_get_message(req);
+    assert(msg && msg->type == DICEY_OP_EXEC);
+
+    const char *path = NULL;
+    enum dicey_error err = dicey_value_get_path(&msg->value, &path);
+    if (err) {
+        return err;
+    }
+
+    err = dicey_server_drop_all_aliases_of_object(server, path);
+    if (err) {
+        return err;
+    }
+
+    return dicey_request_acknowledge(req);
+}
+
 static enum dicey_error on_test_obj_name(struct dicey_server *const server, struct dicey_request *const req) {
     assert(server && req);
 
@@ -1122,6 +1149,8 @@ static void on_request_received(struct dicey_server *const server, struct dicey_
         err = on_test_del(server, request);
     } else if (dicey_message_matches_element(msg, TEST_MGR_PATH, TEST_MGR_TRAIT, TEST_MGR_UNALIAS_ELEMENT)) {
         err = on_test_unalias(server, request);
+    } else if (dicey_message_matches_element(msg, TEST_MGR_PATH, TEST_MGR_TRAIT, TEST_MGR_UNALIAS_ALL_ELEMENT)) {
+        err = on_test_unalias_all(server, request);
     } else if (dicey_message_matches_element_under_root(
                    msg, TEST_OBJ_PATH_BASE, TEST_OBJ_TRAIT, TEST_OBJ_NAME_ELEMENT
                )) {
