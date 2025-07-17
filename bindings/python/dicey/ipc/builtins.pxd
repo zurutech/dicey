@@ -38,6 +38,9 @@ cdef extern from "dicey/dicey.h":
     cdef const char *DICEY_REGISTRY_PATH_EXISTS_OP_NAME
     cdef const char *DICEY_REGISTRY_PATH_EXISTS_OP_SIG
 
+    cdef const char *DICEY_REGISTRY_PATH_IS_ALIAS_OP_NAME
+    cdef const char *DICEY_REGISTRY_PATH_IS_ALIAS_OP_SIG
+
     cdef const char *DICEY_REGISTRY_TRAIT_EXISTS_OP_NAME
     cdef const char *DICEY_REGISTRY_TRAIT_EXISTS_OP_SIG
 
