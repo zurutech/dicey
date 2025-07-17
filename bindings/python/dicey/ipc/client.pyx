@@ -16,7 +16,7 @@ from typing import Any as _Any, Callable as _Callable, Optional as _Optional
 
 from inflection import underscore as _underscore
 
-from dicey.core import Byte, DiceyError, ObjectExistsError, Operation, Path, Selector
+from dicey.core import Byte, DiceyError, ObjectExistsError, Operation, Path, PathNotAliasError, Selector
 
 from dicey.core cimport _PacketWrapper, _check, Message, dicey_packet, dicey_selector
 
@@ -28,9 +28,10 @@ from .client cimport dicey_client, dicey_client_args, \
                      dicey_client_new, dicey_client_delete, \
                      dicey_client_set_context, \
                      dicey_client_connect, dicey_client_disconnect, dicey_client_request, \
-                     dicey_client_is_running, \
+                     dicey_client_get_real_path, dicey_client_is_path_alias, dicey_client_is_running, \
                      dicey_client_subscribe_to, dicey_client_unsubscribe_from, \
-                     dicey_client_inspect_path, dicey_client_inspect_path_as_xml
+                     dicey_client_inspect_path, dicey_client_inspect_path_as_xml, \
+                     dicey_client_list_objects, dicey_client_list_paths
 from .traits cimport dicey_element_type
 
 DEFAULT_TIMEOUT_MS = 1000
@@ -131,13 +132,24 @@ cdef class Client:
 
         return {name : dict(trait) for name, trait in entries}
 
+    def is_alias(self, path: Path | str, *, timeout_ms: int = DEFAULT_TIMEOUT_MS) -> bool:
+        try:
+            _check(dicey_client_is_path_alias(self._client, str(path).encode('ASCII'), timeout_ms))
+
+            return True
+        except PathNotAliasError:
+            return False
+
     def object(self, path: Path | str, *, timeout_ms: int = DEFAULT_TIMEOUT_MS):
         return _craft_object_for(self, path, timeout_ms=timeout_ms)
 
-    def objects(self, timeout_ms: int = DEFAULT_TIMEOUT_MS) -> _Any:
+    def objects(self, *, include_aliases=False, timeout_ms: int = DEFAULT_TIMEOUT_MS) -> _Any:
         cdef dicey_packet response
 
-        _check(dicey_client_list_objects(self._client, &response, timeout_ms))
+        if include_aliases:
+            _check(dicey_client_list_paths(self._client, &response, timeout_ms))
+        else:
+            _check(dicey_client_list_objects(self._client, &response, timeout_ms))
 
         return Message.from_cpacket(response).value
 
@@ -148,6 +160,12 @@ cdef class Client:
     @on_signal.setter
     def on_signal(self, value: GlobalSignalCallback):
         self._on_signal = value
+
+    def real_path_of(self, path: Path | str, *, timeout_ms: int = DEFAULT_TIMEOUT_MS) -> Path:
+        cdef dicey_packet response
+        _check(dicey_client_get_real_path(self._client, str(path).encode('ASCII'), &response, timeout_ms))
+
+        return Message.from_cpacket(response).value
 
     def register_for(self, path: Path | str, selector: Selector | (str, str), callback: SignalCallback):
         self._signal_map.setdefault((path, selector), set()).add(callback)
@@ -241,7 +259,16 @@ class Object:
         self._client = client
         self._path = Path(path)
         self._data = data
-        self._timeout_ms = timeout_ms        
+        self._timeout_ms = timeout_ms
+
+    @staticmethod
+    def is_alias(obj: Object) -> bool:
+        if hasattr(obj, '_is_alias'):
+            return obj._is_alias
+        else:
+            obj._is_alias = obj._client.is_alias(obj._path, timeout_ms=obj._timeout_ms)
+            
+            return obj._is_alias
 
     @staticmethod
     def metadata(obj: Object) -> dict[str, dict[str, tuple[Byte, str, _Optional[bool]]]]:
@@ -250,6 +277,15 @@ class Object:
     @staticmethod
     def path(obj: Object) -> Path:
         return obj._path
+
+    @staticmethod
+    def real_path(obj: Object) -> Path:
+        if hasattr(obj, '_real_path'):
+            return obj._real_path
+        else:
+            obj._real_path = obj._client.real_path_of(obj._path, timeout_ms=obj._timeout_ms)
+
+            return obj._real_path
 
     @staticmethod
     def traits(obj: Object) -> tuple[str]:

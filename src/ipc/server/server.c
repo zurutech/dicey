@@ -1203,25 +1203,6 @@ static enum dicey_error loop_request_add_aliases(
     return err;
 }
 
-static enum dicey_error loop_request_del_alias(
-    struct dicey_server *const server,
-    struct dicey_client_data *const client,
-    void *const payload
-) {
-    DICEY_UNUSED(client);
-
-    // no need to free the payload, it is a const char[] embedded in the request struct
-    const char *alias = payload;
-    assert(alias);
-
-    enum dicey_error err = DICEY_OK;
-    if (server) {
-        err = dicey_registry_unalias_object(&server->registry, alias);
-    }
-
-    return err;
-}
-
 static enum dicey_error loop_request_add_trait(
     struct dicey_server *const server,
     struct dicey_client_data *const client,
@@ -1244,6 +1225,25 @@ static enum dicey_error loop_request_add_trait(
     return dicey_registry_add_trait(&server->registry, trait);
 }
 
+static enum dicey_error loop_request_del_alias(
+    struct dicey_server *const server,
+    struct dicey_client_data *const client,
+    void *const payload
+) {
+    DICEY_UNUSED(client);
+
+    // no need to free the payload, it is a const char[] embedded in the request struct
+    const char *alias = payload;
+    assert(alias);
+
+    enum dicey_error err = DICEY_OK;
+    if (server) {
+        err = dicey_registry_unalias_object(&server->registry, alias);
+    }
+
+    return err;
+}
+
 static enum dicey_error loop_request_del_object(
     struct dicey_server *const server,
     struct dicey_client_data *const client,
@@ -1257,6 +1257,25 @@ static enum dicey_error loop_request_del_object(
     enum dicey_error err = DICEY_OK;
     if (server) {
         err = remove_object(server, path);
+    }
+
+    return err;
+}
+
+static enum dicey_error loop_request_drop_aliases(
+    struct dicey_server *const server,
+    struct dicey_client_data *const client,
+    void *const payload
+) {
+    DICEY_UNUSED(client);
+
+    // no need to free the payload, it is a const char[] embedded in the request struct
+    const char *path = payload;
+    assert(path);
+
+    enum dicey_error err = DICEY_OK;
+    if (server) {
+        err = dicey_registry_remove_all_object_aliases(&server->registry, path);
     }
 
     return err;
@@ -1913,6 +1932,51 @@ enum dicey_error dicey_server_delete_object_alias(struct dicey_server *const ser
             }
 
             assert((size_t) result == alias_size);
+
+            return dicey_server_submit_request(server, req);
+        }
+
+    default:
+        return TRACE(DICEY_EINVAL);
+    }
+}
+
+enum dicey_error dicey_server_drop_all_aliases_of_object(struct dicey_server *const server, const char *const path) {
+    assert(server && path);
+
+    // TODO: same concerns as above
+    switch ((enum dicey_server_state) server->state) {
+    case SERVER_STATE_UNINIT:
+    case SERVER_STATE_INIT:
+        {
+            struct dicey_registry *const registry = dicey_server_get_registry(server);
+            assert(registry);
+
+            return dicey_registry_remove_all_object_aliases(registry, path);
+        }
+
+    case SERVER_STATE_RUNNING:
+        {
+            const size_t path_size = dutl_zstring_size(path);
+            struct dicey_server_loop_request *const req = DICEY_SERVER_LOOP_REQ_NEW_WITH_BYTES(path_size);
+            if (!req) {
+                return TRACE(DICEY_ENOMEM);
+            }
+
+            *req = (struct dicey_server_loop_request) {
+                .cb = &loop_request_drop_aliases,
+                .target = DICEY_SERVER_LOOP_REQ_NO_TARGET,
+            };
+
+            struct dicey_view_mut payload = DICEY_SERVER_LOOP_REQ_GET_PAYLOAD_AS_VIEW_MUT(*req, path_size);
+            const ptrdiff_t result = dicey_view_mut_write_zstring(&payload, path);
+            if (result < 0) {
+                free(req);
+
+                return (enum dicey_error) result;
+            }
+
+            assert((size_t) result == path_size);
 
             return dicey_server_submit_request(server, req);
         }

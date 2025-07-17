@@ -873,6 +873,44 @@ enum dicey_error dicey_registry_is_alias(const struct dicey_registry *const regi
     return strcmp(object->main_path, path) ? DICEY_OK : DICEY_EPATH_NOT_ALIAS;
 }
 
+enum dicey_error dicey_registry_remove_all_object_aliases(
+    struct dicey_registry *const registry,
+    const char *const path
+) {
+    assert(registry && path);
+
+    if (!path_is_valid(path)) {
+        return TRACE(DICEY_EPATH_MALFORMED);
+    }
+
+    struct dicey_object *const object = dicey_registry_get_object_mut(registry, path);
+    if (!object) {
+        return TRACE(DICEY_EPATH_NOT_FOUND);
+    }
+
+    if (strcmp(object->main_path, path)) {
+        return TRACE(DICEY_EINVAL); // path must be the main path of the object, not an alias
+    }
+
+    struct dicey_hashset_iter iter = dicey_hashset_iter_start(object->aliases);
+    const char *alias = NULL;
+
+    while (dicey_hashset_iter_next(&iter, &alias)) {
+        assert(alias);
+
+        // remove the alias from the hashtable
+        const enum dicey_error err = registry_remove_path(registry, alias);
+        assert(!err); // the alias should always exist in the hashtable
+        DICEY_UNUSED(err);
+    }
+
+    // now that all aliases are removed, we can clear the aliases set
+    dicey_hashset_delete(object->aliases);
+    object->aliases = NULL;
+
+    return DICEY_OK;
+}
+
 enum dicey_error dicey_registry_remove_object(struct dicey_registry *const registry, const char *const path) {
     assert(registry && path);
 

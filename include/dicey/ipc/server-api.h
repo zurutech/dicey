@@ -269,6 +269,22 @@ DICEY_EXPORT enum dicey_error dicey_server_delete_object_alias(struct dicey_serv
 DICEY_EXPORT enum dicey_error dicey_server_delete_object(struct dicey_server *server, const char *path);
 
 /**
+ * @brief Deletes all aliases of an object from the server.
+ * @note This function has a different behaviour depending on whether the server is running or not. If the server is
+ *       in a stopped state, the aliases are removed from the server's registry immediately. If the server is running,
+ * the request is executed on the server thread: the function only submit the request to the server thread and return
+ * immediately.
+ * @param server The server to delete the aliases from.
+ * @param path   The path at which the object is accessible. Must be the object's main path, not an alias.
+ * @return       Error code. The possible values are several and include:
+ *               - OK: the aliases were successfully deleted
+ *               - EINVAL: the path is not the main path of the object (i.e. it is an alias)
+ *               - EPATH_MALFORMED: the path is malformed
+ *               - EPATH_NOT_FOUND: the object is not registered
+ */
+DICEY_EXPORT enum dicey_error dicey_server_drop_all_aliases_of_object(struct dicey_server *server, const char *path);
+
+/**
  * @brief Gets the context associated with the server, as set by `dicey_server_set_context`.
  * @param server The server to get the context from.
  * @return       The context pointer associated with the server (or NULL if none was set).

@@ -406,6 +406,23 @@ DICEY_EXPORT struct dicey_trait *dicey_registry_get_trait(const struct dicey_reg
 DICEY_EXPORT enum dicey_error dicey_registry_is_alias(const struct dicey_registry *registry, const char *path);
 
 /**
+ * @brief Removes all aliases of an object from the registry.
+ * @note  This will not remove the object itself, only its aliases.
+ * @param registry The registry to remove the aliases from.
+ * @param path     The path of the object to remove the aliases for. It must be the main path of the object,
+ *                 not an alias.
+ * @return         Error code. Possible values are:
+ *                 - OK: the aliases were successfully removed
+ *                 - EINVAL: the path is not the main path of the object (i.e. it is an alias)
+ *                 - EPATH_MALFORMED: the path is malformed
+ *                 - EPATH_NOT_FOUND: no object exists at the given path
+ */
+DICEY_EXPORT enum dicey_error dicey_registry_remove_all_object_aliases(
+    struct dicey_registry *registry,
+    const char *path
+);
+
+/**
  * @brief Removes an object from the registry.
  * @param registry The registry to remove the object from.
  * @param path     The path to the object.
