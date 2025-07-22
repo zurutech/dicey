@@ -375,6 +375,8 @@ out:; // the ; is needed, because C standard doesn't allow declarations after la
         }
     }
 
+    dicey_hashset_delete(inserted_aliases);
+
     return good ? DICEY_OK : err;
 }
 
