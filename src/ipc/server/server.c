@@ -321,21 +321,51 @@ static enum dicey_error registry_add_aliases(
         return DICEY_OK; // no aliases to add
     }
 
+    struct dicey_hashset *inserted_aliases = NULL;
     struct dicey_hashset_iter iter = dicey_hashset_iter_start(aliases);
     const char *alias = NULL;
     enum dicey_error err = DICEY_OK;
 
     while (dicey_hashset_iter_next(&iter, &alias)) {
+next:
         err = dicey_registry_alias_object(registry, path, alias);
 
-        // if the alias already exists, we can ignore the error
-        if (err && err != DICEY_EEXIST) {
+        switch (err) {
+        case DICEY_OK:
+            break;
+
+        case DICEY_EEXIST:
+            // if the alias already exists, we can ignore the error and don't waste time with hashset_add
+            goto next;
+
+        default:
+            goto out; // stop in case we encounter an unexpected error
+        }
+
+        // we successfully added an alias, so we add it to the set of inserted aliases
+        // this is used to remove the aliases if we fail later
+        switch (dicey_hashset_add(&inserted_aliases, alias)) {
+        case DICEY_HASH_SET_FAILED:
+            // ENOMEM is way more serious than any other existing error
+            err = TRACE(DICEY_ENOMEM);
+
+            goto out; // jump out immediately
+
+        case DICEY_HASH_SET_ADDED:
+            break;
+
+        case DICEY_HASH_SET_UPDATED:
+            assert(false); // we should never update an alias, it should have been added already
             break;
         }
     }
 
-    if (err && err != DICEY_EEXIST) {
-        iter = dicey_hashset_iter_start(aliases);
+out:; // the ; is needed, because C standard doesn't allow declarations after labels. ; introduces an empty statement
+
+    const bool good = !err || err == DICEY_EEXIST;
+
+    if (!good) {
+        iter = dicey_hashset_iter_start(inserted_aliases);
         alias = NULL;
 
         while (dicey_hashset_iter_next(&iter, &alias)) {
@@ -345,7 +375,9 @@ static enum dicey_error registry_add_aliases(
         }
     }
 
-    return DICEY_OK;
+    dicey_hashset_delete(inserted_aliases);
+
+    return good ? DICEY_OK : err;
 }
 
 static enum dicey_error server_sendpkt(
