@@ -603,7 +603,7 @@ static enum dicey_error query_paths(
         const enum dicey_hash_set_result res = dicey_hashtable_set(&paths, path, alias, NULL);
         switch (res) {
         case DICEY_HASH_SET_FAILED:
-            path_delete(apath);
+            path_delete(alias);
             err = DICEY_ENOMEM; // memory allocation failed
 
             goto quit;
@@ -614,7 +614,7 @@ static enum dicey_error query_paths(
         case DICEY_HASH_SET_UPDATED:
             // this should never happen, server is broken if this happens
             assert(false);
-            path_delete(apath);
+            path_delete(alias);
             err = DICEY_EINVAL;
 
             goto quit;
