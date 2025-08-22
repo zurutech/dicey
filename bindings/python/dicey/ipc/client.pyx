@@ -325,7 +325,7 @@ def _craft_object_for(client: Client, path: Path | str, timeout_ms: int, skip_in
                 if not ro:
                     wrapper = wrapper_for(sig)
                     prop = prop.setter(lambda self, *value, trait=trait, elem=elem, wrapper=wrapper: self._client.set(
-                        self._path, (trait, elem), wrapper(value), timeout_ms=self._timeout_ms))
+                        self._path, (trait, elem), wrapper(*value), timeout_ms=self._timeout_ms))
 
                 synthesised = prop
 
